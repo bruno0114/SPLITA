@@ -1,8 +1,28 @@
-import React from 'react';
-import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils } from 'lucide-react';
-import { MOCK_TRANSACTIONS } from '@/lib/constants';
+import React, { useState } from 'react';
+import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt } from 'lucide-react';
+import { usePersonalTransactions, PersonalTransaction } from '../hooks/usePersonalTransactions';
 
 const PersonalFinance: React.FC = () => {
+  const { transactions, summary, loading, addTransaction } = usePersonalTransactions();
+  const [showModal, setShowModal] = useState(false);
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+
+  const getBalanceChange = () => {
+    // Calculate month-over-month change (simplified for now)
+    if (summary.totalIncome === 0) return 0;
+    return Math.round((summary.balance / summary.totalIncome) * 100);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="px-6 md:px-12 py-6 md:py-10 pb-32">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-10 gap-4">
@@ -10,7 +30,10 @@ const PersonalFinance: React.FC = () => {
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Finanzas personales</h2>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Gestioná tus ahorros y gastos individuales.</p>
         </div>
-        <button className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-gradient px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:brightness-110 transition-all active:scale-95">
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-gradient px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:brightness-110 transition-all active:scale-95"
+        >
           <Plus className="w-5 h-5" />
           Cargar movimiento
         </button>
@@ -22,14 +45,18 @@ const PersonalFinance: React.FC = () => {
         <div className="relative z-10">
           <p className="text-blue-600 dark:text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Tu balance general</p>
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-4xl md:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">$245.850</span>
+            <span className="text-4xl md:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
+              {formatCurrency(summary.balance)}
+            </span>
             <span className="text-lg md:text-xl text-slate-500 dark:text-slate-400 font-medium">ARS</span>
           </div>
           <div className="mt-6 flex gap-4">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
-              <ArrowUp className="w-3 h-3" />
-              +12.5% este mes
-            </div>
+            {summary.balance !== 0 && (
+              <div className={`flex items-center gap-2 ${summary.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20'} px-3 py-1 rounded-full text-xs font-bold border`}>
+                {summary.balance >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                {summary.balance >= 0 ? '+' : ''}{getBalanceChange()}% este mes
+              </div>
+            )}
           </div>
         </div>
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full"></div>
@@ -43,7 +70,7 @@ const PersonalFinance: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mis ingresos</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">$310.200</p>
+            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatCurrency(summary.totalIncome)}</p>
           </div>
         </div>
         <div className="glass-panel p-5 md:p-6 rounded-2xl flex flex-row md:flex-col items-center md:items-start gap-4 group hover:bg-black/5 dark:hover:bg-white/[0.07] transition-all">
@@ -52,7 +79,7 @@ const PersonalFinance: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Gastos propios</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">$45.320</p>
+            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatCurrency(summary.totalExpenses)}</p>
           </div>
         </div>
         <div className="glass-panel p-5 md:p-6 rounded-2xl flex flex-row md:flex-col items-center md:items-start gap-4 group hover:bg-black/5 dark:hover:bg-white/[0.07] transition-all">
@@ -60,8 +87,8 @@ const PersonalFinance: React.FC = () => {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">En grupos</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">$19.030</p>
+            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Movimientos</p>
+            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{transactions.length}</p>
           </div>
         </div>
       </div>
@@ -70,65 +97,198 @@ const PersonalFinance: React.FC = () => {
       <section>
         <div className="flex justify-between items-center mb-6 px-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Movimientos personales</h3>
-          <button className="text-sm text-blue-500 hover:text-blue-600 font-semibold hover:underline">Ver todos</button>
+          {transactions.length > 5 && (
+            <button className="text-sm text-blue-500 hover:text-blue-600 font-semibold hover:underline">Ver todos</button>
+          )}
         </div>
-        <div className="space-y-3">
-          <TransactionCard 
-             icon={<ShoppingBag className="w-5 h-5 text-slate-600 dark:text-slate-300" />} 
-             bg="bg-slate-100 dark:bg-slate-800" 
-             title="Supermercado Coto" 
-             subtitle="Compras • Hoy, 14:30" 
-             amount="-$12.450" 
-             type="Débito"
-          />
-          <TransactionCard 
-             icon={<DollarSign className="w-5 h-5 text-blue-500 dark:text-blue-400" />} 
-             bg="bg-blue-500/10 dark:bg-blue-500/20" 
-             title="Sueldo Mensual" 
-             subtitle="Ingresos • Ayer" 
-             amount="+$285.000" 
-             type="Transferencia"
-             positive
-             highlight
-          />
-          <TransactionCard 
-             icon={<Car className="w-5 h-5 text-slate-600 dark:text-slate-300" />} 
-             bg="bg-slate-100 dark:bg-slate-800" 
-             title="Carga Combustible Shell" 
-             subtitle="Transporte • 12 Oct" 
-             amount="-$8.900" 
-             type="Crédito"
-          />
-          <TransactionCard 
-             icon={<Utensils className="w-5 h-5 text-purple-600 dark:text-purple-400" />} 
-             bg="bg-purple-500/10" 
-             title="Hamburguesería La Birra" 
-             subtitle="Comida • 11 Oct" 
-             amount="-$4.200" 
-             type="Mercado Pago"
-          />
-        </div>
+
+        {transactions.length === 0 ? (
+          <div className="glass-panel rounded-2xl p-12 text-center">
+            <Receipt className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Sin movimientos aún</h4>
+            <p className="text-slate-500 text-sm mb-6">Cargá tu primer ingreso o gasto para empezar a trackear tus finanzas.</p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-2 bg-blue-gradient px-6 py-3 rounded-xl font-bold text-sm text-white"
+            >
+              <Plus className="w-4 h-4" />
+              Cargar movimiento
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.slice(0, 10).map((tx) => (
+              <TransactionCard key={tx.id} transaction={tx} />
+            ))}
+          </div>
+        )}
       </section>
+
+      {/* Add Transaction Modal */}
+      {showModal && (
+        <AddTransactionModal
+          onClose={() => setShowModal(false)}
+          onSave={addTransaction}
+        />
+      )}
     </div>
   );
 };
 
-const TransactionCard = ({ icon, bg, title, subtitle, amount, type, positive = false, highlight = false }: any) => (
-  <div className={`glass-panel p-4 rounded-2xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer border-transparent hover:border-black/5 dark:hover:border-white/10 ${highlight ? 'border-l-4 border-l-blue-500' : ''}`}>
-    <div className="flex items-center gap-4">
-      <div className={`size-12 rounded-xl ${bg} flex items-center justify-center`}>
-        {icon}
+const TransactionCard = ({ transaction }: { transaction: PersonalTransaction }) => {
+  const isIncome = transaction.type === 'income';
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Hoy';
+    if (date.toDateString() === yesterday.toDateString()) return 'Ayer';
+    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+  };
+
+  return (
+    <div className={`glass-panel p-4 rounded-2xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer ${isIncome ? 'border-l-4 border-l-emerald-500' : ''}`}>
+      <div className="flex items-center gap-4">
+        <div className={`size-12 rounded-xl flex items-center justify-center ${isIncome ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+          {isIncome ? <DollarSign className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
+        </div>
+        <div>
+          <p className="font-bold text-sm text-slate-900 dark:text-white">{transaction.title}</p>
+          <p className="text-xs text-slate-500 font-medium">
+            {transaction.category || 'Sin categoría'} • {formatDate(transaction.date)}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="font-bold text-sm text-slate-900 dark:text-white">{title}</p>
-        <p className="text-xs text-slate-500 font-medium">{subtitle}</p>
+      <div className="text-right">
+        <p className={`font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+          {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+        </p>
+        <p className="text-[10px] text-slate-500 uppercase tracking-tight">
+          {transaction.payment_method || 'Efectivo'}
+        </p>
       </div>
     </div>
-    <div className="text-right">
-      <p className={`font-bold text-sm ${positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{amount}</p>
-      <p className="text-[10px] text-slate-500 uppercase tracking-tight">{type}</p>
+  );
+};
+
+interface AddTransactionModalProps {
+  onClose: () => void;
+  onSave: (data: any) => Promise<{ data?: any; error: any }>;
+}
+
+const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onSave }) => {
+  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!title || !amount) return;
+    setSaving(true);
+    await onSave({
+      title,
+      amount: parseFloat(amount),
+      category,
+      type
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+      <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nuevo movimiento</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Type Toggle */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setType('expense')}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'expense'
+              ? 'bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+              }`}
+          >
+            Gasto
+          </button>
+          <button
+            onClick={() => setType('income')}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'income'
+              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+              }`}
+          >
+            Ingreso
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Descripción</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej: Supermercado Coto"
+              className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0"
+                className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-bold focus:ring-2 focus:ring-primary focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Categoría (opcional)</label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="Ej: Compras, Transporte..."
+              className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-8">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title || !amount || saving}
+            className="flex-1 py-3 rounded-xl bg-blue-gradient text-white font-bold shadow-lg shadow-blue-500/30 hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default PersonalFinance;

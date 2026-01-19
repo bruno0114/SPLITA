@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, X, Heart, User, Users, Check, ArrowRight, Link as LinkIcon, Copy, Facebook, Mail, Lock, Smartphone, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { GROUP_MEMBERS, CURRENT_USER } from '@/lib/constants';
+import { GROUP_MEMBERS } from '@/lib/constants';
 
 interface OnboardingProps {
    onComplete: () => void;
@@ -406,9 +406,29 @@ const StepCreateAccount = ({ onNext, onBack, progress, onLogin, onboardingData }
 
          if (authError) throw authError;
 
+         const supabaseModule = await import('@/lib/supabase');
+         const supabase = supabaseModule.supabase;
+
+         // Save user settings from onboarding Step 5
+         if (authData.user) {
+            const { error: settingsError } = await supabase
+               .from('user_settings')
+               .upsert({
+                  user_id: authData.user.id,
+                  usage_type: onboardingData.usageType,
+                  detect_recurring: onboardingData.settings.detectRecurring,
+                  split_default: onboardingData.settings.splitDefault,
+                  notify_new: onboardingData.settings.notifyNew
+               });
+
+            if (settingsError) {
+               console.error("Error saving user settings:", settingsError);
+            }
+         }
+
          // If we have a group name, create it
          if (onboardingData.groupName && authData.user) {
-            const { data: group, error: groupError } = await (await import('@/lib/supabase')).supabase
+            const { data: group, error: groupError } = await supabase
                .from('groups')
                .insert({
                   name: onboardingData.groupName,
@@ -420,19 +440,24 @@ const StepCreateAccount = ({ onNext, onBack, progress, onLogin, onboardingData }
 
             if (groupError) {
                console.error("Error creating group:", groupError);
-               // We don't block the onboarding completion if group creation fails 
-               // but ideally we should handle it better.
             } else if (group) {
-               // Add members if any
-               if (onboardingData.groupMembers.length > 0) {
-                  const membersToInsert = onboardingData.groupMembers.map(email => ({
+               // Add creator as admin member
+               const { error: memberError } = await supabase
+                  .from('group_members')
+                  .insert({
                      group_id: group.id,
-                     user_id: null, // They don't have accounts yet
-                     role: 'member'
-                  }));
-                  // Note: This needs a 'group_invites' table or similar for non-existent users
-                  // For now, we'll skip member insertion as the DB schema might not support NULL user_id
-                  console.log("Planned members:", membersToInsert);
+                     user_id: authData.user.id,
+                     role: 'admin'
+                  });
+
+               if (memberError) {
+                  console.error("Error adding creator as member:", memberError);
+               }
+
+               // Note: Invited members (emails) would need a group_invites table
+               // For now we log them for future implementation
+               if (onboardingData.groupMembers.length > 0) {
+                  console.log("Pending invites:", onboardingData.groupMembers);
                }
             }
          }
