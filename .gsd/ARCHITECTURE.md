@@ -4,76 +4,118 @@
 
 ## Overview
 
-SPLITA is a financial management PWA designed to help users manage personal finances and split group expenses. It currently features a high-fidelity UI with mocked data and manual routing.
+SPLITA is a financial management PWA for personal finance tracking and group expense splitting. Built with React 19, TypeScript, and Supabase backend.
 
-```mermaid
-graph TD
-    User[User] --> App[App.tsx]
-    App --> Router[Manual Routing Logic]
-    
-    subgraph Pages
-        Router --> Login
-        Router --> Onboarding
-        Router --> PersonalFinance[Personal Finance Dashboard]
-        Router --> Groups[Groups Dashboard]
-        Router --> GroupDetails
-        Router --> ImportExpenses[Import AI]
-        Router --> Settings
-        Router --> EconomicHealth
-    end
-    
-    subgraph Data
-        Constants[constants.ts (MOCK_DATA)]
-        State[App Local State]
-    end
-    
-    Pages --> Constants
-    App --> State
+```
+┌─────────────────────────────────────────────────────┐
+│                    App.tsx (Router)                 │
+│           Theme, Currency, Navigation State         │
+├─────────────────────────────────────────────────────┤
+│  AuthProvider     │  Layout Components              │
+│  (Supabase Auth)  │  Sidebar, Header, BottomNav     │
+├───────────────────┴─────────────────────────────────┤
+│                  Feature Modules                    │
+│  ┌─────────┬─────────┬─────────┬─────────┬───────┐ │
+│  │  auth   │dashboard│ groups  │expenses │settings│ │
+│  │ context │ pages   │ hooks   │ hooks   │ hooks  │ │
+│  │ hooks   │ hooks   │ pages   │ pages   │ pages  │ │
+│  │ pages   │         │         │         │        │ │
+│  └─────────┴─────────┴─────────┴─────────┴───────┘ │
+├─────────────────────────────────────────────────────┤
+│                  Data Layer                         │
+│    supabase.ts  │  Custom Hooks  │  Types           │
+└─────────────────────────────────────────────────────┘
+                          │
+                          ▼
+              ┌───────────────────────┐
+              │   Supabase Backend    │
+              │  PostgreSQL + Auth    │
+              │       + RLS           │
+              └───────────────────────┘
 ```
 
-## Components
+## Feature Modules
 
-### Core Layout
-- **App.tsx**: Main entry point, handles global state (theme, currency, routes) and layout.
-- **components/Sidebar.tsx**: Desktop navigation.
-- **components/BottomNav.tsx**: Mobile navigation.
-- **components/Header.tsx**: Top bar with theme/currency toggles.
+### auth
+- **Purpose:** Authentication, onboarding, login
+- **Location:** `src/features/auth/`
+- **Components:**
+  - `AuthContext.tsx` - Global auth state provider
+  - `useAuth.ts` - Auth actions hook
+  - `Login.tsx` - Email/OAuth login page
+  - `Onboarding.tsx` - 6-step new user flow
+  - `ProtectedRoute.tsx` - Route guard
 
-### Features
-- **pages/PersonalFinance.tsx**: Dashboard for individual expenses.
-- **pages/Groups.tsx**: List of expense groups.
-- **pages/GroupDetails.tsx**: Detail view of a specific group.
-- **pages/ImportExpenses.tsx**: AI-powered receipt scanning interface.
-- **pages/EconomicHealth.tsx**: Financial scoring and insights.
-- **pages/Onboarding.tsx**: Initial user setup flow.
-- **pages/Login.tsx**: Authentication screen (currently visual only).
+### dashboard
+- **Purpose:** Personal finance views
+- **Location:** `src/features/dashboard/`
+- **Components:**
+  - `PersonalFinance.tsx` - Balance, transactions list
+  - `EconomicHealth.tsx` - Financial health score
+  - `usePersonalTransactions.ts` - CRUD for personal_transactions
+  - `useEconomicHealth.ts` - Score calculation
+
+### groups
+- **Purpose:** Group expense management
+- **Location:** `src/features/groups/`
+- **Components:**
+  - `Groups.tsx` - Group list with create modal
+  - `GroupDetails.tsx` - Single group view
+  - `useGroups.ts` - CRUD for groups/group_members
+
+### expenses
+- **Purpose:** Shared expense tracking + AI import
+- **Location:** `src/features/expenses/`
+- **Components:**
+  - `ImportExpenses.tsx` - Gemini AI receipt scanner
+  - `useTransactions.ts` - Group transactions CRUD
+
+### settings
+- **Purpose:** User profile and preferences
+- **Location:** `src/features/settings/`
+- **Components:**
+  - `Settings.tsx` - Profile edit, currency settings
+  - `useProfile.ts` - Profile CRUD
 
 ## Data Flow
 
-Current data flow is unidirectional from constants/state to components.
-
-1. **State Management**: React `useState` at root level (`App.tsx`) triggers re-renders.
-2. **Data Source**: Static mock data imported from `constants.ts`.
-3. **AI Integration**: `@google/genai` is used in `ImportExpenses.tsx` to process images, but results are not persisted.
+1. **Authentication:** `AuthProvider` checks Supabase session → sets global user state
+2. **Protected Routes:** `ProtectedRoute` checks auth → redirects if not authenticated
+3. **Feature Hooks:** Each feature has hooks that fetch from Supabase with RLS
+4. **Real-time Updates:** Hooks use `useEffect` to fetch on mount/user change
 
 ## Integration Points
 
-| Service | Type | Purpose | Status |
-|---------|------|---------|--------|
-| Google Gemini | SDK | Receipt image analysis | implemented (client-side only) |
-| Supabase | Database | Data persistence | **PLANNED** |
-| Supabase Auth | Auth | User authentication | **PLANNED** |
+| Service | Type | Purpose |
+|---------|------|---------|
+| Supabase Auth | OAuth + Email | User authentication |
+| Supabase Database | PostgreSQL | Data persistence |
+| Google Gemini | AI API | Receipt/invoice scanning |
+| DolarAPI | REST API | Real-time exchange rates |
+
+## Database Tables
+
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| profiles | User profiles | ✓ |
+| groups | Expense groups | ✓ |
+| group_members | Group membership | ✓ |
+| transactions | Group transactions | ✓ |
+| transaction_splits | Who owes what | ✓ |
+| personal_transactions | Personal finance | ✓ |
+| user_settings | Preferences | ✓ |
 
 ## Technical Debt
 
-- [ ] **Manual Routing**: Using `useState` for routing instead of a proper router like `react-router-dom`.
-- [ ] **Mock Data**: Heavy reliance on `constants.ts` for all data.
-- [ ] **Props Drilling**: Navigation and global state are passed down through multiple levels of props.
-- [ ] **No Persistence**: Data is lost on refresh.
-- [ ] **Flat Architecture**: All components/pages at top level or shallow nesting.
+- [ ] Group invitations (pending members) not implemented
+- [ ] Avatar upload with WebP compression not implemented
+- [ ] Real-time activity feed placeholder
+- [ ] Group balance calculation returns 0 (needs pivot query)
+- [ ] No automated tests
 
 ## Conventions
 
-**Naming:** PascalCase for components, camelCase for functions/vars.
-**Structure:** Feature-based pages, shared components.
-**Testing:** No testing infrastructure found.
+- **Naming:** PascalCase components, camelCase hooks/functions
+- **Structure:** Feature-based with pages/hooks/components subdirs
+- **State:** React hooks + Supabase real-time
+- **Styling:** Tailwind CSS + custom glassmorphism classes

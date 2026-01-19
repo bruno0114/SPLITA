@@ -6,42 +6,62 @@
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | v22.x (inferred) | Development runtime |
-| Browser | Modern | Application host |
+| Node.js | Latest | JavaScript runtime |
+| Vite | ^6.2.0 | Build tool & dev server |
+| TypeScript | ~5.8.2 | Type checking |
 
 ## Dependencies
 
 ### Production
+
 | Package | Version | Purpose |
 |---------|---------|---------|
-| react | ^19.2.3 | UI Library |
-| react-dom | ^19.2.3 | DOM binding |
-| lucide-react | ^0.562.0 | Icons |
-| @google/genai | ^1.37.0 | AI Integration |
+| react | ^19.2.3 | UI framework |
+| react-dom | ^19.2.3 | React DOM renderer |
+| react-router-dom | ^6.30.3 | Client-side routing |
+| @supabase/supabase-js | ^2.78.0 | Supabase client (auth, DB) |
+| @google/genai | ^1.37.0 | Google Gemini AI SDK |
+| lucide-react | ^0.562.0 | Icon library |
 
 ### Development
+
 | Package | Version | Purpose |
 |---------|---------|---------|
-| typescript | ~5.8.2 | Type safety |
-| vite | ^6.2.0 | Build tool / Bundler |
-| @vitejs/plugin-react | ^5.0.0 | Vite React plugin |
-| @types/node | ^22.14.0 | Node types |
+| @vitejs/plugin-react | ^5.0.0 | React Vite plugin |
+| @types/node | ^22.14.0 | Node.js types |
+| @types/react-router-dom | ^5.3.3 | Router types |
+| typescript | ~5.8.2 | TypeScript compiler |
+| vite | ^6.2.0 | Build tool |
 
 ## Infrastructure
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| Database | Supabase (Planned) | Relational Data |
-| Auth | Supabase (Planned) | Authentication |
+| Database | Supabase (PostgreSQL) | Data storage |
+| Authentication | Supabase Auth | User management |
+| Storage | Supabase Storage | File uploads (planned) |
+| AI | Google Gemini | Receipt scanning |
 
 ## Configuration
 
 | Variable | Purpose | Location |
 |----------|---------|----------|
-| `vite.config.ts` | Build config | Project Root |
-| `tsconfig.json` | TS config | Project Root |
-| `tailwind.config.js` | Styling (Assumed) | Project Root |
+| VITE_SUPABASE_URL | Supabase project URL | .env |
+| VITE_SUPABASE_ANON_KEY | Supabase anon key | .env |
 
-## Outdated Packages
+## Project Stats
 
-Not analyzed in this session.
+| Metric | Value |
+|--------|-------|
+| Source files | 24 |
+| Feature modules | 5 |
+| Database tables | 7 |
+| External APIs | 3 |
+
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview build |
