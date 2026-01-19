@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPLITA - Financial Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+            },
+            colors: {
+              background: 'rgb(var(--bg-color) / <alpha-value>)',
+              surface: 'rgb(var(--surface-color) / <alpha-value>)',
+              border: 'rgb(var(--border-color) / <alpha-value>)',
+              primary: '#007AFF',
+              'primary-dark': '#0056b3',
+            },
+            backgroundImage: {
+              'blue-gradient': 'linear-gradient(135deg, #007AFF 0%, #003366 100%)',
+            },
+            keyframes: {
+              shimmer: {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              },
+              'out-in': {
+                '0%': { transform: 'scale(0.5)', opacity: '0' },
+                '60%': { transform: 'scale(1.1)', opacity: '1' },
+                '100%': { transform: 'scale(1)', opacity: '1' }
+              }
+            },
+            animation: {
+              shimmer: 'shimmer 2s infinite linear',
+              'out-in': 'out-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        /* Light Mode Variables */
+        --bg-color: 248 250 252;   /* slate-50 */
+        --surface-color: 255 255 255; /* white */
+        --border-color: 226 232 240;  /* slate-200 */
+        
+        /* Glass Panel Light */
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(0, 0, 0, 0.06);
+        --glass-blur: 16px;
+      }
+
+      .dark {
+        /* Dark Mode Variables */
+        --bg-color: 5 7 10;        /* #05070A */
+        --surface-color: 10 15 22;    /* #0A0F16 */
+        --border-color: 30 41 59;     /* #1E293B */
+
+        /* Glass Panel Dark */
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+      }
+
+      body {
+        background-color: rgb(var(--bg-color));
+        color: #0f172a; /* Default light text (slate-900) */
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      .dark body {
+        color: #ffffff;
+      }
+
+      /* Custom Scrollbar - Adaptive */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; /* slate-300 */
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; /* slate-400 */
+      }
+      
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155; /* slate-700 */
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #475569; /* slate-600 */
+      }
+
+      .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--glass-border);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
