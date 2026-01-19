@@ -1,94 +1,64 @@
 ---
 phase: 1
-plan: 1.1
+plan: 1
 wave: 1
 ---
 
-# Plan 1.1: Architecture Restructure
+# Plan 1.1: Functional Onboarding Persistence
 
 ## Objective
-Establish a scalable, feature-based folder structure and install routing dependencies. This prepares the codebase for the routing implementation without changing logic yet.
+Enable complete data capture during the 6-step onboarding flow and persist it to Supabase after the user creates their account.
 
 ## Context
-- .gsd/SPEC.md (Goal 1: Architecture & Routing)
-- .gsd/ARCHITECTURE.md
-- vite.config.ts (Alias '@' is confirmed)
+- `Onboarding.tsx`
+- `useAuth.ts`
+- `useGroups.ts`
+- `.gsd/phases/1/RESEARCH.md`
 
 ## Tasks
 
 <task type="auto">
-  <name>Install Dependencies</name>
-  <files>package.json</files>
+  <name>Onboarding State Management</name>
+  <files>src/features/auth/pages/Onboarding.tsx</files>
   <action>
-    Install `react-router-dom` and its types.
-    - `npm install react-router-dom`
-    - `npm install -D @types/react-router-dom`
+    - Initialize a `formData` object to collect: usageType, groupName, groupMembers (emails), and settings (toggles).
+    - Update each Step component to receive and update this state:
+      - Step 2: Set `usageType`.
+      - Step 3: Set `groupName`.
+      - Step 4: Add/Remove from `groupMembers` list.
+      - Step 5: Update `settings` object.
   </action>
-  <verify>grep "react-router-dom" package.json</verify>
-  <done>Package installed</done>
+  <verify>Check state updates in React DevTools (conceptually) or add loggers.</verify>
+  <done>All 6 steps update the central formData object correctly.</done>
 </task>
 
 <task type="auto">
-  <name>Create Folder Structure</name>
-  <files>src/features, src/components/layout, src/components/ui, src/hooks, src/utils, src/types</files>
+  <name>Persistence Implementation</name>
+  <files>src/features/auth/pages/Onboarding.tsx</files>
   <action>
-    Create the following directory structure:
-    - `src/features/auth` (pages, components)
-    - `src/features/dashboard` (pages, components)
-    - `src/features/groups` (pages, components)
-    - `src/features/expenses` (pages, components)
-    - `src/components/layout`
-    - `src/components/ui`
-    - `src/lib` (for constants, utils)
+    - Modify `handleSignUp` in `StepCreateAccount` (Step 6) to perform the following after successful auth:
+      1. Update user profile/metadata with `usageType`.
+      2. If `groupName` is set, create a new Group in Supabase.
+      3. Add the current user as the owner of the group.
+      4. (Optional MVP) Store invited emails as pending in a groups_invites table or similar.
+      5. Store settings in user metadata.
+    - Ensure loading states cover the entire persistence process.
   </action>
-  <verify>ls -R src/features</verify>
-  <done>Directories exist</done>
+  <verify>Create a new account -> Check Supabase 'groups' table for the new group name.</verify>
+  <done>Real data is created in Supabase tables upon signup completion.</done>
 </task>
 
-<task type="auto">
-  <name>Migrate Files</name>
-  <files>src/**/*</files>
+<task type="checkpoint:human-verify">
+  <name>Onboarding End-to-End</name>
+  <files>src/features/auth/pages/Onboarding.tsx</files>
   <action>
-    Move files to their new locations:
-    
-    **Shared:**
-    - `components/Sidebar.tsx`, `Header.tsx`, `BottomNav.tsx` -> `components/layout/`
-    - `types.ts` -> `types/index.ts`
-    - `constants.ts` -> `lib/constants.ts`
-    
-    **Features:**
-    - `pages/Login.tsx`, `pages/Onboarding.tsx` -> `features/auth/pages/`
-    - `pages/PersonalFinance.tsx`, `pages/EconomicHealth.tsx` -> `features/dashboard/pages/`
-    - `pages/Groups.tsx`, `pages/GroupDetails.tsx` -> `features/groups/pages/`
-    - `pages/ImportExpenses.tsx` -> `features/expenses/pages/`
-    - `pages/Settings.tsx` -> `features/settings/pages/` (Create feature)
-    
-    **Cleanup:**
-    - Remove empty `pages` directory.
+    Ask user to run the onboarding with a fresh email and verify that the group appears in their dashboard.
   </action>
-  <verify>ls src/features/auth/pages/Login.tsx</verify>
-  <done>Files moved</done>
-</task>
-
-<task type="auto">
-  <name>Fix Imports</name>
-  <files>src/**/*</files>
-  <action>
-    Update imports in all moved files to fix broken paths.
-    - Update `App.tsx` imports to point to new locations.
-    - Update internal imports (e.g., `types`, `constants`) in all components.
-    - Use `@/` alias where appropriate (already configured in vite.config.ts).
-    
-    *Strategy:*
-    - Use `sed` to replace `../types` with `@/types`.
-    - Use `sed` to replace `../constants` with `@/lib/constants`.
-    - Fix component imports in `App.tsx`.
-  </action>
-  <verify>npx tsc --noEmit</verify>
-  <done>TypeScript compiles without error</done>
+  <verify>Manual confirmation.</verify>
+  <done>User confirms the flow works.</done>
 </task>
 
 ## Success Criteria
-- [ ] Directory structure follows feature-based architecture.
-- [ ] `react-router-dom` is installed.
-- [ ] Application compiles (`tsc`) despite moves (imports fixed).
+- [ ] Onboarding CHOICE data is no longer lost on step changes.
+- [ ] Account creation triggers real DB inserts (Group, Profile Meta).
+- [ ] User is redirected to Home with the new group already active.

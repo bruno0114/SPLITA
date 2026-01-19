@@ -1,96 +1,45 @@
 ---
 phase: 1
-plan: 1.2
-wave: 2
+plan: 2
+wave: 1
 ---
 
-# Plan 1.2: Implement Routing Logic
+# Plan 1.2: Social Auth & UI Polish
 
 ## Objective
-Replace manual state-based routing with `react-router-dom`, implementing a proper Layout component and preserving the existing UI structure.
+Implement Google and Facebook authentication and polish the auth UI for production stability.
 
 ## Context
-- .gsd/SPEC.md (Goal 1)
-- src/App.tsx (Current layout logic)
-- src/components/layout/Sidebar.tsx (Navigation logic)
+- `Onboarding.tsx`
+- `Login.tsx`
+- `useAuth.ts`
 
 ## Tasks
 
 <task type="auto">
-  <name>Create App Context</name>
-  <files>src/context/AppContext.tsx</files>
+  <name>Social Auth Wiring</name>
+  <files>src/features/auth/pages/Onboarding.tsx, src/features/auth/pages/Login.tsx</files>
   <action>
-    Create a context to manage global state (Theme, Currency).
-    - Move state logic (`useState`, `useEffect` for theme) from `App.tsx` here.
-    - Export `AppContextProvider` and `useApp` hook.
-    - Providing: `theme`, `setTheme`, `currency`, `setCurrency`, `exchangeRate`, `setExchangeRate`.
+    - Connect Google and Facebook buttons to `signInWithOAuth` from the `useAuth` hook.
+    - Pass correct `provider` and `redirectTo` options.
+    - Ensure the `redirectTo` is dynamically calculated based on environment (local vs prod).
   </action>
-  <verify>ls src/context/AppContext.tsx</verify>
-  <done>Context created</done>
+  <verify>Click Google button -> Check if it redirects to Google Auth page.</verify>
+  <done>Social buttons trigger Supabase OAuth flow.</done>
 </task>
 
 <task type="auto">
-  <name>Create Layout Component</name>
-  <files>src/components/layout/AppLayout.tsx</files>
+  <name>Auth UI Error Handling</name>
+  <files>src/features/auth/pages/Login.tsx, src/features/auth/pages/Onboarding.tsx</files>
   <action>
-    Create `AppLayout` component.
-    - Move the main layout structure (divs, background ambience) from `App.tsx` here.
-    - Render `Sidebar`, `Header`, `BottomNav`.
-    - Render `<Outlet />` in the `<main>` area.
-    - Consume `useApp` context for theme/currency/state needed by Layout components.
-    - Manage `isSidebarCollapsed` local state here.
+    - Add descriptive error mapping for common Supabase errors (e.g., "Invalid login credentials" -> "Email o contraseña incorrectos").
+    - Ensure consistent design for error banners.
   </action>
-  <verify>ls src/components/layout/AppLayout.tsx</verify>
-  <done>Layout created</done>
-</task>
-
-<task type="auto">
-  <name>Configure Routes</name>
-  <files>src/routes/index.tsx</files>
-  <action>
-    Create `src/routes/index.tsx` using `createBrowserRouter`.
-    - Define public routes: `/login`, `/onboarding`.
-    - Define protected routes (wrapped in `AppLayout`):
-      - `/` -> Redirect to `/dashboard`
-      - `/dashboard` -> `PersonalFinance`
-      - `/groups` -> `Groups`
-      - `/groups/:id` -> `GroupDetails`
-      - `/health` -> `EconomicHealth`
-      - `/import` -> `ImportExpenses`
-      - `/settings` -> `Settings`
-  </action>
-  <verify>ls src/routes/index.tsx</verify>
-  <done>Routes defined</done>
-</task>
-
-<task type="auto">
-  <name>Update Navigation Components</name>
-  <files>src/components/layout/Sidebar.tsx, src/components/layout/BottomNav.tsx, src/components/layout/Header.tsx</files>
-  <action>
-    Refactor navigation components to use `NavLink` (active state) or `Link` from `react-router-dom`.
-    - `Sidebar.tsx`: Replace `div` button with `NavLink to="..."`.
-    - `BottomNav.tsx`: Replace with `NavLink`.
-    - Remove `onNavigate` props and interface definitions.
-  </action>
-  <verify>grep "NavLink" src/components/layout/Sidebar.tsx</verify>
-  <done>Components use Router links</done>
-</task>
-
-<task type="auto">
-  <name>Refactor App.tsx</name>
-  <files>src/App.tsx</files>
-  <action>
-    Replace entire `App.tsx` content.
-    - Wrap everything in `AppContextProvider`.
-    - Render `<RouterProvider router={router} />`.
-  </action>
-  <verify>grep "RouterProvider" src/App.tsx</verify>
-  <done>App.tsx refactored</done>
+  <verify>Try login with wrong password -> Verify translated error message.</verify>
+  <done>User-friendly error messages are displayed.</done>
 </task>
 
 ## Success Criteria
-- [ ] Application loads without errors.
-- [ ] Navigation changes URL (e.g. `/groups`).
-- [ ] Back/Forward browser buttons work.
-- [ ] Layout (Sidebar/Header) persists between page navigations.
-- [ ] Themes and Currency switches still work.
+- [ ] Google/Facebook login buttons are functional.
+- [ ] Login/Signup forms have robust validation and error handling.
+- [ ] Documentation includes Social Auth setup steps.

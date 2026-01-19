@@ -1,47 +1,54 @@
 # ROADMAP.md
 
-> **Current Phase**: Not started
-> **Milestone**: v1.0 - Production Readiness
+> **Current Milestone**: v1 – Real User Onboarding, Auth & Group Collaboration
+> **Goal**: Transition from a functional prototype to a production-ready application where real users can sign up, join groups via links, and manage their own AI scan configs.
 
-## Must-Haves (from SPEC)
-- [ ] Scalable folder structure
-- [ ] React Router DOM
-- [ ] Supabase Schema & RLS
-- [ ] User Authentication
-- [ ] Real Transaction Persistence
+## Must-Haves
+- [ ] **Functional Onboarding**: 6-step flow persists to Supabase (profile/group/pre-settings).
+- [ ] **Group Invitations**: Working "Share Link" -> "Auto Join" flow for new and existing users.
+- [ ] **Social Auth**: Google and Facebook login working and documented.
+- [ ] **Data Integrity**: Zero mock data leakage for real users.
+- [ ] **AI Key Management**: UI to store/edit `GEMINI_API_KEY` (client-side persistence).
 
 ## Phases
 
-### Phase 1: Architecture Foundation
+### Phase 1: Authentication & Onboarding Persistence
 **Status**: ⬜ Not Started
-**Objective**: Refactor codebase to feature-based structure and implement React Router DOM without breaking UI.
+**Objective**: Ensure the 6-step onboarding flow isn't just visual.
 **Deliverables**:
-- New folder structure (features, services, hooks).
-- React Router configuration.
-- Preservation of layout and animations.
+- Persist "Step 2: Usage Type" to user metadata or profile.
+- Persist "Step 3: Create Group" and "Step 4: Add People" to Supabase tables.
+- Persist "Step 5: Settings" to user preferences.
+- Implement Social Login redirects and configuration.
 
-### Phase 2: Supabase Core & Auth
+### Phase 2: Group Invitation System
 **Status**: ⬜ Not Started
-**Objective**: Setup Database schema and implement Authentication.
+**Objective**: Enable viral growth via shareable links.
 **Deliverables**:
-- SQL Schema (profiles, groups, transactions, splits).
-- RLS Policies.
-- Login/Signup flow with Supabase Auth.
-- Profile synchronization.
+- Backend logic/edge functions (or simple client-side link handling) to join a group via ID.
+- "Join" page to handle incoming invite links.
+- Auto-join logic after Auth redirect (handling the 'next' parameter).
 
-### Phase 3: Business Logic & Data Integration
+### Phase 3: AI UX & API Key Management
 **Status**: ⬜ Not Started
-**Objective**: Connect UI to Supabase data for Groups and Transactions.
+**Objective**: Secure and user-scoped Gemini API usage.
 **Deliverables**:
-- `useGroups`, `useTransactions` hooks.
-- Real-time fetching of groups and transactions.
-- Balance calculation logic.
-- Remove hardcoded constants.
+- "IA Settings" screen inside the Settings feature.
+- Secure local/metadata storage for the user's API Key.
+- Graceful error handling in `ImportExpenses` when key is missing/invalid.
 
-### Phase 4: AI & Expense Importing
+### Phase 4: Production Data Clean-up
 **Status**: ⬜ Not Started
-**Objective**: Persist AI-scanned data to the database.
+**Objective**: Remove all "MOCK_DATA" references from the main user path.
 **Deliverables**:
-- Connect ImportExpenses AI result to Transaction creation.
-- Transaction splitting UI connection to DB.
-- Verification of full user flow (Scan -> Edit -> Save).
+- Replace remaining hardcoded lists with Supabase queries.
+- Implement proper "Empty States" for fresh accounts.
+- Final RLS Audit to ensure data isolation.
+
+### Phase 5: Verification & Launch Docs
+**Status**: ⬜ Not Started
+**Objective**: Final polish and setup guides.
+**Deliverables**:
+- End-to-end video walkthrough of the onboarding/invite flow.
+- Setup Guide for Social Auth (Supabase + Providers).
+- Environment Variables template update.
