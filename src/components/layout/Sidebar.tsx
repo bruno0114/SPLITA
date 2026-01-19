@@ -15,8 +15,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
   const { user } = useAuth();
 
   // Get user display data from auth metadata
-  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
-  const userAvatar = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}`;
+  // Google OAuth uses 'picture', manual signup uses 'avatar_url'
+  const userDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+  const userAvatar = user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
 
   return (
     <aside className={`relative border-r border-border bg-surface/80 backdrop-blur-md flex flex-col h-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>

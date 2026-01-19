@@ -1,31 +1,40 @@
 # GSD State
 
 ## Current Position
-- **Phase:** Codebase Mapping Complete
-- **Session:** Active
-- **Last Updated:** 2026-01-19 17:20
+- **Phase:** Bugfix - Avatar & CRUD Fixes
+- **Status:** ✅ Complete
+- **Last Updated:** 2026-01-19 17:29
 
-## Last Session Summary
+## Session Summary
 
-Codebase mapping complete via `/map` workflow.
+### Issues Fixed
 
-### Metrics
-- 24 source files analyzed
-- 5 feature modules identified
-- 7 database tables documented
-- 6 production dependencies
-- 5 dev dependencies
+**Avatar Handling:**
+- Updated `handle_new_user` trigger to use Google's `picture` field
+- Removed hardcoded `avatar_url` from Onboarding signup
+- Fixed Sidebar to check `picture` first, then `avatar_url`
 
-### Technical Debt Items Found
-1. Group invitations not implemented
-2. Avatar upload with WebP compression pending
-3. Real-time activity feed is placeholder
-4. Group balance calculation returns 0
-5. No automated tests
+**CRUD Operations:**
+- Added `await` to `fetchTransactions()` calls in `usePersonalTransactions`
+- Added `await` to `fetchGroups()` calls in `useGroups`
+- Added console.log for debugging insert/delete operations
+
+### Files Changed
+- `src/features/auth/pages/Onboarding.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/features/dashboard/hooks/usePersonalTransactions.ts`
+- `src/features/groups/hooks/useGroups.ts`
+- Supabase migration: `fix_handle_new_user_avatar`
+
+## Verification Needed
+
+1. Login with Google → should see Google profile picture
+2. Create new email account → should see generated avatar
+3. Add personal transaction → should appear immediately
+4. Create group → should appear immediately
 
 ## Next Steps
 
-1. Continue with `/plan` to create execution plan for remaining features
-2. Implement avatar upload with image compression
-3. Fix group balance calculation
-4. Add group invitation system
+1. Test the fixes manually
+2. If issues persist, check browser console for errors
+3. Verify RLS policies are not blocking reads

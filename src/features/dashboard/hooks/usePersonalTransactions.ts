@@ -100,12 +100,17 @@ export const usePersonalTransactions = () => {
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[usePersonalTransactions] Insert error:', error);
+                throw error;
+            }
 
-            // Refresh list
-            fetchTransactions();
+            console.log('[usePersonalTransactions] Transaction added:', newTx);
+            // Refresh list - AWAIT to ensure UI updates
+            await fetchTransactions();
             return { data: newTx, error: null };
         } catch (err: any) {
+            console.error('[usePersonalTransactions] Error:', err);
             return { data: null, error: err.message };
         }
     };
@@ -120,11 +125,16 @@ export const usePersonalTransactions = () => {
                 .eq('id', id)
                 .eq('user_id', user.id);
 
-            if (error) throw error;
+            if (error) {
+                console.error('[usePersonalTransactions] Delete error:', error);
+                throw error;
+            }
 
-            fetchTransactions();
+            console.log('[usePersonalTransactions] Transaction deleted:', id);
+            await fetchTransactions();
             return { error: null };
         } catch (err: any) {
+            console.error('[usePersonalTransactions] Error:', err);
             return { error: err.message };
         }
     };

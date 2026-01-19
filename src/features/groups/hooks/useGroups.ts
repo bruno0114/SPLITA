@@ -77,7 +77,12 @@ export const useGroups = () => {
                 .select()
                 .single();
 
-            if (groupError) throw groupError;
+            if (groupError) {
+                console.error('[useGroups] Create group error:', groupError);
+                throw groupError;
+            }
+
+            console.log('[useGroups] Group created:', groupData);
 
             // 2. Add creator as member (admin)
             const { error: memberError } = await supabase
@@ -88,12 +93,17 @@ export const useGroups = () => {
                     role: 'admin'
                 });
 
-            if (memberError) throw memberError;
+            if (memberError) {
+                console.error('[useGroups] Add member error:', memberError);
+                throw memberError;
+            }
 
-            // Refresh list
-            fetchGroups();
+            console.log('[useGroups] Creator added as admin');
+            // Refresh list - AWAIT to ensure UI updates
+            await fetchGroups();
             return { data: groupData, error: null };
         } catch (err: any) {
+            console.error('[useGroups] Error:', err);
             return { data: null, error: err.message };
         }
     };
