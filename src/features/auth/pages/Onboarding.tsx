@@ -491,7 +491,10 @@ const StepCreateAccount = ({ onNext, onBack, progress, onLogin, onboardingData }
 
             <div className="grid grid-cols-2 gap-3">
                <button
-                  onClick={() => signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
+                  onClick={() => {
+                     localStorage.setItem('pending_onboarding', JSON.stringify(onboardingData));
+                     signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+                  }}
                   className="flex items-center justify-center gap-2 h-14 rounded-2xl bg-white text-slate-700 font-bold border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
                >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -503,7 +506,10 @@ const StepCreateAccount = ({ onNext, onBack, progress, onLogin, onboardingData }
                   Google
                </button>
                <button
-                  onClick={() => signInWithOAuth({ provider: 'facebook', options: { redirectTo: window.location.origin } })}
+                  onClick={() => {
+                     localStorage.setItem('pending_onboarding', JSON.stringify(onboardingData));
+                     signInWithOAuth({ provider: 'facebook', options: { redirectTo: window.location.origin } });
+                  }}
                   className="flex items-center justify-center gap-2 h-14 rounded-2xl bg-[#1877F2] text-white font-bold hover:bg-[#166fe5] transition-colors shadow-sm"
                >
                   <Facebook className="w-5 h-5 fill-current" />

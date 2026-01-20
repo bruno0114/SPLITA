@@ -3,6 +3,8 @@ import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, DollarSign, LogOut, Se
 import { AppRoute, Theme } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useProfile } from '@/features/settings/hooks/useProfile';
 
 interface HeaderProps {
   title: string;
@@ -14,7 +16,13 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onNavigate, onLogout }) => {
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const { currency, setCurrency, rateSource, setRateSource, exchangeRate, loading: ratesLoading } = useCurrency();
+
+  // Get user display data from profile (synced with social/manual updates)
+  const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [menuOrigin, setMenuOrigin] = useState({ x: 0, y: 0 });
@@ -195,6 +203,19 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
 
           {/* Menu Items */}
           <div className="flex-1 flex flex-col items-center justify-center px-8 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 fill-mode-both">
+
+            {/* Mobile User Profile Header */}
+            <div className="flex flex-col items-center gap-3 mb-4">
+              <div
+                className="size-20 rounded-full border-4 border-white dark:border-slate-700 overflow-hidden bg-cover bg-center shadow-xl"
+                style={{ backgroundImage: `url(${userAvatar})` }}
+              />
+              <div className="text-center">
+                <p className="text-xl font-black text-slate-900 dark:text-white leading-tight">{userDisplayName}</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Plan Gratuito</p>
+              </div>
+            </div>
+
             <nav className="flex flex-col gap-4 w-full max-w-sm">
               <MobileMenuItem
                 label="Configuración"

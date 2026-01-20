@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AppRoute, Theme, Currency } from '@/types/index';
+import { AppRoute, Theme } from '@/types/index';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import Header from '@/components/layout/Header';
@@ -22,13 +22,69 @@ import { useAuthContext } from '@/features/auth/context/AuthContext';
 
 const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>('dark');
-    const { currency, exchangeRate } = useCurrency();
-    const { signOut } = useAuthContext();
+    const { user, signOut } = useAuthContext();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Effect to handle post-OAuth onboarding setup
+    useEffect(() => {
+        const syncOnboarding = async () => {
+            if (!user) return;
+
+            const pendingData = localStorage.getItem('pending_onboarding');
+            if (pendingData) {
+                try {
+                    const onboardingData = JSON.parse(pendingData);
+                    const { supabase } = await import('@/lib/supabase');
+
+                    // 1. Save user settings
+                    await supabase
+                        .from('user_settings')
+                        .upsert({
+                            user_id: user.id,
+                            usage_type: onboardingData.usageType,
+                            detect_recurring: onboardingData.settings.detectRecurring,
+                            split_default: onboardingData.settings.splitDefault,
+                            notify_new: onboardingData.settings.notifyNew
+                        });
+
+                    // 2. Create group if needed
+                    if (onboardingData.groupName) {
+                        const { data: group } = await supabase
+                            .from('groups')
+                            .insert({
+                                name: onboardingData.groupName,
+                                type: onboardingData.usageType === 'solo' ? 'other' : onboardingData.usageType,
+                                created_by: user.id
+                            })
+                            .select()
+                            .single();
+
+                        if (group) {
+                            await supabase
+                                .from('group_members')
+                                .insert({
+                                    group_id: group.id,
+                                    user_id: user.id,
+                                    role: 'admin'
+                                });
+                        }
+                    }
+
+                    // 3. Clear and notify
+                    localStorage.removeItem('pending_onboarding');
+                    console.log('Onboarding synced successfully');
+                } catch (err) {
+                    console.error('Error syncing onboarding data:', err);
+                }
+            }
+        };
+
+        syncOnboarding();
+    }, [user]);
 
     const getAppRoute = (pathname: string): AppRoute => {
         switch (pathname) {
@@ -80,21 +136,12 @@ const App: React.FC = () => {
         }
     };
 
-    const handleFinishOnboarding = () => {
-        navigate('/');
-    };
-
-    const handleLogin = () => {
-        navigate('/');
-    };
-
-    const handleLogout = async () => {
+    const handleLogOut = async () => {
         try {
             await signOut();
             navigate('/login');
         } catch (err) {
             console.error("Error signing out:", err);
-            // Fallback navigate to login even if signOut fails (local cleanup)
             navigate('/login');
         }
     };
@@ -109,13 +156,12 @@ const App: React.FC = () => {
     if (isAuthRoute) {
         return (
             <Routes>
-                <Route path="/login" element={<Login onLogin={handleLogin} onRegister={() => navigate('/onboarding')} />} />
-                <Route path="/onboarding" element={<Onboarding onComplete={handleFinishOnboarding} onLogin={() => navigate('/login')} />} />
+                <Route path="/login" element={<Login onLogin={() => navigate('/')} onRegister={() => navigate('/onboarding')} />} />
+                <Route path="/onboarding" element={<Onboarding onComplete={() => navigate('/')} onLogin={() => navigate('/login')} />} />
             </Routes>
         );
     }
 
-    // Use string concatenation for className to avoid template literal issues in tool writing
     const sidebarClassName = "hidden md:flex h-full z-20 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] " + (isSidebarCollapsed ? "w-20" : "w-64");
 
     return (
@@ -128,14 +174,14 @@ const App: React.FC = () => {
                 <div className="w-[500px] h-[500px] bg-blue-900 rounded-full blur-[120px]" />
             </div>
 
-            {/* Sidebar - Hidden on mobile, collapsible on desktop */}
+            {/* Sidebar */}
             <div className={sidebarClassName}>
                 <Sidebar
                     currentRoute={currentRoute}
                     onNavigate={handleNavigate}
                     isCollapsed={isSidebarCollapsed}
                     onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    onLogout={handleLogout}
+                    onLogout={handleLogOut}
                 />
             </div>
 
@@ -146,9 +192,9 @@ const App: React.FC = () => {
                     currentTheme={theme}
                     onThemeChange={setTheme}
                     onNavigate={handleNavigate}
-                    onLogout={handleLogout}
+                    onLogout={handleLogOut}
                 />
-                <main className="flex-1 overflow-y-auto relative scroll-smooth pb-24 md:pb-0">
+                <main className="flex-1 overflow-y-auto relative scroll-smooth pb-[calc(88px+env(safe-area-inset-bottom)+1rem)] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
                             <Route path="/" element={<PersonalFinance />} />
@@ -166,7 +212,7 @@ const App: React.FC = () => {
                     </Routes>
                 </main>
 
-                {/* Bottom Nav - Visible on mobile */}
+                {/* Bottom Nav */}
                 <BottomNav currentRoute={currentRoute} onNavigate={handleNavigate} />
             </div>
         </div>

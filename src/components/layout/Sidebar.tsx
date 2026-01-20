@@ -2,6 +2,7 @@ import React from 'react';
 import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart, Clock } from 'lucide-react';
 import { AppRoute } from '@/types/index';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useProfile } from '@/features/settings/hooks/useProfile';
 
 interface SidebarProps {
   currentRoute: AppRoute;
@@ -13,11 +14,11 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed, onToggleCollapse, onLogout }) => {
   const { user } = useAuth();
+  const { profile } = useProfile();
 
-  // Get user display data from auth metadata
-  // Google OAuth uses 'picture', manual signup uses 'avatar_url'
-  const userDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
-  const userAvatar = user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
+  // Get user display data from profile (synced with social/manual updates)
+  const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
 
   return (
     <aside className={`relative border-r border-border bg-surface/80 backdrop-blur-md flex flex-col h-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>

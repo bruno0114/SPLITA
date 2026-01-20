@@ -74,7 +74,7 @@
 
 ### Scope
 - **Transaction Card Enhancement**:
-    - **Context Badges**: Cards will show if a movement belongs to "Finanzas Personales" or a specific group.
+    - **Context Badges**: Cards will show if a movement belongs to "Finanzas Personales" or a specific group. Using a mix of minimalist icons and text-based labels to maintain high UX.
     - **Payment Markers**: Visibility for "Recurrente" (icon) and "Cuotas" (marker like "2/6").
     - **Multi-select**: Creative toggle (checkpoint) on each card to enable bulk selection.
 - **Transaction Modal Evolution**:
@@ -83,11 +83,74 @@
 - **Bulk Actions**:
     - **Floating Toolbar**: Appears when transactions are selected.
     - **Mass Operations**: "Mover Categoría" (batch re-assignment) and "Eliminar" (batch deletion).
+    - **Animations**: Toolbar will slide up from the bottom with a smooth glassmorphic entry.
 
 ### Approach
 - **Quick Re-assignment**: Use an instant-access category switcher in the Card's hover menu (Action Option B).
 - **Consolidated Components**: Ensure `TransactionCard` is the single source of truth for all transaction lists across the app.
+- **Option A Priority**: Complete all 11.5 polish items (Bulk Actions, Badges) before moving to Phase 12 deep features.
 
 ### Constraints
 - **Aesthetics**: Selection toggles must be non-intrusive and maintain the "clean" glassmorphic look.
 - **Safety**: Bulk deletions MUST require a confirmation prompt showing the count of items to be deleted.
+---
+
+## Phase 12: Deep Personalization & Premium Ecosystem
+
+**Date:** 2026-01-20
+
+### Scope & User Flow
+- **Personalized Group Categories**: Implemented as a user-specific override. When editing a group transaction, users can choose "Solo para mí". This stores the preference in `transaction_splits`.
+- **Real-time Sync & Toasts**: All category and transaction updates will trigger "Actualizado" toasts. UI will use optimistic updates or Realtime subscriptions to eliminate manual refreshes.
+- **AI Import - API Key Status**: 
+    - **Visual indicator**: "✓ IA Activada" with a vibrant glow/shimmer when API Key is present in profile.
+    - **Information Modal**: Simple validation check highlighting the status and a direct button to Configuration for modifications.
+- **Economic Health - Deep Insights**:
+    - **Persistence**: AI advice is cached per day.
+    - **Manual Update**: User-controlled refresh button for new insights (token-safe).
+    - **Advanced Projections Modal**: 
+        - Trigger: "Desbloqueá consejos avanzados" button.
+        - Animation: "Smooth Scale & Fade" (matching AI History modal).
+        - Content: Projections for crypto, ETFs, and staking (6m, 1y, 3y, 5y, 10y).
+        - Visuals: Premium gradient, AI icons, platform logos (Binance, Nexo, etc.), and internet-sourced interest rates via Gemini.
+- **Subscription Framework**: 
+    - Designer-ready placeholder for subscription tiers.
+    - Logic for Free vs Paid tier differentiation (prepared for future activation).
+
+### Approach
+- **Unified Transitions**: Adopt the AI History modal's "Smooth Scale & Fade" animation globally for all dialogs.
+- **Model Awareness**: Check the active Gemini model (Flash/Pro) from the configuration during data extraction.
+- **Performance & RLS**: Conduct a thorough audit of multi-user group joins and batch deletion policies to ensure zero-lag and data safety.
+
+### Constraints
+- **Maintain UI approving**: Do not change approved CSS or animations.
+
+---
+
+## Phase 11.6: Advanced Browsing & Insights
+
+**Date:** 2026-01-20
+
+### Scope
+- **Advanced Filtering**:
+    - **Behavior**: Instant response upon change with a "Loading" state/icon.
+    - **Date Selection**: Full free-range selection (Desde/Hasta).
+    - **Components**: Use `PremiumToggle` for filter categories/types.
+- **Infinite Scrolling**: Implement automated loading when reaching the bottom of the list with a "Cargando movimientos..." message.
+- **Expenditure Evolution (Charts)**:
+    - **Type**: Stacked Bar Charts (Barras Apiladas) to show category distribution over time.
+    - **Interactivity**: Charts must update automatically based on active date/category filters.
+- **Group Split Visibility**: Personal Finance view includes group splits, but they must feature a high-contrast visual reference (e.g., "Split de [Nombre del Grupo]") to distinguish them from direct personal expenses.
+
+### Approach
+- **Category Hygiene (Anti-Duplicates)**: 
+    - **Merge**: Automatically merge existing categories with the same name (case-insensitive).
+    - **Integrity**: Add a database unique constraint for category names (scoped to `user_id`).
+- **Navigation Persistence**:
+    - Re-categorizing (single or bulk) from `CategoryDetail` will keep the user on the same page.
+    - Items removed from the view due to category changes will use a "Fade Up & Slide" animation.
+- **Breadcrumbs Logic**: Fixed so re-categorization doesn't trigger a redirect to Personal Finance dashboard.
+
+### Constraints
+- **Visual Harmony**: New filter components must mirror the `PremiumDropdown` aesthetic.
+- **Group Identity**: Group splits in personal views must not be editable in certain fields (like amount) directly, but rather redirected to the source group if needed.

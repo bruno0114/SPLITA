@@ -35,7 +35,7 @@ const EconomicHealth: React.FC = () => {
    };
 
    return (
-      <div className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto w-full pb-32">
+      <div className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto w-full">
          <div className="grid grid-cols-12 gap-6 md:gap-8">
             {/* Main Stats Column */}
             <div className="col-span-12 lg:col-span-8 space-y-8">

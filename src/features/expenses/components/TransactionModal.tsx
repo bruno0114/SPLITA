@@ -95,41 +95,36 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+                className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
             >
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex justify-between items-center mb-5">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                             {initialData ? 'Editar movimiento' : 'Nuevo movimiento'}
                         </h3>
-                        {isGroupTransaction && (
-                            <p className="text-xs text-blue-500 font-medium mt-1">
-                                Gasto grupal: solo podés editar tu categoría.
-                            </p>
-                        )}
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
 
-                {/* Type Toggle - Disabled for group transactions */}
+                {/* Type Toggle - Segmented Control style */}
                 {!isGroupTransaction && (
-                    <div className="flex gap-2 mb-6">
+                    <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl mb-6">
                         <button
                             onClick={() => setType('expense')}
-                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'expense'
-                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            className={`py-2.5 rounded-xl font-bold text-xs transition-all ${type === 'expense'
+                                ? 'bg-white dark:bg-rose-500 text-rose-500 dark:text-white shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400'
                                 }`}
                         >
                             Gasto
                         </button>
                         <button
                             onClick={() => setType('income')}
-                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'income'
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            className={`py-2.5 rounded-xl font-bold text-xs transition-all ${type === 'income'
+                                ? 'bg-white dark:bg-emerald-500 text-emerald-500 dark:text-white shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400'
                                 }`}
                         >
                             Ingreso
@@ -137,61 +132,21 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                     </div>
                 )}
 
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin pb-40">
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Descripción</label>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto px-2 -mx-2 scrollbar-hide">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Descripción</label>
                             <input
                                 type="text"
                                 value={title}
                                 disabled={isGroupTransaction}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Ej: Supermercado Coto"
-                                className={`w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none font-bold ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary focus:outline-none font-bold text-sm ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                             />
                         </div>
-                        <div>
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Moneda</label>
-                            <PremiumDropdown
-                                value={currency}
-                                disabled={isGroupTransaction}
-                                onChange={(val) => {
-                                    setCurrency(val);
-                                    if (val === 'USD') fetchRate();
-                                }}
-                                groups={[
-                                    {
-                                        title: 'Monedas',
-                                        options: [
-                                            { id: 'ARS', label: 'ARS', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
-                                            { id: 'USD', label: 'USD', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-                                        ]
-                                    }
-                                ]}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Monto ({currency})</label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                                    {currency === 'USD' ? 'u$s' : '$'}
-                                </span>
-                                <input
-                                    type="number"
-                                    value={amount}
-                                    disabled={isGroupTransaction}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    placeholder="0"
-                                    className={`w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-12 pr-4 py-3 text-2xl font-black focus:ring-2 focus:ring-primary focus:outline-none ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Categoría</label>
+                        <div className="md:col-span-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Categoría</label>
                             <PremiumDropdown
                                 value={category}
                                 onChange={setCategory}
@@ -207,7 +162,46 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                                         }))
                                     }
                                 ]}
-                                className="w-full h-[54px]"
+                                className="w-full h-10"
+                            />
+                        </div>
+
+                        <div className="md:col-span-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto ({currency})</label>
+                            <div className="relative group/input">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">
+                                    {currency === 'USD' ? 'u$s' : '$'}
+                                </span>
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    disabled={isGroupTransaction}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="0"
+                                    className={`w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-2.5 text-xl font-black focus:ring-2 focus:ring-primary focus:outline-none ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Moneda</label>
+                            <PremiumDropdown
+                                value={currency}
+                                disabled={isGroupTransaction}
+                                onChange={(val) => {
+                                    setCurrency(val);
+                                    if (val === 'USD') fetchRate();
+                                }}
+                                groups={[
+                                    {
+                                        title: 'Monedas',
+                                        options: [
+                                            { id: 'ARS', label: 'ARS - Pesos', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+                                            { id: 'USD', label: 'USD - Dólares', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                        ]
+                                    }
+                                ]}
+                                className="w-full h-10"
                             />
                         </div>
                     </div>
@@ -236,51 +230,41 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                         </div>
                     )}
 
-                    {/* Recurring & Installments */}
-                    <div className="pt-4 border-t border-border mt-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className={`p-2 rounded-lg ${isRecurring ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                                    <Repeat className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Movimiento Recurrente</p>
-                                    <p className="text-[10px] text-slate-500 font-medium">Se repite mensualmente</p>
-                                </div>
-                            </div>
+                    {/* Recurring & Installments - Compact Grid */}
+                    <div className="pt-4 border-t border-border mt-4 grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Recurrente</label>
                             <button
                                 onClick={() => setIsRecurring(!isRecurring)}
-                                className={`w-12 h-6 rounded-full transition-all relative ${isRecurring ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all ${isRecurring ? 'bg-blue-500/10 border-blue-500/30 text-blue-600' : 'bg-slate-50 dark:bg-white/5 border-border text-slate-500'}`}
                             >
-                                <div className={`absolute top-1 size-4 bg-white rounded-full transition-all ${isRecurring ? 'left-7' : 'left-1'}`} />
+                                <div className="flex items-center gap-2">
+                                    <Repeat className={`w-3.5 h-3.5 ${isRecurring ? 'animate-spin-slow' : ''}`} />
+                                    <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
+                                </div>
+                                <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                                    <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'left-4.5' : 'left-0.5'}`} />
+                                </div>
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className={`p-2 rounded-lg ${currentInstallment ? 'bg-purple-500/10 text-purple-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                                    <CreditCard className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Pago en Cuotas</p>
-                                    <p className="text-[10px] text-slate-500 font-medium">Ej: 2 de 6</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-border">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">N° Cuotas</label>
+                            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-border h-[42px]">
                                 <input
                                     type="number"
                                     placeholder="1"
                                     value={currentInstallment}
                                     onChange={(e) => setCurrentInstallment(e.target.value)}
-                                    className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-sm h-8"
+                                    className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
                                 />
-                                <span className="text-slate-400 text-xs font-bold">de</span>
+                                <span className="text-slate-400 text-[10px] font-black">/</span>
                                 <input
                                     type="number"
                                     placeholder="1"
                                     value={totalInstallments}
                                     onChange={(e) => setTotalInstallments(e.target.value)}
-                                    className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-sm h-8"
+                                    className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
                                 />
                             </div>
                         </div>
@@ -291,14 +275,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                 <div className="flex gap-3 mt-8">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="flex-1 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={!title || !amount || saving}
-                        className="flex-1 py-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-xl transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95"
+                        className="flex-1 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-xl transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 text-sm"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
                     </button>

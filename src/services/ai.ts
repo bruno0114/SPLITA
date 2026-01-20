@@ -176,6 +176,63 @@ export const analyzeFinancialHealth = async (
     }
 };
 /**
+ * Retrieves daily financial advice, using cached version from DB if available for today.
+ */
+export const getDailyAdvice = async (
+    userId: string,
+    apiKey: string,
+    data: {
+        monthlyIncome: number;
+        monthlyExpenses: number;
+        savingsRate: number;
+        topCategories: { category: string; amount: number }[];
+    },
+    forceRefresh: boolean = false
+) => {
+    try {
+        // 1. Check DB for today's advice
+        const today = new Date().toISOString().split('T')[0];
+
+        if (!forceRefresh) {
+            const { data: cached, error: cacheError } = await supabase
+                .from('daily_insights')
+                .select('content')
+                .eq('user_id', userId)
+                .eq('date', today)
+                .maybeSingle();
+
+            if (cached && cached.content) {
+                console.log("[AI Service] Returning cached advice for today");
+                return cached.content as string[];
+            }
+        }
+
+        // 2. Generate new advice if no cache
+        console.log(`[AI Service] Generating new advice (force=${forceRefresh})...`);
+        const advice = await analyzeFinancialHealth(apiKey, data);
+
+        // 3. Save to DB
+        // We use upsert to handle potential race conditions safely
+        const { error: saveError } = await supabase
+            .from('daily_insights')
+            .upsert({
+                user_id: userId,
+                date: today,
+                content: advice
+            }, { onConflict: 'user_id, date' });
+
+        if (saveError) {
+            console.warn("[AI Service] Failed to cache advice:", saveError);
+        }
+
+        return advice;
+    } catch (error) {
+        console.error("[AI Service] Error in getDailyAdvice:", error);
+        throw error;
+    }
+};
+
+/**
  * Service to extract expenses from images/PDFs using Gemini.
  * Uses dynamic model selection to avoid 404 errors.
  */
@@ -207,6 +264,7 @@ export const extractExpensesFromImages = async (
                     currency: { type: Type.STRING },
                     installments: { type: Type.STRING, nullable: true },
                     is_recurring: { type: Type.BOOLEAN },
+                    raw_date: { type: Type.STRING, nullable: true },
                 },
                 required: ["date", "merchant", "category", "amount", "currency", "is_recurring"]
             }

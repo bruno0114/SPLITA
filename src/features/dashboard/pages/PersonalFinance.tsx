@@ -127,7 +127,7 @@ const PersonalFinance: React.FC = () => {
   }
 
   return (
-    <div className="px-6 md:px-12 py-6 md:py-10 pb-32">
+    <div className="px-6 md:px-12 py-6 md:py-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-10 gap-4">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Finanzas personales</h2>

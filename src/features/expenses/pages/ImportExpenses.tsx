@@ -113,6 +113,7 @@ const ImportExpenses: React.FC = () => {
       const mappedTransactions: Transaction[] = extractedData.map((item: any, index: number) => ({
         id: `scan-${Date.now()}-${index}`,
         date: new Date(item.date).toLocaleDateString('es-AR'), // Display format
+        raw_date: item.date, // ISO YYYY-MM-DD from Gemini
         merchant: item.merchant,
         category: item.category,
         amount: item.amount,
@@ -212,6 +213,27 @@ const ImportExpenses: React.FC = () => {
     }));
   };
 
+  const fetchDolarRates = async () => {
+    try {
+      const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+      const data = await res.json();
+      if (data && data.venta) {
+        const rate = data.venta;
+        setTxSettings(prev => {
+          const next = { ...prev };
+          Object.keys(next).forEach(id => {
+            if (next[id].currency === 'USD') {
+              next[id].exchangeRate = rate;
+            }
+          });
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching rates", e);
+    }
+  };
+
   const updateRate = (id: string, rate: string) => {
     const num = parseFloat(rate) || 0;
     setTxSettings(prev => ({
@@ -286,7 +308,7 @@ const ImportExpenses: React.FC = () => {
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: categoryName,
             type: 'expense',
-            date: new Date().toISOString(),
+            date: tx.raw_date || new Date().toISOString(),
             original_amount: s.originalAmount,
             original_currency: s.currency,
             exchange_rate: s.currency === 'USD' ? s.exchangeRate : undefined,
@@ -310,7 +332,7 @@ const ImportExpenses: React.FC = () => {
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: categoryName,
             title: tx.merchant,
-            date: new Date().toISOString(),
+            date: tx.raw_date || new Date().toISOString(),
             splitBetween: selectedGroup.members.map(m => m.id),
             original_amount: s.originalAmount,
             original_currency: s.currency,
@@ -364,11 +386,20 @@ const ImportExpenses: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => setShowConfig(true)}
-            className="px-4 py-2 rounded-lg bg-surface border border-border text-slate-500 text-sm font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+            onClick={() => navigate('/settings')}
+            className={`px-4 py-2 rounded-lg bg-surface border border-border text-sm font-semibold flex items-center gap-2 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 ${profile?.gemini_api_key ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/5' : 'text-slate-500'}`}
           >
-            <BrainCircuit className="w-4 h-4" />
-            Configurar key
+            {profile?.gemini_api_key ? (
+              <>
+                <Check className="w-4 h-4" />
+                Key validada
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="w-4 h-4" />
+                Configurar key
+              </>
+            )}
           </button>
         </div>
 
@@ -533,7 +564,7 @@ const ImportExpenses: React.FC = () => {
             />
           </div>
 
-          <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl overflow-hidden mb-24">
+          <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl mb-24 relative z-10">
             {/* Table Header */}
             <div className="grid grid-cols-12 gap-4 border-b border-border bg-slate-50/50 dark:bg-slate-800/20 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
               <div className="col-span-1"></div>
@@ -600,10 +631,20 @@ const ImportExpenses: React.FC = () => {
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 lg:left-64 right-0 glass-panel border-t border-border p-6 z-30 bg-surface/90 backdrop-blur-xl">
-            <div className="max-w-7xl mx-auto flex justify-between items-center">
-              <div className="text-sm font-medium text-slate-500">
-                Total a importar: <strong className="text-slate-900 dark:text-white text-lg ml-2">$ {totalConverted.toLocaleString('es-AR')}</strong>
+          <div className="fixed bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 lg:left-64 right-0 glass-panel border-t border-border p-6 z-30 bg-surface/90 backdrop-blur-xl md:bottom-0">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-6">
+                <div className="text-sm font-medium text-slate-500">
+                  Total a importar: <strong className="text-slate-900 dark:text-white text-lg ml-2">$ {totalConverted.toLocaleString('es-AR')}</strong>
+                </div>
+                {scannedTransactions.some(tx => txSettings[tx.id]?.currency === 'USD') && (
+                  <button
+                    onClick={fetchDolarRates}
+                    className="text-[10px] font-black text-blue-600 uppercase border-b border-blue-600/30 hover:border-blue-600"
+                  >
+                    Sincronizar T.C. Blue
+                  </button>
+                )}
               </div>
               <button
                 onClick={handleConfirmImport}

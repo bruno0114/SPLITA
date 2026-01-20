@@ -21,6 +21,7 @@ interface PremiumDropdownProps {
     groups: DropdownGroup[];
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
@@ -28,7 +29,8 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
     onChange,
     groups,
     placeholder = 'Seleccionar...',
-    className = ''
+    className = '',
+    disabled = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [direction, setDirection] = useState<'up' | 'down'>('down');
@@ -74,8 +76,9 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
     return (
         <div className={`relative ${className}`} ref={dropdownRef}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between gap-3 bg-surface border border-border px-5 py-3 rounded-xl shadow-sm hover:border-primary/50 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={`w-full flex items-center justify-between gap-3 bg-surface border border-border px-5 py-3 rounded-xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${disabled ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : 'hover:border-primary/50'}`}
             >
                 <div className="flex items-center gap-3">
                     {selectedOption?.icon ? (
@@ -87,12 +90,14 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
                 </div>
-                <motion.div
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                >
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                </motion.div>
+                {!disabled && (
+                    <motion.div
+                        animate={{ rotate: isOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                    </motion.div>
+                )}
             </button>
 
             <AnimatePresence>

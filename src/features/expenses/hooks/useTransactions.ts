@@ -43,7 +43,7 @@ export const useTransactions = (groupId?: string | null) => {
             // Transform data
             const validTransactions: Transaction[] = data.map((t: any) => ({
                 id: t.id,
-                date: new Date(t.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }),
+                date: t.date,
                 merchant: t.title, // Mapping title to merchant for now
                 category: t.category,
                 amount: t.amount,
@@ -137,7 +137,7 @@ export const useTransactions = (groupId?: string | null) => {
 
             if (splitError) throw splitError;
 
-            fetchTransactions();
+            await fetchTransactions();
             return { data: txData, error: null };
 
         } catch (err: any) {
@@ -241,12 +241,33 @@ export const useTransactions = (groupId?: string | null) => {
         }
     };
 
+    const updateSplitCategory = async (transactionId: string, category: string) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { error } = await supabase
+                .from('transaction_splits')
+                .update({ category })
+                .eq('transaction_id', transactionId)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            await fetchTransactions();
+            return { error: null };
+        } catch (err: any) {
+            console.error('[useTransactions] Update split category error:', err);
+            return { error: err.message };
+        }
+    };
+
     return {
         transactions,
         loading,
         error,
         addTransaction,
         updateTransaction,
+        updateSplitCategory,
         deleteTransaction,
         refreshTransactions: fetchTransactions
     };

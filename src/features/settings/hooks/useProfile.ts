@@ -36,6 +36,44 @@ export const useProfile = () => {
                 .single();
 
             if (error) throw error;
+
+            // Social Login Sync Logic:
+            // If the profile is missing name or avatar, but we have them in user_metadata,
+            // we update the profile automatically.
+            const metadata = user.user_metadata;
+            const socialName = metadata?.full_name || metadata?.name;
+            const socialAvatar = metadata?.picture || metadata?.avatar_url;
+
+            let needsUpdate = false;
+            const updates: any = {};
+
+            if (!data.full_name && socialName) {
+                updates.full_name = socialName;
+                needsUpdate = true;
+            }
+
+            if (!data.avatar_url && socialAvatar) {
+                updates.avatar_url = socialAvatar;
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                const { data: updatedData, error: updateError } = await supabase
+                    .from('profiles')
+                    .update({
+                        ...updates,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', user.id)
+                    .select()
+                    .single();
+
+                if (!updateError) {
+                    setProfile(updatedData);
+                    return;
+                }
+            }
+
             setProfile(data);
         } catch (err: any) {
             console.error('Error fetching profile:', err);

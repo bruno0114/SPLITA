@@ -40,7 +40,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({ selectedCount, onClear,
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-2xl"
+                    className="fixed bottom-[calc(88px+env(safe-area-inset-bottom)+1rem)] left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-2xl"
                 >
                     <div className="glass-panel p-4 rounded-3xl shadow-2xl border-2 border-primary/20 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/90 dark:bg-black/80 backdrop-blur-2xl">
                         <div className="flex items-center gap-4">

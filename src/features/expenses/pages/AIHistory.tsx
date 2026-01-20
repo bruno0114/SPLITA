@@ -36,7 +36,7 @@ const AIHistory: React.FC = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-6 py-8 pb-32">
+        <div className="max-w-7xl mx-auto px-6 py-8">
             <header className="mb-10">
                 <div className="flex items-center gap-3 mb-2 text-blue-500 font-bold uppercase tracking-widest text-xs">
                     <Clock className="w-4 h-4" />

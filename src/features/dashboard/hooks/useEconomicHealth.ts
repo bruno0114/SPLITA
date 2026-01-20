@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { usePersonalTransactions } from './usePersonalTransactions';
 import { useProfile } from '@/features/settings/hooks/useProfile';
-import { analyzeFinancialHealth } from '@/services/ai';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { getDailyAdvice } from '@/services/ai';
 
 export interface EconomicHealthData {
     score: number;
@@ -14,52 +15,62 @@ export interface EconomicHealthData {
     insights: string[];
     aiInsights?: string[];
     isAiLoading?: boolean;
+    isAiConfigured?: boolean;
 }
 
-export const useEconomicHealth = (): { data: EconomicHealthData; loading: boolean } => {
-    const { transactions, summary, loading } = usePersonalTransactions();
-    const { profile } = useProfile();
+export const useEconomicHealth = (): { data: EconomicHealthData; loading: boolean; refreshAdvice: () => Promise<void> } => {
+    const { transactions, summary, loading: txLoading } = usePersonalTransactions();
+    const { profile, loading: profileLoading } = useProfile();
+    const { user } = useAuth();
 
     const [aiInsights, setAiInsights] = useState<string[]>([]);
     const [isAiLoading, setIsAiLoading] = useState(false);
 
-    // AI Analysis Effect
-    useEffect(() => {
-        const fetchAIAdvice = async () => {
-            if (loading || !summary.totalIncome || !profile?.gemini_api_key) return;
+    const loading = txLoading || profileLoading;
 
-            setIsAiLoading(true);
-            try {
-                // Get top 3 categories for context
-                const categoryMap: Record<string, number> = {};
-                transactions.forEach(t => {
-                    if (t.type === 'expense') {
-                        categoryMap[t.category] = (categoryMap[t.category] || 0) + (t.amount || 0);
-                    }
-                });
+    const fetchAIAdvice = async (force: boolean = false) => {
+        // Only return if we have absolutely no financial data to analyze
+        if (loading || (summary.totalIncome === 0 && summary.totalExpenses === 0) || !profile?.gemini_api_key || !user?.id) return;
 
-                const topCategories = Object.entries(categoryMap)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(([category, amount]) => ({ category, amount }));
+        setIsAiLoading(true);
+        try {
+            // Get top 3 categories for context
+            const categoryMap: Record<string, number> = {};
+            transactions.forEach(t => {
+                if (t.type === 'expense') {
+                    categoryMap[t.category] = (categoryMap[t.category] || 0) + (t.amount || 0);
+                }
+            });
 
-                const insights = await analyzeFinancialHealth(profile.gemini_api_key, {
+            const topCategories = Object.entries(categoryMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([category, amount]) => ({ category, amount }));
+
+            const insights = await getDailyAdvice(
+                user.id,
+                profile.gemini_api_key,
+                {
                     monthlyIncome: summary.totalIncome,
                     monthlyExpenses: summary.totalExpenses,
                     savingsRate: Math.round(((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100),
                     topCategories
-                });
+                },
+                force
+            );
 
-                setAiInsights(insights);
-            } catch (err) {
-                console.error("AI Insights failure:", err);
-            } finally {
-                setIsAiLoading(false);
-            }
-        };
+            setAiInsights(insights);
+        } catch (err) {
+            console.error("AI Insights failure:", err);
+        } finally {
+            setIsAiLoading(false);
+        }
+    };
 
-        fetchAIAdvice();
-    }, [summary.totalIncome, summary.totalExpenses, profile?.gemini_api_key, loading]);
+    // AI Analysis Effect (Auto-load on mount/change with cache)
+    useEffect(() => {
+        fetchAIAdvice(false);
+    }, [summary.totalIncome, summary.totalExpenses, profile?.gemini_api_key, loading, user?.id]);
 
     const data = useMemo(() => {
         // Calculate savings rate
@@ -112,9 +123,10 @@ export const useEconomicHealth = (): { data: EconomicHealthData; loading: boolea
             transactionCount: transactions.length,
             insights: insights.slice(0, 3),
             aiInsights,
-            isAiLoading
+            isAiLoading,
+            isAiConfigured: !!profile?.gemini_api_key
         };
-    }, [transactions, summary, aiInsights, isAiLoading]);
+    }, [transactions, summary, aiInsights, isAiLoading, profile]);
 
-    return { data, loading };
+    return { data, loading, refreshAdvice: () => fetchAIAdvice(true) };
 };

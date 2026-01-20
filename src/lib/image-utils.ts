@@ -2,7 +2,7 @@
  * Utility for client-side image processing and compression to WebP.
  */
 
-export const compressToWebP = (file: File, quality: number = 0.8): Promise<Blob> => {
+export const compressToWebP = (file: File, maxSize: number = 400, quality: number = 0.8): Promise<Blob> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -17,8 +17,7 @@ export const compressToWebP = (file: File, quality: number = 0.8): Promise<Blob>
                     return;
                 }
 
-                // Target size: max 400x400 for avatars
-                const maxSize = 400;
+                // Target size: customizable (default 400x400 for avatars)
                 let width = img.width;
                 let height = img.height;
 

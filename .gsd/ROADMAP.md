@@ -63,6 +63,24 @@
 **Status**: ✅ Complete
 **Objective**: Per-user group categorization, Advanced Projections Modal (Crypto/ETFs projections for 6m-10y), Daily AI advice caching, and API key validation UX.
 
-### Phase 13: Production Readiness & Clean-up
-**Status**: ⬜ Not Started
-**Objective**: Remove remaining mock data and finalize launch documentation.
+### Phase 12.5: UI Consistency & Premium Components
+**Status**: ✅ Complete
+**Objective**: Unified modal animations (Framer Motion) across the app and high-fidelity custom PremiumDatePicker for premium UX.
+
+### Phase 13: UX Refinement & Mobile Optimization
+**Status**: ✅ Complete
+**Objective**: Redesign Transaction Modal for ergonomics, fix focus ring clipping, and ensure "pixel perfect" responsiveness (especially BottomNav overlap).
+- [x] **Transaction Modal Redesign**: 2-column grid, compact type toggle, reduced height.
+- [x] **Focus Ring Fix**: Adjust padding/box-model to prevent clipping of input highlights.
+- [x] **Mobile Responsive Audit**: Fix BottomNav overlap and safe area handling.
+- [x] **Mobile Action Menu**: Standardize mobile "+" button modal animation with Framer Motion.
+- [x] **Modal Consistency**: Ensure all modals (including AI History details) use the unified animation pattern.
+
+### Phase 14: Final Audit & Production Hardening
+**Status**: 🏗️ In Progress
+**Objective**: Guarantee avatar consistency across the app, social login sync, and overall performance/code hygiene.
+- [ ] **Avatar Consistency**: Audit and ensure user images appear in Sidebar, Header, Settings, and Transaction Cards.
+- [ ] **Social Login Sync**: Automatically pull and persist avatars from Google/Facebook logins into the `profiles` table. For now we only have Google login but implement it in a way that we can easily add Facebook login in the future.
+- [ ] **Manual Upload Compression**: Ensure all manual image uploads (Profile & Group) are compressed via WebP before Supabase storage.
+- [ ] **Option A (Hardening)**: Perform code audit, remove legacy/mock folders, and optimize bundle performance.
+- [ ] **Final RLS Audit**: Verify Row Level Security for all tables and storage buckets.

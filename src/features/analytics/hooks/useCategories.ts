@@ -47,15 +47,32 @@ export const useCategories = () => {
 
             const { data, error: insertError } = await supabase
                 .from('categories')
-                .insert([{
-                    ...category,
+                .upsert([{
                     user_id: user.id,
+                    name: category.name.trim(),
+                    icon: category.icon,
+                    color: category.color,
+                    bg_color: category.bg_color,
                     is_system: false
-                }])
+                }], {
+                    onConflict: 'user_id, name' // This assumes the unique index is named correctly or matches these columns
+                })
                 .select()
                 .single();
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                // If it fails due to unique constraint, try to get existing one
+                if (insertError.code === '23505') {
+                    const { data: existing } = await supabase
+                        .from('categories')
+                        .select()
+                        .eq('user_id', user.id)
+                        .ilike('name', category.name.trim())
+                        .single();
+                    if (existing) return existing;
+                }
+                throw insertError;
+            }
             return data;
         } catch (err: any) {
             console.error('[useCategories] Error adding category:', err);

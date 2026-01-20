@@ -1,4 +1,4 @@
-import { ShoppingBag, DollarSign, Edit2, Trash2, Calendar, Repeat, Hash, CheckCircle2, Circle, LayoutGrid } from 'lucide-react';
+import { ShoppingBag, DollarSign, Edit2, Trash2, Calendar, Repeat, Hash, CheckCircle2, Circle, LayoutGrid, User, Users } from 'lucide-react';
 import { Transaction, PersonalTransaction } from '@/types/index';
 
 interface TransactionCardProps {
@@ -6,6 +6,7 @@ interface TransactionCardProps {
     onEdit?: () => void;
     onDelete?: () => void;
     onSelect?: (id: string) => void;
+    onChangeCategory?: () => void;
     isSelected?: boolean;
     showActions?: boolean;
     contextName?: string; // e.g. "Personal" or Group Name
@@ -16,6 +17,7 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
     onEdit,
     onDelete,
     onSelect,
+    onChangeCategory,
     isSelected = false,
     showActions = true,
     contextName
@@ -48,6 +50,9 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
     const amount = Number(transaction.amount);
     const subtext = (transaction as any).payment_method || ((transaction as any).payer?.name ? `Pagado por ${(transaction as any).payer.name}` : '');
 
+    // Determine context icon
+    const ContextIcon = contextName?.toLowerCase().includes('personal') ? User : Users;
+
     return (
         <div
             onClick={() => onSelect?.(transaction.id)}
@@ -58,7 +63,10 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                 {onSelect && (
                     <div className={`transition-all duration-300 ${isSelected ? 'scale-110' : 'opacity-0 group-hover:opacity-100'}`}>
                         {isSelected ? (
-                            <CheckCircle2 className="w-5 h-5 text-primary fill-primary/10" />
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-primary blur-md opacity-20 animate-pulse" />
+                                <CheckCircle2 className="w-5 h-5 text-primary fill-primary/10 relative z-10" />
+                            </div>
                         ) : (
                             <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600" />
                         )}
@@ -86,7 +94,8 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                         {contextName && (
                             <>
                                 <span className="text-slate-300 text-[10px]">•</span>
-                                <div className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-tighter">
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm border ${contextName.toLowerCase().includes('split') ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-white/5'}`}>
+                                    <ContextIcon className="w-2.5 h-2.5" />
                                     {contextName}
                                 </div>
                             </>
@@ -100,8 +109,8 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                     <p className={`font-black text-base md:text-lg flex items-center gap-1.5 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                         {isIncome ? '+' : '-'}{formatCurrency(amount)}
                         {installments && (
-                            <span className="inline-flex items-center justify-center size-5 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500">
-                                {installments.includes('/') ? installments : <Hash className="w-2.5 h-2.5" />}
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 min-w-[20px] rounded-full bg-primary/10 text-primary text-[9px] font-black ring-1 ring-primary/20">
+                                {installments.includes('/') ? installments : <><Hash className="w-2.5 h-2.5 mr-0.5" />{installments}</>}
                             </span>
                         )}
                     </p>
@@ -112,8 +121,17 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                     )}
                 </div>
 
-                {showActions && (onEdit || onDelete) && (
+                {showActions && (onEdit || onDelete || onChangeCategory) && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onChangeCategory && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onChangeCategory(); }}
+                                className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors"
+                                title="Cambiar Categoría"
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                            </button>
+                        )}
                         {onEdit && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(); }}

@@ -33,7 +33,7 @@ const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
    }
 
    return (
-      <div className="px-6 md:px-12 py-10 pb-32 max-w-7xl mx-auto">
+      <div className="px-6 md:px-12 py-10 max-w-7xl mx-auto">
          <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
             <div>
                <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Mis grupos</h2>
@@ -176,62 +176,63 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative w-full max-w-lg bg-surface rounded-3xl p-6 shadow-2xl border border-border"
          >
-            <div className="flex justify-between items-center mb-6">
-               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Crear nuevo grupo</h3>
+            <div className="flex justify-between items-center mb-5">
+               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nuevo grupo</h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   <X className="w-5 h-5 text-slate-500" />
                </button>
             </div>
 
-            <div className="space-y-6">
-               {/* Group Name */}
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre del grupo</label>
-                  <input
-                     type="text"
-                     value={name}
-                     onChange={(e) => setName(e.target.value)}
-                     placeholder="Ej: Viaje a Bariloche, Gastos del depto..."
-                     className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none text-slate-900 dark:text-white"
-                     autoFocus
-                  />
+            <div className="space-y-5">
+               {/* Group Name & Currency Grid */}
+               <div className="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Nombre del grupo</label>
+                     <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ej: Viaje a Bariloche"
+                        className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                        autoFocus
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Moneda</label>
+                     <div className="flex bg-slate-50 dark:bg-black/20 border border-border rounded-xl p-1 h-[42px]">
+                        {currencies.map((c) => (
+                           <button
+                              key={c.code}
+                              onClick={() => setCurrency(c.code)}
+                              className={`flex-1 flex items-center justify-center gap-1 rounded-lg transition-all ${currency === c.code
+                                 ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600'
+                                 : 'text-slate-400 hover:text-slate-600'
+                                 }`}
+                           >
+                              <span className="text-xs font-black">{c.code}</span>
+                           </button>
+                        ))}
+                     </div>
+                  </div>
                </div>
 
                {/* Group Type */}
                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Tipo de grupo</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Tipo de grupo</label>
                   <div className="grid grid-cols-3 gap-3">
                      {groupTypes.map((gt) => (
                         <button
                            key={gt.id}
                            onClick={() => setType(gt.id)}
-                           className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${type === gt.id
+                           className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${type === gt.id
                               ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                              : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
+                              : 'border-border bg-slate-50 dark:bg-black/10 text-slate-400 hover:border-slate-300'
                               }`}
                         >
-                           {gt.icon}
-                           <span className="text-sm font-semibold">{gt.label}</span>
-                        </button>
-                     ))}
-                  </div>
-               </div>
-
-               {/* Currency */}
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Moneda principal</label>
-                  <div className="grid grid-cols-3 gap-3">
-                     {currencies.map((c) => (
-                        <button
-                           key={c.code}
-                           onClick={() => setCurrency(c.code)}
-                           className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${currency === c.code
-                              ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                              : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
-                              }`}
-                        >
-                           <span className="text-lg font-bold">{c.symbol}</span>
-                           <span className="text-xs font-medium">{c.code}</span>
+                           <div className={`size-10 rounded-xl flex items-center justify-center ${type === gt.id ? 'bg-blue-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
+                              {gt.icon}
+                           </div>
+                           <span className="text-xs font-bold">{gt.label}</span>
                         </button>
                      ))}
                   </div>
@@ -239,7 +240,8 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
 
                {/* Error Message */}
                {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
+                     <span className="size-1.5 rounded-full bg-red-500" />
                      {error}
                   </div>
                )}

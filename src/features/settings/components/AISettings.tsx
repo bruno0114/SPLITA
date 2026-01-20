@@ -161,8 +161,8 @@ export const AISettings: React.FC<AISettingsProps> = ({ apiKey, onSave, saving }
                             onClick={handleDelete}
                             disabled={saving || validating}
                             className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border ${confirmDelete
-                                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
-                                    : 'bg-transparent border-red-200 text-red-500 hover:bg-red-50'
+                                ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                                : 'bg-transparent border-red-200 text-red-500 hover:bg-red-50'
                                 }`}
                         >
                             {confirmDelete ? '¿Estás seguro?' : 'Eliminar Llave'}
@@ -171,10 +171,12 @@ export const AISettings: React.FC<AISettingsProps> = ({ apiKey, onSave, saving }
 
                     <button
                         onClick={handleSave}
-                        disabled={saving || validating || (localKey === apiKey && isConfigured)}
+                        disabled={saving || validating || !localKey}
                         className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-2.5 rounded-xl font-bold text-sm hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
                     >
-                        {saving || validating ? <Loader2 className="w-4 h-4 animate-spin" /> : (isConfigured && localKey !== apiKey ? 'Actualizar Llave' : 'Validar y Guardar')}
+                        {saving || validating ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                            localKey === apiKey && isConfigured ? 'Verificar conexión' : 'Validar y Guardar'
+                        )}
                     </button>
                 </div>
             </div>

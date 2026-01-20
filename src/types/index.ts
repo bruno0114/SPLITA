@@ -25,6 +25,7 @@ export interface Transaction {
   exchange_rate?: number;
   is_recurring?: boolean;
   installments?: string | null;
+  raw_date?: string;
 }
 
 export interface PersonalTransaction {
@@ -37,6 +38,8 @@ export interface PersonalTransaction {
   date: string;
   payment_method: string | null;
   created_at: string;
+  is_group?: boolean;
+  raw_date?: string;
 }
 
 export interface Category {

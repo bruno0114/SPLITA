@@ -529,7 +529,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
       setUploading(true);
       setError(null);
       try {
-         const webpBlob = await compressToWebP(file);
+         const webpBlob = await compressToWebP(file, 800);
          const fileName = `group_${group.id}_${Date.now()}.webp`;
 
          const { error: uploadError } = await supabase.storage
@@ -854,68 +854,68 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+            className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
          >
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-5">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {initialData ? 'Editar gasto' : 'Nuevo gasto'}
+                  {initialData ? 'Editar gasto' : 'Nuevo gasto grupal'}
                </h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   <X className="w-5 h-5 text-slate-500" />
                </button>
             </div>
 
-            <div className="space-y-4">
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Descripción</label>
-                  <input
-                     type="text"
-                     value={title}
-                     onChange={(e) => setTitle(e.target.value)}
-                     placeholder="Ej: Cena en Palermo"
-                     className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto px-2 -mx-2 scrollbar-hide">
+               <div className="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
                   <div>
-                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto</label>
-                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Descripción</label>
+                     <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Ej: Cena en Palermo"
+                        className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto</label>
+                     <div className="relative group/input">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">$</span>
                         <input
                            type="number"
                            value={amount}
                            onChange={(e) => setAmount(e.target.value)}
                            placeholder="0"
-                           className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                           className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-2.5 text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                      </div>
-                  </div>
-
-                  <div>
-                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Categoría</label>
-                     <PremiumDropdown
-                        value={category}
-                        onChange={setCategory}
-                        groups={[
-                           {
-                              title: 'Categorías',
-                              options: categories.map(c => ({
-                                 id: c.name,
-                                 label: c.name,
-                                 icon: LayoutGrid,
-                                 color: c.color,
-                                 bgColor: c.bg_color
-                              }))
-                           }
-                        ]}
-                        className="w-full h-[54px]"
-                     />
                   </div>
                </div>
 
                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Categoría</label>
+                  <PremiumDropdown
+                     value={category}
+                     onChange={setCategory}
+                     groups={[
+                        {
+                           title: 'Categorías',
+                           options: categories.map(c => ({
+                              id: c.name,
+                              label: c.name,
+                              icon: LayoutGrid,
+                              color: c.color,
+                              bgColor: c.bg_color
+                           }))
+                        }
+                     ]}
+                     className="w-full h-10"
+                  />
+               </div>
+
+               <div className="pt-2">
                   <div className="flex items-center justify-between mb-3">
-                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dividir con:</label>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Division:</label>
                      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                         <button
                            onClick={() => setSplitMode('equal')}
@@ -938,11 +938,11 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                      </div>
                   </div>
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
                      {members.map(member => {
                         const isSelected = splitBetween.includes(member.id);
                         return (
-                           <div key={member.id} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-2 rounded-xl border border-border/50">
+                           <div key={member.id} className="flex items-center gap-3 bg-slate-100 dark:bg-white/5 p-2 rounded-xl border border-border/50">
                               <button
                                  onClick={() => toggleMember(member.id)}
                                  className={`size-10 rounded-full border-2 transition-all overflow-hidden ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-transparent opacity-50'}`}
@@ -950,12 +950,12 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                                  <img src={member.avatar || undefined} alt="" className="w-full h-full object-cover" />
                               </button>
                               <div className="flex-1">
-                                 <p className={`text-xs font-bold ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{member.name}</p>
-                                 {isSelected && splitMode === 'equal' && <p className="text-[10px] font-bold text-blue-500 uppercase">1 / {splitBetween.length}</p>}
+                                 <p className={`text-[11px] font-bold ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{member.name}</p>
+                                 {isSelected && splitMode === 'equal' && <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">1 / {splitBetween.length}</p>}
                               </div>
 
                               {isSelected && splitMode !== 'equal' && (
-                                 <div className="relative w-20">
+                                 <div className="relative w-24">
                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{splitMode === 'percent' ? '%' : '$'}</span>
                                     <input
                                        type="number"
@@ -971,51 +971,41 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                   </div>
                </div>
 
-               {/* Recurring & Installments */}
-               <div className="pt-4 border-t border-border mt-2">
-                  <div className="flex items-center justify-between mb-4">
-                     <div className="flex items-center gap-2">
-                        <div className={`p-2 rounded-lg ${isRecurring ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                           <Repeat className="w-4 h-4" />
-                        </div>
-                        <div>
-                           <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">Recurrente</p>
-                           <p className="text-[10px] text-slate-500 font-medium">Auto-remitente mensual</p>
-                        </div>
-                     </div>
+               {/* Recurring & Installments - Compact Grid */}
+               <div className="pt-4 border-t border-border mt-2 grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Recurrente</label>
                      <button
                         onClick={() => setIsRecurring(!isRecurring)}
-                        className={`w-10 h-5 rounded-full transition-all relative ${isRecurring ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all ${isRecurring ? 'bg-blue-500/10 border-blue-500/30 text-blue-600' : 'bg-slate-50 dark:bg-white/5 border-border text-slate-500'}`}
                      >
-                        <div className={`absolute top-0.5 size-4 bg-white rounded-full transition-all ${isRecurring ? 'left-5.5' : 'left-0.5'}`} />
+                        <div className="flex items-center gap-2">
+                           <Repeat className="w-3.5 h-3.5" />
+                           <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
+                        </div>
+                        <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                           <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'left-4.5' : 'left-0.5'}`} />
+                        </div>
                      </button>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                        <div className={`p-2 rounded-lg ${currentInstallment ? 'bg-purple-500/10 text-purple-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                           <CreditCard className="w-4 h-4" />
-                        </div>
-                        <div>
-                           <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">Cuotas</p>
-                           <p className="text-[10px] text-slate-500 font-medium">Ej: 2 de 12</p>
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-border">
+                  <div className="flex flex-col gap-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">N° Cuotas</label>
+                     <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-border h-[42px]">
                         <input
                            type="number"
                            placeholder="1"
                            value={currentInstallment}
                            onChange={(e) => setCurrentInstallment(e.target.value)}
-                           className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-7"
+                           className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
                         />
-                        <span className="text-slate-400 text-[10px] font-bold">/</span>
+                        <span className="text-slate-400 text-[10px] font-black">/</span>
                         <input
                            type="number"
                            placeholder="1"
                            value={totalInstallments}
                            onChange={(e) => setTotalInstallments(e.target.value)}
-                           className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-7"
+                           className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
                         />
                      </div>
                   </div>
