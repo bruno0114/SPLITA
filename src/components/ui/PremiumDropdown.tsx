@@ -31,12 +31,29 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
     className = ''
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [direction, setDirection] = useState<'up' | 'down'>('down');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Find the currently selected option
     const selectedOption = groups
         .flatMap(g => g.options)
         .find(opt => opt.id === value);
+
+    // Position detection
+    useEffect(() => {
+        if (isOpen && dropdownRef.current) {
+            const rect = dropdownRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+
+            // If less than 320px below (typical dropdown max height) and more space above
+            if (spaceBelow < 320 && spaceAbove > spaceBelow) {
+                setDirection('up');
+            } else {
+                setDirection('down');
+            }
+        }
+    }, [isOpen]);
 
     // Close on click outside
     useEffect(() => {
@@ -81,11 +98,11 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        initial={{ opacity: 0, y: direction === 'down' ? 10 : -10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        exit={{ opacity: 0, y: direction === 'down' ? 10 : -10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute right-0 top-full mt-2 w-full min-w-[240px] bg-surface/90 backdrop-blur-xl border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
+                        className={`absolute right-0 ${direction === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'} w-full min-w-[240px] bg-surface/90 backdrop-blur-xl border border-border rounded-xl shadow-xl z-[100] overflow-hidden`}
                     >
                         <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar">
                             {groups.map((group, groupIdx) => (
@@ -100,8 +117,8 @@ const PremiumDropdown: React.FC<PremiumDropdownProps> = ({
                                                 key={option.id}
                                                 onClick={() => handleSelect(option.id)}
                                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isSelected
-                                                        ? 'bg-primary/10 text-primary font-bold'
-                                                        : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
+                                                    ? 'bg-primary/10 text-primary font-bold'
+                                                    : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
                                                     }`}
                                             >
                                                 {option.icon && (

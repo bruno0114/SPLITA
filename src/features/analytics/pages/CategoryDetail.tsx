@@ -282,7 +282,25 @@ const CategoryDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Transaction List */}
+            {/* Transaction List Header */}
+            <div className="flex items-center justify-between mb-4 px-2">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de movimientos</div>
+                {activeTransactions.length > 0 && (
+                    <button
+                        onClick={() => {
+                            if (selectedIds.length === activeTransactions.length) {
+                                setSelectedIds([]);
+                            } else {
+                                setSelectedIds(activeTransactions.map(tx => tx.id));
+                            }
+                        }}
+                        className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline transition-all"
+                    >
+                        {selectedIds.length === activeTransactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                    </button>
+                )}
+            </div>
+
             <div className="space-y-4">
                 {paginatedTransactions.length === 0 ? (
                     <div className="glass-panel p-16 rounded-3xl text-center">

@@ -283,7 +283,23 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                         </div>
 
                         <div className="space-y-2">
-                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Historial</div>
+                           <div className="flex items-center justify-between mb-2 px-2">
+                              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial</div>
+                              {transactions.length > 0 && (
+                                 <button
+                                    onClick={() => {
+                                       if (selectedIds.length === transactions.length) {
+                                          setSelectedIds([]);
+                                       } else {
+                                          setSelectedIds(transactions.map(tx => tx.id));
+                                       }
+                                    }}
+                                    className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline transition-all"
+                                 >
+                                    {selectedIds.length === transactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                                 </button>
+                              )}
+                           </div>
                            {loadingTx ? (
                               <div className="flex justify-center p-4">
                                  <Loader2 className="animate-spin text-slate-400" />

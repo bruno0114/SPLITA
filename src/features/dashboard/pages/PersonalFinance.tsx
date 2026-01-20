@@ -169,9 +169,25 @@ const PersonalFinance: React.FC = () => {
       <section>
         <div className="flex justify-between items-center mb-6 px-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Movimientos personales</h3>
-          {transactions.length > 5 && (
-            <button className="text-sm text-blue-500 hover:text-blue-600 font-semibold hover:underline">Ver todos</button>
-          )}
+          <div className="flex items-center gap-4">
+            {transactions.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedIds.length === transactions.length) {
+                    setSelectedIds([]);
+                  } else {
+                    setSelectedIds(transactions.map(tx => tx.id));
+                  }
+                }}
+                className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline transition-all"
+              >
+                {selectedIds.length === transactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+              </button>
+            )}
+            {transactions.length > 5 && (
+              <button className="text-sm text-blue-500 hover:text-blue-600 font-semibold hover:underline">Ver todos</button>
+            )}
+          </div>
         </div>
 
         {transactions.length === 0 ? (
