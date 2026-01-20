@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { clearModelCache } from '@/services/ai';
 
 export interface Profile {
     id: string;
@@ -61,6 +62,12 @@ export const useProfile = () => {
                 .single();
 
             if (error) throw error;
+
+            // If the API key was updated, clear the model cache
+            if (updates.gemini_api_key !== undefined) {
+                clearModelCache();
+            }
+
             setProfile(data);
             return { data, error: null };
         } catch (err: any) {

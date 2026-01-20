@@ -24,7 +24,7 @@
 **Objective**: Secure and user-scoped Gemini API usage.
 
 ### Phase 4: Core UX & Data Integrity Fixes
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Stabilize the core flows for real-world production usage.
 **Deliverables**:
 - Fix RLS recursion in `group_members` policy.

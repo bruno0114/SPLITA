@@ -67,16 +67,17 @@ SPLITA is a financial management PWA for personal finance tracking and group exp
 - **Purpose:** Shared expense tracking + AI import
 - **Location:** `src/features/expenses/`
 - **Components:**
-  - `ImportExpenses.tsx` - Gemini AI receipt scanner
-  - `useTransactions.ts` - Group transactions CRUD
+  - `ImportExpenses.tsx` - Multi-step UI for receipt uploading and AI validation
+  - `useTransactions.ts` - Group transactions CRUD with split logic
+- **AI Integration:** Offloaded to `src/services/ai.ts` (extractExpensesFromImages)
 
 ### settings
 - **Purpose:** User profile and preferences
 - **Location:** `src/features/settings/`
 - **Components:**
-  - `Settings.tsx` - Profile edit, currency settings, **Avatar upload (WebP)**
-  - `useProfile.ts` - Profile CRUD
-  - `image-utils.ts` - Client-side WebP compression
+  - `Settings.tsx` - Main settings hub
+  - `AISettings.tsx` - **Gemini API Key management** (validation, persistence, removal)
+  - `useProfile.ts` - Profile CRUD (Avatar + API Keys)
 
 ## Data Flow
 
@@ -96,15 +97,34 @@ SPLITA is a financial management PWA for personal finance tracking and group exp
 
 ## Database Tables
 
-| Table | Purpose | RLS |
-|-------|---------|-----|
-| profiles | User profiles | ✓ |
-| groups | Expense groups | ✓ |
-| group_members | Group membership | ✓ |
-| transactions | Group transactions | ✓ |
-| transaction_splits | Who owes what | ✓ |
-| personal_transactions | Personal finance | ✓ |
-| user_settings | Preferences | ✓ |
+| Table | Purpose | RLS Logic |
+|-------|---------|-----------|
+| profiles | User profiles + Keys | self-update, anyone can read basic info |
+| groups | Expense groups | member-only access |
+| group_members | Group membership | member-only read/write |
+| transactions | Group transactions | member-only read/write |
+| transaction_splits | Who owes what | member-only read/write |
+| personal_transactions | Personal finance | owner-only access |
+| user_settings | Preferences | owner-only access |
+
+## Core Logic Flows
+
+### 1. Group Creation Flow
+1. User submits name/type in `Groups.tsx`.
+2. `useGroups.ts` inserts new record into `groups`.
+3. Database trigger or second client call (manual) inserts creator into `group_members` with `role: 'admin'`.
+4. RLS allows subsequent access because user is now in `group_members`.
+
+### 2. AI Receipt Import Flow
+1. User uploads files in `ImportExpenses.tsx`.
+2. Component calls `extractExpensesFromImages` in `ai.ts`.
+3. AI Service:
+   - Discovers best model (Flash vs Pro) based on user key region.
+   - Performs smoke test (capability check).
+   - Caches model for session efficiency.
+   - Returns structured JSON array of expenses.
+4. User selects group for import (personal vs group context determines `group_id` presence).
+5. Transactions + Splits are batch-inserted into Supabase.
 
 ## Technical Debt
 

@@ -2,18 +2,15 @@
 
 ## Current Position
 - **Phase:** 4 (Core UX & Data Integrity Fixes)
-- **Status:** Milestone Planned
+- **Status:** ✅ Complete
 - **Last Updated:** 2026-01-20
 
 ## Last Session Summary
-Phase 3 gaps closed successfully.
-- Implemented robust AI service with selective discovery and capability smoke tests.
-- Centralized receipt extraction (PDF/Images) in `ai.ts` service with improved thoroughness.
-- Unified AI error UI across settings and import flows; eliminated browser alerts.
-- Updated technical documentation (`ARCHITECTURE.md` and `STACK.md`).
+Phase 4 executed successfully.
+- Resolved RLS recursion via Security Definer pattern (SQL migration provided).
+- Implemented API key removal and dynamic cache invalidation.
+- Enhanced Import flow with Personal vs Group destination logic.
 
 ## Next Steps
 
-1. `/plan 4` — Decompose Core UX and RLS fixes into executable tasks.
-2. Fix RLS recursion blocker in `group_members`.
-3. Implement Personal vs Group import logic.
+1. `/plan 5` — Production Data Clean-up and final launch preparations.

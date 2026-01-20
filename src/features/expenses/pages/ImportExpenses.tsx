@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { MOCK_TRANSACTIONS } from '@/lib/constants';
 import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Transaction } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
+import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { useProfile } from '@/features/settings/hooks/useProfile';
-import { getGeminiClient } from '@/services/ai';
+import { getGeminiClient, extractExpensesFromImages } from '@/services/ai';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -23,16 +23,16 @@ const ImportExpenses: React.FC = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
   // We need the `addTransaction` from the hook. 
-  // Optimization: We could fetch it on demand inside the save function, 
-  // but hooks rules require top level. We can pass `selectedGroupId` to useTransactions 
-  // but it might change. Let's just instantiate it with the selected one when meaningful.
-  const { addTransaction } = useTransactions(selectedGroupId || null);
+  const { addTransaction } = useTransactions(selectedGroupId === 'personal' ? null : selectedGroupId);
+  const { addTransaction: addPersonalTransaction } = usePersonalTransactions();
   const { profile } = useProfile();
 
   const [step, setStep] = useState<ImportStep>('upload');
   const [files, setFiles] = useState<File[]>([]);
   const [scannedTransactions, setScannedTransactions] = useState<Transaction[]>([]);
   const [showConfig, setShowConfig] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Handlers ---
@@ -65,73 +65,22 @@ const ImportExpenses: React.FC = () => {
   const processFilesWithGemini = async () => {
     if (files.length === 0) return;
 
+    setError(null);
+    setSuccess(null);
     setStep('processing');
 
     try {
-      const ai = getGeminiClient(profile?.gemini_api_key);
-      const model = 'gemini-2.0-flash-exp';
-
-      const parts = [];
-
-      for (const file of files) {
-        const base64Data = await fileToGenerativePart(file);
-        // Simple heuristic for mime type
-        const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
-        });
+      if (!profile) {
+        throw new Error("PROFILE_LOADING");
       }
 
-      parts.push({
-        text: `Contexto: Sos un asistente financiero argentino. Analizá estos comprobantes.
-          Extraé las transacciones. 
-          Respondé ÚNICAMENTE con un JSON array.
-          
-          Mapeo de Categorías (usar EXACTAMENTE estas strings):
-          - 'Supermercado' (comida, bebidas, limpieza)
-          - 'Gastronomía' (restaurantes, bares, delivery)
-          - 'Servicios' (luz, gas, internet, suscripciones)
-          - 'Transporte' (nafta, uber, sube)
-          - 'Compras' (ropa, electrónica, regalos)
-          - 'Varios' (otros)
-  
-          Campos requeridos por objeto:
-          1. date (Formato YYYY-MM-DD ISO)
-          2. merchant (Nombre del comercio)
-          3. category (Una de las categorias de arriba)
-          4. amount (Numero, parsear con cuidado, en argentina se usa coma para decimales a veces, convertilo a standard float)`
-      });
+      const fileParts = await Promise.all(files.map(async file => {
+        const base64Data = await fileToGenerativePart(file);
+        const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        return { data: base64Data, mimeType };
+      }));
 
-      const schema = {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            date: { type: Type.STRING },
-            merchant: { type: Type.STRING },
-            category: { type: Type.STRING },
-            amount: { type: Type.NUMBER },
-          },
-          required: ["date", "merchant", "category", "amount"]
-        }
-      };
-
-      const result = await ai.models.generateContent({
-        model: model,
-        contents: { parts: parts },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: schema,
-        }
-      });
-
-      console.log("Gemini Raw Response", result.text);
-
-      const extractedData = JSON.parse(result.text || "[]");
+      const extractedData = await extractExpensesFromImages(profile.gemini_api_key!, fileParts);
 
       const mappedTransactions: Transaction[] = extractedData.map((item: any, index: number) => ({
         id: `scan-${Date.now()}-${index}`,
@@ -155,10 +104,19 @@ const ImportExpenses: React.FC = () => {
       setScannedTransactions(mappedTransactions);
       setStep('review');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error scanning files with Gemini:", error);
-      alert("Error al procesar. Verificá la consola o intentá de nuevo.");
-      setStep('upload');
+
+      if (error.message === 'API_KEY_MISSING') {
+        setShowConfig(true);
+        setStep('upload');
+      } else if (error.message === 'PROFILE_LOADING') {
+        setError("Todavía estamos cargando tu perfil. Intentá de nuevo en un momento.");
+        setStep('upload');
+      } else {
+        setError(error.message || "Error al procesar los comprobantes. Verificá tu API Key o intentá más tarde.");
+        setStep('upload');
+      }
     }
   };
 
@@ -188,34 +146,55 @@ const ImportExpenses: React.FC = () => {
   };
 
   const handleConfirmImport = async () => {
+    setError(null);
     if (!selectedGroupId) {
-      alert("Por favor seleccioná un grupo para asignar estos gastos.");
+      setError("Por favor seleccioná un destino (Personal o Grupo) para estos gastos.");
       return;
     }
 
-    const selectedGroup = groups.find(g => g.id === selectedGroupId);
-    if (!selectedGroup) return;
-
     setStep('saving');
-
-    // Save each transaction
-    // NOTE: In a real app we'd do this in batch or use Promise.all 
-    // We'll iterate simply here.
     let successCount = 0;
 
-    for (const tx of scannedTransactions) {
-      const { error } = await addTransaction({
-        amount: tx.amount,
-        category: tx.category,
-        title: tx.merchant,
-        date: new Date().toISOString(), // Or parse tx.date if available
-        splitBetween: selectedGroup.members.map(m => m.id) // Default split with everyone
-      });
-      if (!error) successCount++;
-    }
+    try {
+      if (selectedGroupId === 'personal') {
+        for (const tx of scannedTransactions) {
+          const { error } = await addPersonalTransaction({
+            title: tx.merchant,
+            amount: tx.amount,
+            category: tx.category,
+            type: 'expense',
+            date: new Date().toISOString()
+          });
+          if (!error) successCount++;
+        }
+      } else {
+        const selectedGroup = groups.find(g => g.id === selectedGroupId);
+        if (!selectedGroup) throw new Error("Grupo no encontrado");
 
-    alert(`Se importaron ${successCount} gastos exitosamente.`);
-    navigate(`/groups/${selectedGroupId}`);
+        for (const tx of scannedTransactions) {
+          const { error } = await addTransaction({
+            amount: tx.amount,
+            category: tx.category,
+            title: tx.merchant,
+            date: new Date().toISOString(),
+            splitBetween: selectedGroup.members.map(m => m.id)
+          });
+          if (!error) successCount++;
+        }
+      }
+
+      setSuccess(`¡Éxito! Se importaron ${successCount} gastos correctamente.`);
+      setTimeout(() => {
+        if (selectedGroupId === 'personal') {
+          navigate('/dashboard');
+        } else {
+          navigate(`/groups/${selectedGroupId}`);
+        }
+      }, 2000);
+    } catch (err: any) {
+      setError("Error al importar: " + err.message);
+      setStep('review');
+    }
   };
 
 
@@ -224,6 +203,14 @@ const ImportExpenses: React.FC = () => {
   if (step === 'upload') {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
+        {/* Alerts Area */}
+        {error && (
+          <div className="mb-6 flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-600 dark:text-red-400 font-bold">{error}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div className="space-y-2">
@@ -331,9 +318,23 @@ const ImportExpenses: React.FC = () => {
   // --- REVIEW VIEW ---
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 pb-32">
+      {/* Alerts Area */}
+      {error && (
+        <div className="mb-6 flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600 dark:text-red-400 font-bold">{error}</p>
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 flex items-start gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2">
+          <Check className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">{success}</p>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
         <div>
-          <button onClick={() => setStep('upload')} className="text-xs font-bold text-slate-500 hover:text-blue-500 mb-2 flex items-center gap-1 uppercase tracking-wider">
+          <button onClick={() => { setStep('upload'); setError(null); }} className="text-xs font-bold text-slate-500 hover:text-blue-500 mb-2 flex items-center gap-1 uppercase tracking-wider">
             <ChevronLeft className="w-3 h-3" /> Cancelar
           </button>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Validar importación</h2>
@@ -341,15 +342,15 @@ const ImportExpenses: React.FC = () => {
         </div>
       </div>
 
-      {/* Group Selection */}
+      {/* Destination Selection */}
       <div className="mb-8 p-6 bg-surface border border-blue-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-            <Icons.Users className="w-5 h-5" />
+            <Icons.LayoutDashboard className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 dark:text-white">Asignar a Grupo</h4>
-            <p className="text-xs text-slate-500">Todos los gastos se crearán en este grupo.</p>
+            <h4 className="font-bold text-slate-900 dark:text-white">Destino de los gastos</h4>
+            <p className="text-xs text-slate-500">¿A dónde querés enviar estos registros?</p>
           </div>
         </div>
         <select
@@ -357,10 +358,15 @@ const ImportExpenses: React.FC = () => {
           onChange={(e) => setSelectedGroupId(e.target.value)}
           className="w-full md:w-64 bg-background border border-border rounded-xl px-4 py-3 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
         >
-          <option value="" disabled>Seleccionar grupo...</option>
-          {groups.map(g => (
-            <option key={g.id} value={g.id}>{g.name}</option>
-          ))}
+          <option value="" disabled>Seleccionar destino...</option>
+          <option value="personal">👤 Mis Finanzas Personales</option>
+          {groups.length > 0 && (
+            <optgroup label="Mis Grupos">
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>👥 {g.name}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
 

@@ -48,6 +48,7 @@
 |----------|---------|----------|
 | VITE_SUPABASE_URL | Supabase project URL | .env |
 | VITE_SUPABASE_ANON_KEY | Supabase anon key | .env |
+| VITE_GEMINI_API_KEY | System fallback AI Key | .env (optional) |
 
 ## Project Stats
 

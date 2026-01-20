@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrainCircuit, ExternalLink, Eye, EyeOff, Check, Loader2, Sparkles } from 'lucide-react';
+import { BrainCircuit, ExternalLink, Eye, EyeOff, Check, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { validateGeminiKey } from '@/services/ai';
 
 interface AISettingsProps {
     apiKey: string;
@@ -11,12 +12,68 @@ export const AISettings: React.FC<AISettingsProps> = ({ apiKey, onSave, saving }
     const [localKey, setLocalKey] = useState(apiKey || '');
     const [showKey, setShowKey] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [validating, setValidating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const handleSave = async () => {
-        const { error } = await onSave(localKey);
-        if (!error) {
+        setError(null);
+        setSuccess(false);
+        setSuccessMsg(null);
+        setConfirmDelete(false);
+
+        if (localKey.trim() === "") {
+            setError("La llave no puede estar vacía");
+            return;
+        }
+
+        setValidating(true);
+        const { valid, error: validationError } = await validateGeminiKey(localKey);
+        setValidating(false);
+
+        if (!valid) {
+            setError(validationError || "La llave ingresada no es válida o falló la conexión con Google AI");
+            return;
+        }
+
+        const { error: saveError } = await onSave(localKey);
+        if (!saveError) {
+            setSuccessMsg("Llave válida y guardada");
             setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+            setTimeout(() => {
+                setSuccess(false);
+                setSuccessMsg(null);
+            }, 3000);
+        } else {
+            setError("Error al guardar: " + saveError);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            setTimeout(() => setConfirmDelete(false), 4000);
+            return;
+        }
+
+        setError(null);
+        setSuccess(false);
+        setSuccessMsg(null);
+
+        const { error: saveError } = await onSave("");
+        if (!saveError) {
+            setLocalKey("");
+            setSuccessMsg("Llave eliminada correctamente");
+            setSuccess(true);
+            setConfirmDelete(false);
+            setTimeout(() => {
+                setSuccess(false);
+                setSuccessMsg(null);
+            }, 3000);
+        } else {
+            setError("Error al eliminar: " + saveError);
+            setConfirmDelete(false);
         }
     };
 
@@ -41,8 +98,8 @@ export const AISettings: React.FC<AISettingsProps> = ({ apiKey, onSave, saving }
                 </div>
 
                 <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${isConfigured
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                     }`}>
                     <div className={`size-2 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                     {isConfigured ? 'Configurado' : 'Sin configurar'}
@@ -84,19 +141,40 @@ export const AISettings: React.FC<AISettingsProps> = ({ apiKey, onSave, saving }
                     </p>
                 </div>
 
+                {error && (
+                    <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-1">
+                        <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>
+                    </div>
+                )}
+
                 <div className="flex justify-end items-center gap-4">
-                    {success && (
+                    {success && successMsg && (
                         <span className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold animate-in fade-in slide-in-from-right-2">
                             <Check className="w-3.5 h-3.5" />
-                            Llave guardada
+                            {successMsg}
                         </span>
                     )}
+
+                    {isConfigured && (
+                        <button
+                            onClick={handleDelete}
+                            disabled={saving || validating}
+                            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border ${confirmDelete
+                                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                                    : 'bg-transparent border-red-200 text-red-500 hover:bg-red-50'
+                                }`}
+                        >
+                            {confirmDelete ? '¿Estás seguro?' : 'Eliminar Llave'}
+                        </button>
+                    )}
+
                     <button
                         onClick={handleSave}
-                        disabled={saving || localKey === apiKey}
+                        disabled={saving || validating || (localKey === apiKey && isConfigured)}
                         className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-2.5 rounded-xl font-bold text-sm hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Llave'}
+                        {saving || validating ? <Loader2 className="w-4 h-4 animate-spin" /> : (isConfigured && localKey !== apiKey ? 'Actualizar Llave' : 'Validar y Guardar')}
                     </button>
                 </div>
             </div>
