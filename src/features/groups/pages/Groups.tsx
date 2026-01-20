@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ArrowUpRight, ArrowDownLeft, Receipt, Plane, Home, Beer, Loader2, X, Users, DollarSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Group } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 
@@ -110,12 +111,14 @@ const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
          </div>
 
          {/* Create Group Modal */}
-         {showCreateModal && (
-            <CreateGroupModal
-               onClose={() => setShowCreateModal(false)}
-               onSave={handleCreateGroup}
-            />
-         )}
+         <AnimatePresence>
+            {showCreateModal && (
+               <CreateGroupModal
+                  onClose={() => setShowCreateModal(false)}
+                  onSave={handleCreateGroup}
+               />
+            )}
+         </AnimatePresence>
       </div>
    );
 };
@@ -159,8 +162,20 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
    };
 
    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-         <div className="w-full max-w-lg bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+         <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+         />
+         <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-lg bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+         >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Crear nuevo grupo</h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
@@ -247,7 +262,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
                   Crear grupo
                </button>
             </div>
-         </div>
+         </motion.div>
       </div>
    );
 };

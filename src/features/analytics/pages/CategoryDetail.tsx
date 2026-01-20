@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
@@ -14,6 +15,8 @@ import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
+import PremiumDatePicker from '@/components/ui/PremiumDatePicker';
+import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
 import { Transaction, PersonalTransaction } from '@/types/index';
 import { supabase } from '@/lib/supabase';
 
@@ -47,6 +50,7 @@ const CategoryDetail: React.FC = () => {
     // Filter and Paginate logic
     const {
         paginatedTransactions,
+        allFiltered,
         totalFiltered,
         totalAmount,
         totalPages,
@@ -89,6 +93,7 @@ const CategoryDetail: React.FC = () => {
 
         return {
             paginatedTransactions: paginated,
+            allFiltered: filtered,
             totalFiltered: totalCount,
             totalAmount: amount,
             totalPages: pages,
@@ -238,40 +243,29 @@ const CategoryDetail: React.FC = () => {
                 {/* Search & Filters Expands */}
                 <div className={`lg:col-span-2 transition-all duration-300 ${showFilters ? 'opacity-100' : 'opacity-0 invisible h-0 overflow-hidden'}`}>
                     <div className="glass-panel p-5 rounded-3xl h-full flex flex-col justify-center">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="relative">
+                        <div className="flex flex-col md:flex-row items-center gap-4">
+                            <div className="relative flex-1 w-full">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
                                     placeholder="Buscar comercio..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                 />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <input
-                                        type="date"
-                                        value={dateFrom}
-                                        onChange={(e) => setDateFrom(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                    />
-                                </div>
-                                <span className="text-slate-400">-</span>
-                                <div className="relative flex-1">
-                                    <input
-                                        type="date"
-                                        value={dateTo}
-                                        onChange={(e) => setDateTo(e.target.value)}
-                                        className="w-full px-4 py-3 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                    />
-                                </div>
+
+                            <div className="flex items-center gap-3">
+                                <PremiumDatePicker
+                                    startDate={dateFrom}
+                                    endDate={dateTo}
+                                    onStartDateChange={setDateFrom}
+                                    onEndDateChange={setDateTo}
+                                />
                                 {(searchTerm || dateFrom || dateTo) && (
                                     <button
                                         onClick={() => { setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
-                                        className="p-3 text-slate-400 hover:text-red-500 transition-colors"
+                                        className="p-3 text-slate-400 hover:text-red-500 transition-colors bg-white/50 dark:bg-black/20 rounded-xl border border-border"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
@@ -285,18 +279,18 @@ const CategoryDetail: React.FC = () => {
             {/* Transaction List Header */}
             <div className="flex items-center justify-between mb-4 px-2">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de movimientos</div>
-                {activeTransactions.length > 0 && (
+                {allFiltered.length > 0 && (
                     <button
                         onClick={() => {
-                            if (selectedIds.length === activeTransactions.length) {
+                            if (selectedIds.length === allFiltered.length) {
                                 setSelectedIds([]);
                             } else {
-                                setSelectedIds(activeTransactions.map(tx => tx.id));
+                                setSelectedIds(allFiltered.map(tx => tx.id));
                             }
                         }}
                         className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline transition-all"
                     >
-                        {selectedIds.length === activeTransactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                        {selectedIds.length === allFiltered.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
                     </button>
                 )}
             </div>
@@ -326,6 +320,7 @@ const CategoryDetail: React.FC = () => {
                                     onEdit={() => handleEdit(tx)}
                                     onDelete={() => handleDelete(tx.id)}
                                     onSelect={handleSelect}
+                                    onChangeCategory={() => setSelectedIds([tx.id])}
                                     isSelected={selectedIds.includes(tx.id)}
                                     contextName={isActiveScopePersonal ? 'Personal' : (groups.find(g => g.id === scope)?.name || 'Grupo')}
                                 />
@@ -366,14 +361,16 @@ const CategoryDetail: React.FC = () => {
                 )}
             </div>
 
-            {showModal && (
-                <TransactionModal
-                    onClose={() => setShowModal(false)}
-                    onSave={handleSave}
-                    initialData={editingTx}
-                    defaultCategory={config.label}
-                />
-            )}
+            <AnimatePresence>
+                {showModal && (
+                    <TransactionModal
+                        onClose={() => setShowModal(false)}
+                        onSave={handleSave}
+                        initialData={editingTx}
+                        defaultCategory={config.label}
+                    />
+                )}
+            </AnimatePresence>
 
             <BulkActionsBar
                 selectedCount={selectedIds.length}

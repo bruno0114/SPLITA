@@ -1,19 +1,60 @@
 import React, { useState } from 'react';
-import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle } from 'lucide-react';
-import { usePersonalTransactions } from '../hooks/usePersonalTransactions';
+import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle, Calendar, Filter, BarChart3 } from 'lucide-react';
+import { usePersonalTransactions, TransactionFilters } from '../hooks/usePersonalTransactions';
 import { PersonalTransaction } from '@/types/index';
 import ProjectionCard from '../components/ProjectionCard';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
+import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
+import PremiumDatePicker from '@/components/ui/PremiumDatePicker';
+import ExpenditureEvolutionChart from '../components/ExpenditureEvolutionChart';
 import { supabase } from '@/lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import SubscriptionModal from '../components/SubscriptionModal';
 
 const PersonalFinance: React.FC = () => {
-  const { transactions, summary, loading, addTransaction, updateTransaction, deleteTransaction, refreshTransactions } = usePersonalTransactions();
+  const {
+    transactions,
+    summary,
+    loading,
+    loadingMore,
+    hasMore,
+    filters,
+    setFilters,
+    loadMore,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    refreshTransactions
+  } = usePersonalTransactions();
+
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<PersonalTransaction | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+  const observerRef = React.useRef<HTMLDivElement>(null);
+
+  // Infinite Scroll Observer
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, loadMore]);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
@@ -124,7 +165,7 @@ const PersonalFinance: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
         <div className="glass-panel p-5 md:p-6 rounded-2xl flex flex-row md:flex-col items-center md:items-start gap-4 group hover:bg-black/5 dark:hover:bg-white/[0.07] transition-all">
           <div className="size-10 md:size-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
             <ArrowDown className="w-5 h-5" />
@@ -156,78 +197,167 @@ const PersonalFinance: React.FC = () => {
         </div>
       </div>
 
-      {/* Projections & Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-        <ProjectionCard currentSpent={summary.totalExpenses} />
-        {/* Placeholder for another creative card or empty space */}
-        <div className="hidden lg:block bg-surface/20 rounded-[32px] border border-dashed border-slate-300 dark:border-white/10 flex items-center justify-center">
-          <p className="text-slate-400 text-sm font-medium italic">¿Planeando las próximas vacaciones?</p>
+      {/* Chart & Projections */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <div className="lg:col-span-2">
+          <ExpenditureEvolutionChart
+            transactions={transactions}
+            onUpgrade={() => setShowPremiumModal(true)}
+          />
+        </div>
+        <div className="lg:col-span-1">
+          <ProjectionCard currentSpent={summary.totalExpenses} />
         </div>
       </div>
 
-      {/* Transactions */}
-      <section>
-        <div className="flex justify-between items-center mb-6 px-2">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Movimientos personales</h3>
-          <div className="flex items-center gap-4">
-            {transactions.length > 0 && (
-              <button
-                onClick={() => {
-                  if (selectedIds.length === transactions.length) {
-                    setSelectedIds([]);
-                  } else {
-                    setSelectedIds(transactions.map(tx => tx.id));
-                  }
+      {/* Transactions Section */}
+      <section className="pb-24">
+        {/* Filters Bar */}
+        <div className="glass-panel rounded-3xl p-6 mb-8 border-white/40 dark:border-white/10 bg-white/40 dark:bg-black/20">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <PremiumToggleGroup
+                id="type-filter"
+                options={[
+                  { label: 'Todos', value: 'all' },
+                  { label: 'Gastos', value: 'expense', icon: ArrowUp },
+                  { label: 'Ingresos', value: 'income', icon: ArrowDown },
+                ]}
+                value={filters.types?.length === 2 ? ['all'] : filters.types || ['all']}
+                onChange={(vals) => {
+                  if (vals.includes('all')) setFilters({ ...filters, types: ['expense', 'income'] });
+                  else setFilters({ ...filters, types: vals as any });
                 }}
-                className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline transition-all"
-              >
-                {selectedIds.length === transactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
-              </button>
-            )}
-            {transactions.length > 5 && (
-              <button className="text-sm text-blue-500 hover:text-blue-600 font-semibold hover:underline">Ver todos</button>
-            )}
+                multi={false}
+              />
+
+              <PremiumDatePicker
+                startDate={filters.startDate || ''}
+                endDate={filters.endDate || ''}
+                onStartDateChange={(val) => setFilters({ ...filters, startDate: val })}
+                onEndDateChange={(val) => setFilters({ ...filters, endDate: val })}
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              {loading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
+              {transactions.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (selectedIds.length === transactions.length) {
+                      setSelectedIds([]);
+                    } else {
+                      setSelectedIds(transactions.map(tx => tx.id));
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20"
+                >
+                  {selectedIds.length === transactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {transactions.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-12 text-center">
-            <Receipt className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Sin movimientos aún</h4>
-            <p className="text-slate-500 text-sm mb-6">Cargá tu primer ingreso o gasto para empezar a trackear tus finanzas.</p>
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 bg-blue-gradient px-6 py-3 rounded-xl font-bold text-sm text-white"
-            >
-              <Plus className="w-4 h-4" />
-              Cargar movimiento
-            </button>
+        <div className="flex justify-between items-center mb-6 px-2">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Movimientos</h3>
+            {loading && <div className="size-2 rounded-full bg-primary animate-ping" />}
+          </div>
+        </div>
+
+        {transactions.length === 0 && !loading ? (
+          <div className="glass-panel rounded-[2rem] p-12 text-center relative overflow-hidden group">
+            <div className="absolute inset-0 bg-blue-gradient opacity-[0.03] animate-pulse" />
+            <div className="relative z-10">
+              <div className="size-20 rounded-full bg-slate-100 dark:bg-white/5 mx-auto mb-6 flex items-center justify-center border border-dashed border-slate-300 dark:border-white/10 group-hover:scale-110 transition-transform duration-500">
+                <Receipt className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+              </div>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Nada por aquí</h4>
+              <p className="text-slate-500 text-sm mb-8 max-w-xs mx-auto">No encontramos movimientos con los filtros seleccionados o todavía no cargaste nada.</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-3 bg-blue-gradient px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-blue-500/25 hover:scale-105 active:scale-95 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Transacción
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {transactions.slice(0, 20).map((tx) => (
-              <TransactionCard
-                key={tx.id}
-                transaction={tx}
-                onEdit={() => handleEdit(tx)}
-                onDelete={() => handleDelete(tx.id)}
-                onSelect={handleSelect}
-                isSelected={selectedIds.includes(tx.id)}
-                contextName="Personal"
-              />
-            ))}
+          <div className="space-y-4 relative">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {transactions.map((tx) => (
+                <motion.div
+                  key={tx.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 30,
+                    opacity: { duration: 0.2 }
+                  }}
+                >
+                  <TransactionCard
+                    transaction={tx}
+                    onEdit={() => handleEdit(tx)}
+                    onDelete={() => handleDelete(tx.id)}
+                    onSelect={handleSelect}
+                    isSelected={selectedIds.includes(tx.id)}
+                    contextName={tx.is_group ? `Split de ${tx.payment_method}` : 'Personal'}
+                    onChangeCategory={() => handleSelect(tx.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Infinite Scroll Sentinel */}
+            <div ref={observerRef} className="py-12 flex flex-col items-center justify-center gap-4">
+              <AnimatePresence>
+                {loadingMore && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center gap-3"
+                  >
+                    <div className="flex gap-1.5">
+                      <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="size-1.5 rounded-full bg-blue-500" />
+                      <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="size-1.5 rounded-full bg-blue-400" />
+                      <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="size-1.5 rounded-full bg-blue-300" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Cargando más movimientos</span>
+                  </motion.div>
+                )}
+                {!hasMore && transactions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center gap-2"
+                  >
+                    <div className="h-px w-12 bg-slate-200 dark:bg-white/10" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Fin del historial</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         )}
       </section>
 
       {/* Transaction Modal */}
-      {showModal && (
-        <TransactionModal
-          onClose={handleCloseModal}
-          onSave={handleSave}
-          initialData={editingTransaction}
-        />
-      )}
+      <AnimatePresence>
+        {showModal && (
+          <TransactionModal
+            onClose={handleCloseModal}
+            onSave={handleSave}
+            initialData={editingTransaction}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Bulk Actions */}
       <BulkActionsBar
@@ -236,6 +366,12 @@ const PersonalFinance: React.FC = () => {
         onDelete={handleMassDelete}
         onMove={handleMassMove}
       />
+
+      <AnimatePresence>
+        {showPremiumModal && (
+          <SubscriptionModal onClose={() => setShowPremiumModal(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

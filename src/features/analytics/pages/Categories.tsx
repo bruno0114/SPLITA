@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
     ChevronDown, Wallet, Users, LayoutGrid, ArrowRight
@@ -71,7 +72,11 @@ const Categories: React.FC = () => {
                     />
                 </div>
 
-                <CategoryManagerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+                <AnimatePresence>
+                    {isModalOpen && (
+                        <CategoryManagerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+                    )}
+                </AnimatePresence>
             </header>
 
             {/* Summary Card */}
@@ -132,9 +137,23 @@ const Categories: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <p className="text-xs text-slate-500 mt-3 font-medium">
-                                    {cat.count} movimientos
-                                </p>
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    {cat.expenseCount > 0 && (
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                            {cat.expenseCount} {cat.expenseCount === 1 ? 'Gasto' : 'Gastos'}
+                                        </span>
+                                    )}
+                                    {cat.incomeCount > 0 && (
+                                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tight bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                            {cat.incomeCount} {cat.incomeCount === 1 ? 'Ingreso' : 'Ingresos'}
+                                        </span>
+                                    )}
+                                    {cat.expenseCount === 0 && cat.incomeCount === 0 && (
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight italic">
+                                            Sin movimientos
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );

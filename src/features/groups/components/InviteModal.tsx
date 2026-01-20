@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Share2, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface InviteModalProps {
     isOpen: boolean;
@@ -27,8 +28,20 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, groupName, i
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-            <div className="w-full max-w-sm bg-surface rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 relative overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-sm bg-surface rounded-[2.5rem] p-8 shadow-2xl border border-white/10 overflow-hidden"
+            >
                 {/* Decorative background blob */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
 
@@ -68,8 +81,8 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, groupName, i
                             <button
                                 onClick={handleCopy}
                                 className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs transition-all ${copied
-                                        ? 'bg-emerald-500 text-white'
-                                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm hover:bg-slate-50'
+                                    ? 'bg-emerald-500 text-white'
+                                    : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm hover:bg-slate-50'
                                     }`}
                             >
                                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -82,7 +95,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, groupName, i
                 <p className="text-[10px] text-center text-slate-400 mt-8 font-bold uppercase tracking-widest">
                     Cualquiera con el link podrá unirse
                 </p>
-            </div>
+            </motion.div>
         </div>
     );
 };

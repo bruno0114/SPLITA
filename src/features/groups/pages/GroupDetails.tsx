@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles, LayoutGrid, Repeat, CreditCard } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles, LayoutGrid, Repeat, CreditCard, DollarSign } from 'lucide-react';
 import { useCategories } from '@/features/analytics/hooks/useCategories';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -27,7 +27,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const { user } = useAuth();
 
    const { groups } = useGroups();
-   const { transactions, loading: loadingTx, addTransaction, updateTransaction, deleteTransaction } = useTransactions(groupId);
+   const { transactions, loading: loadingTx, addTransaction, updateTransaction, deleteTransaction, refreshTransactions } = useTransactions(groupId);
 
    const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
    const [showModal, setShowModal] = useState(false);
@@ -135,8 +135,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
       if (!error) {
          setSelectedIds([]);
-         // We might need a refresh function from useTransactions
-         window.location.reload(); // Quick fix or add refresh to hook
+         refreshTransactions();
       }
    };
 
@@ -148,7 +147,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
       if (!error) {
          setSelectedIds([]);
-         window.location.reload();
+         refreshTransactions();
       }
    };
 
@@ -314,6 +313,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                                     onEdit={() => handleEdit(tx)}
                                     onDelete={() => handleDelete(tx.id)}
                                     onSelect={handleSelect}
+                                    onChangeCategory={() => setSelectedIds([tx.id])}
                                     isSelected={selectedIds.includes(tx.id)}
                                     contextName={group.name}
                                  />
@@ -400,31 +400,39 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
          </div>
 
          {/* Transaction Modal */}
-         {showModal && (
-            <GroupTransactionModal
-               onClose={handleCloseModal}
-               onSave={handleSave}
-               members={group.members}
-               initialData={editingTransaction}
-            />
-         )}
+         <AnimatePresence>
+            {showModal && (
+               <GroupTransactionModal
+                  onClose={handleCloseModal}
+                  onSave={handleSave}
+                  members={group.members}
+                  initialData={editingTransaction}
+               />
+            )}
+         </AnimatePresence>
 
          {/* Settings Modal */}
-         {showSettings && (
-            <GroupSettingsModal
-               group={group}
-               onClose={handleCloseSettings}
-               onBack={onBack}
-            />
-         )}
+         <AnimatePresence>
+            {showSettings && (
+               <GroupSettingsModal
+                  group={group}
+                  onClose={handleCloseSettings}
+                  onBack={onBack}
+               />
+            )}
+         </AnimatePresence>
 
          {/* Invite Modal */}
-         <InviteModal
-            isOpen={showInviteModal}
-            onClose={() => setShowInviteModal(false)}
-            groupName={group.name}
-            inviteCode={group.inviteCode || ''}
-         />
+         <AnimatePresence>
+            {showInviteModal && (
+               <InviteModal
+                  isOpen={showInviteModal}
+                  onClose={() => setShowInviteModal(false)}
+                  groupName={group.name}
+                  inviteCode={group.inviteCode || ''}
+               />
+            )}
+         </AnimatePresence>
 
          <BulkActionsBar
             selectedCount={selectedIds.length}
@@ -548,8 +556,20 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    };
 
    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-         <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+         <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+         />
+         <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+         >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
@@ -592,15 +612,20 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
                   </div>
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Moneda principal</label>
-                     <select
+                     <PremiumDropdown
                         value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
-                     >
-                        <option value="ARS">ARS - Peso Argentino</option>
-                        <option value="USD">USD - Dólar Estadounidense</option>
-                        <option value="EUR">EUR - Euro</option>
-                     </select>
+                        onChange={setCurrency}
+                        groups={[
+                           {
+                              title: 'Monedas',
+                              options: [
+                                 { id: 'ARS', label: 'ARS - Peso Argentino', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+                                 { id: 'USD', label: 'USD - Dólar Estadounidense', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                 { id: 'EUR', label: 'EUR - Euro', icon: DollarSign, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+                              ]
+                           }
+                        ]}
+                     />
                   </div>
                   <div className="pt-2">
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Código de Invitación</label>
@@ -700,11 +725,10 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
                   </button>
                </div>
             </div>
-         </div>
+         </motion.div>
       </div>
    );
 };
-
 
 interface GroupTransactionModalProps {
    onClose: () => void;
@@ -797,7 +821,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
          title,
          amount: totalAmount,
          category,
-         date: new Date().toISOString(),
+         date: initialData?.date || new Date().toISOString(),
          splitBetween, // IDs for backward compatibility
          customSplits: finalSplits, // Precise calculations
          is_recurring: isRecurring,
@@ -818,8 +842,20 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    };
 
    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-         <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+         <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+         />
+         <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+         >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                   {initialData ? 'Editar gasto' : 'Nuevo gasto'}
@@ -1001,7 +1037,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
                </button>
             </div>
-         </div>
+         </motion.div>
       </div>
    );
 };

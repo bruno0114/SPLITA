@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, DollarSign, Loader2, Repeat, CreditCard, LayoutGrid } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { useCategories } from '@/features/analytics/hooks/useCategories';
 
@@ -21,6 +22,9 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
     const [currentInstallment, setCurrentInstallment] = useState('');
     const [totalInstallments, setTotalInstallments] = useState('');
     const [saving, setSaving] = useState(false);
+    const [currency, setCurrency] = useState(initialData?.original_currency || 'ARS');
+    const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate?.toString() || '1');
+    const [isFetchingRate, setIsFetchingRate] = useState(false);
 
     // Parse existing installments if any (e.g. "2/6")
     React.useEffect(() => {
@@ -32,6 +36,22 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
         }
     }, [initialData]);
 
+    const fetchRate = async () => {
+        setIsFetchingRate(true);
+        try {
+            const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+            const data = await res.json();
+            if (data && data.venta) {
+                setExchangeRate(data.venta.toString());
+            }
+        } catch (e) {
+            console.error("Error fetching rate", e);
+            setExchangeRate("1000"); // Standard fallback
+        } finally {
+            setIsFetchingRate(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!title || !amount) return;
         setSaving(true);
@@ -40,77 +60,132 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
             ? `${currentInstallment}/${totalInstallments}`
             : null;
 
+        const baseAmount = parseFloat(amount);
+        const rate = parseFloat(exchangeRate) || 1;
+        const finalAmount = currency === 'USD' ? baseAmount * rate : baseAmount;
+
         const { error } = await onSave({
             title,
-            amount: parseFloat(amount),
+            amount: finalAmount,
             category: category || 'Varios',
             type,
             date: initialData?.date || new Date().toISOString(),
             is_recurring: isRecurring,
-            installments: installmentsPattern
+            installments: installmentsPattern,
+            original_amount: baseAmount,
+            original_currency: currency,
+            exchange_rate: currency === 'USD' ? rate : undefined
         });
         setSaving(false);
         if (!error) onClose();
     };
 
+    const isGroupTransaction = initialData?.is_group;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in">
-            <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+            >
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                        {initialData ? 'Editar movimiento' : 'Nuevo movimiento'}
-                    </h3>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                            {initialData ? 'Editar movimiento' : 'Nuevo movimiento'}
+                        </h3>
+                        {isGroupTransaction && (
+                            <p className="text-xs text-blue-500 font-medium mt-1">
+                                Gasto grupal: solo podés editar tu categoría.
+                            </p>
+                        )}
+                    </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
 
-                {/* Type Toggle - Only for personal transactions usually, but we keep it enabled for now */}
-                <div className="flex gap-2 mb-6">
-                    <button
-                        onClick={() => setType('expense')}
-                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'expense'
-                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                            }`}
-                    >
-                        Gasto
-                    </button>
-                    <button
-                        onClick={() => setType('income')}
-                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'income'
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                            }`}
-                    >
-                        Ingreso
-                    </button>
-                </div>
+                {/* Type Toggle - Disabled for group transactions */}
+                {!isGroupTransaction && (
+                    <div className="flex gap-2 mb-6">
+                        <button
+                            onClick={() => setType('expense')}
+                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'expense'
+                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}
+                        >
+                            Gasto
+                        </button>
+                        <button
+                            onClick={() => setType('income')}
+                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'income'
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}
+                        >
+                            Ingreso
+                        </button>
+                    </div>
+                )}
 
-                {/* Form */}
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
-                    <div>
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Descripción</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Ej: Supermercado Coto"
-                            className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none font-bold"
-                        />
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin pb-40">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Descripción</label>
+                            <input
+                                type="text"
+                                value={title}
+                                disabled={isGroupTransaction}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Ej: Supermercado Coto"
+                                className={`w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:outline-none font-bold ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Moneda</label>
+                            <PremiumDropdown
+                                value={currency}
+                                disabled={isGroupTransaction}
+                                onChange={(val) => {
+                                    setCurrency(val);
+                                    if (val === 'USD') fetchRate();
+                                }}
+                                groups={[
+                                    {
+                                        title: 'Monedas',
+                                        options: [
+                                            { id: 'ARS', label: 'ARS', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+                                            { id: 'USD', label: 'USD', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                        ]
+                                    }
+                                ]}
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Monto</label>
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 block">Monto ({currency})</label>
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                                    {currency === 'USD' ? 'u$s' : '$'}
+                                </span>
                                 <input
                                     type="number"
                                     value={amount}
+                                    disabled={isGroupTransaction}
                                     onChange={(e) => setAmount(e.target.value)}
                                     placeholder="0"
-                                    className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-black focus:ring-2 focus:ring-primary focus:outline-none"
+                                    className={`w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-12 pr-4 py-3 text-2xl font-black focus:ring-2 focus:ring-primary focus:outline-none ${isGroupTransaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
                             </div>
                         </div>
@@ -136,6 +211,30 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                             />
                         </div>
                     </div>
+
+                    {currency === 'USD' && (
+                        <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl animate-in slide-in-from-top-2">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-black text-blue-500 uppercase tracking-widest">Tipo de cambio (ARS)</label>
+                                <button
+                                    onClick={fetchRate}
+                                    disabled={isFetchingRate}
+                                    className="text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+                                >
+                                    {isFetchingRate ? 'Actualizando...' : 'Actualizar Blue'}
+                                </button>
+                            </div>
+                            <input
+                                type="number"
+                                value={exchangeRate}
+                                onChange={(e) => setExchangeRate(e.target.value)}
+                                className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-xl font-bold text-blue-600 focus:outline-none"
+                            />
+                            <p className="text-[10px] text-slate-500 font-medium mt-2">
+                                Total aproximado: <span className="font-bold">ARS ${(parseFloat(amount || '0') * parseFloat(exchangeRate || '0')).toLocaleString('es-AR')}</span>
+                            </p>
+                        </div>
+                    )}
 
                     {/* Recurring & Installments */}
                     <div className="pt-4 border-t border-border mt-4">
@@ -204,7 +303,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
                     </button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };

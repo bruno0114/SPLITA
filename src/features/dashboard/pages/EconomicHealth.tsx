@@ -1,11 +1,14 @@
 import React from 'react';
-import { PieChart, TrendingUp, Lightbulb, PiggyBank, AlertTriangle, Rocket, Sparkles, CheckCircle2, Loader2, BrainCircuit } from 'lucide-react';
+import { PieChart, TrendingUp, Lightbulb, PiggyBank, AlertTriangle, Rocket, Sparkles, CheckCircle2, Loader2, BrainCircuit, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useEconomicHealth } from '../hooks/useEconomicHealth';
+import SubscriptionModal from '../components/SubscriptionModal';
 
 const EconomicHealth: React.FC = () => {
-   const { data, loading } = useEconomicHealth();
+   const { data, loading, refreshAdvice } = useEconomicHealth();
    const navigate = useNavigate();
+   const [showPremiumModal, setShowPremiumModal] = React.useState(false);
 
    // Score Config
    const score = data.score;
@@ -104,23 +107,43 @@ const EconomicHealth: React.FC = () => {
                         <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Análisis con Inteligencia Artificial</h3>
                      </div>
-                     {data.isAiLoading && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                     <div className="flex items-center gap-2">
+                        <button
+                           onClick={() => refreshAdvice()}
+                           disabled={data.isAiLoading}
+                           className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-blue-500 disabled:opacity-50"
+                           title="Actualizar consejos"
+                        >
+                           <RefreshCw className={`w-4 h-4 ${data.isAiLoading ? 'animate-spin text-blue-500' : ''}`} />
+                        </button>
+                     </div>
                   </div>
 
                   <div className="space-y-4">
                      {data.aiInsights && data.aiInsights.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 gap-4 animate-in fade-in transition-all">
                            {data.aiInsights.map((insight, idx) => (
-                              <div key={idx} className="flex items-start gap-3 p-4 bg-blue-500/5 dark:bg-white/5 border border-blue-500/10 rounded-2xl relative overflow-hidden">
+                              <div key={idx} className="flex items-start gap-3 p-4 bg-blue-500/5 dark:bg-white/5 border border-blue-500/10 rounded-2xl relative overflow-hidden group hover:border-blue-500/30 transition-colors">
                                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-50" />
-                                 <div className="size-6 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                                 <div className="size-6 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                                  </div>
-                                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{insight}</p>
+                                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{insight}</p>
                               </div>
                            ))}
                         </div>
-                     ) : !data.isAiLoading && (
+                     ) : data.isAiLoading ? (
+                        <div className="flex flex-col items-center py-12 text-center space-y-4">
+                           <div className="relative">
+                              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                              <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-blue-400 animate-bounce" />
+                           </div>
+                           <div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Analizando tus finanzas...</p>
+                              <p className="text-xs text-slate-500">Estamos generando consejos personalizados con Gemini.</p>
+                           </div>
+                        </div>
+                     ) : !data.isAiConfigured ? (
                         <div className="flex flex-col items-center py-6 text-center space-y-4">
                            <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
                               <BrainCircuit className="w-6 h-6" />
@@ -131,9 +154,25 @@ const EconomicHealth: React.FC = () => {
                            </div>
                            <button
                               onClick={() => navigate('/settings')}
-                              className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors uppercase tracking-widest"
+                              className="px-6 py-2 rounded-xl bg-blue-600/10 text-blue-600 text-xs font-bold hover:bg-blue-600/20 transition-all uppercase tracking-widest border border-blue-600/20"
                            >
                               Configurar ahora
+                           </button>
+                        </div>
+                     ) : (
+                        <div className="flex flex-col items-center py-6 text-center space-y-4">
+                           <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
+                              <AlertTriangle className="w-6 h-6" />
+                           </div>
+                           <div className="max-w-xs">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">No hay análisis disponible</p>
+                              <p className="text-xs text-slate-500">Asegurate de tener ingresos y gastos cargados para recibir consejos de la IA.</p>
+                           </div>
+                           <button
+                              onClick={() => refreshAdvice()}
+                              className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors uppercase tracking-widest"
+                           >
+                              Volver a intentar
                            </button>
                         </div>
                      )}
@@ -225,7 +264,10 @@ const EconomicHealth: React.FC = () => {
                   <div className="relative z-10 space-y-2">
                      <p className="text-xs font-bold uppercase opacity-80">Plan Premium</p>
                      <h4 className="font-extrabold text-lg">Desbloqueá consejos avanzados</h4>
-                     <button className="bg-white text-[#001A33] px-4 py-2 rounded-lg text-xs font-bold mt-2 hover:bg-slate-100 transition-colors">
+                     <button
+                        onClick={() => setShowPremiumModal(true)}
+                        className="bg-white text-[#001A33] px-4 py-2 rounded-lg text-xs font-bold mt-2 hover:bg-slate-100 transition-colors"
+                     >
                         Saber más
                      </button>
                   </div>
@@ -235,9 +277,16 @@ const EconomicHealth: React.FC = () => {
                </div>
             </div>
          </div>
+         <AnimatePresence>
+            {showPremiumModal && (
+               <SubscriptionModal onClose={() => setShowPremiumModal(false)} />
+            )}
+         </AnimatePresence>
       </div>
    );
 };
+
+
 
 const InsightCard = ({ icon, color, bg, title, desc, highlight }: any) => (
    <div className={`glass-panel rounded-2xl p-5 group hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer ${highlight ? 'border-l-2 border-l-primary' : ''}`}>
