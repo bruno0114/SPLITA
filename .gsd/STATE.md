@@ -1,15 +1,15 @@
 # GSD State
 
 ## Current Position
-- **Phase:** 5 (completed)
+- **Phase:** 5 (gaps closed)
 - **Status:** ✅ Verified
 - **Last Updated:** 2026-01-20
 
 ## Last Session Summary
-Phase 5 executed successfully.
-- Restored group settings (edit/image) and metadata persistence.
-- Implemented invitation links and the join group workflow.
-- Provided SQL migration for `invite_code` support.
+- Executed `supabase_db_fix_v2.sql` to add `updated_at` column and `ON DELETE CASCADE` constraints.
+- Fixed modal responsiveness in `GroupDetails.tsx`.
+- Removed client-side `updated_at` from `useGroups.ts`.
+- Build verified successfully.
 
 ## Next Steps
 
