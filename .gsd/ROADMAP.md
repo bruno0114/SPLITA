@@ -1,61 +1,37 @@
 # ROADMAP.md
 
-> **Current Milestone**: v1 – Real User Onboarding, Auth & Group Collaboration
-> **Goal**: Transition from a functional prototype to a production-ready application where real users can sign up, join groups via links, and manage their own AI scan configs.
+> **Current Milestone**: Phase 4 - Core UX & Data Integrity Fixes
+> **Goal**: Stabilize core flows for real usage by fixing RLS blockers, improving AI key management, and enabling personal vs group imports.
 
 ## Must-Haves
-- [ ] **Functional Onboarding**: 6-step flow persists to Supabase (profile/group/pre-settings).
-- [ ] **Group Invitations**: Working "Share Link" -> "Auto Join" flow for new and existing users.
-- [ ] **Social Auth**: Google and Facebook login working and documented.
-- [ ] **Data Integrity**: Zero mock data leakage for real users.
-- [ ] **AI Key Management**: UI to store/edit `GEMINI_API_KEY` (client-side persistence).
+- [ ] **RLS Stability**: Fix "infinite recursion" in group_members and ensure reliable group creation.
+- [ ] **AI Key Lifecycle**: Support removing and re-adding Gemini API keys with immediate UI feedback.
+- [ ] **Flexible AI Import**: Let users choose between "Personal Finances" or a specific "Group" during AI scan review.
+- [ ] **Data Integrity**: Ensure imported records end up in the correct tables (personal_transactions vs transactions).
 
 ## Phases
 
 ### Phase 1: Authentication & Onboarding Persistence
 **Status**: ⬜ Not Started
 **Objective**: Ensure the 6-step onboarding flow isn't just visual.
-**Deliverables**:
-- Persist "Step 2: Usage Type" to user metadata or profile.
-- Persist "Step 3: Create Group" and "Step 4: Add People" to Supabase tables.
-- Persist "Step 5: Settings" to user preferences.
-- Implement Social Login redirects and configuration.
 
-### Phase 2: Group Invitation System
-**Status**: ⬜ Not Started
-**Objective**: Enable viral growth via shareable links.
-**Deliverables**:
-- Backend logic/edge functions (or simple client-side link handling) to join a group via ID.
-- "Join" page to handle incoming invite links.
-- Auto-join logic after Auth redirect (handling the 'next' parameter).
-
-### Phase 2: Avatars & CRUD Synchronization
-- [x] Create Supabase Storage bucket `avatars` with RLS policies
-- [x] Implement client-side WebP compression utility
-- [x] Integrate image upload in Settings page
-- [x] Fix non-awaited refresh calls in `usePersonalTransactions` and `useGroups`
-- [x] Synchronize profile creation in Supabase trigger (fix 406 errors)
+### Phase 2: Avatars & Group Invites
+**Status**: 🚧 Partial
+**Objective**: Fix CRUD sync and implement link-based joining.
 
 ### Phase 3: AI UX & API Key Management
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Secure and user-scoped Gemini API usage.
-**Deliverables**:
-- "IA Settings" screen inside the Settings feature.
-- Secure local/metadata storage for the user's API Key.
-- Graceful error handling in `ImportExpenses` when key is missing/invalid.
 
-### Phase 4: Production Data Clean-up
+### Phase 4: Core UX & Data Integrity Fixes
 **Status**: ⬜ Not Started
-**Objective**: Remove all "MOCK_DATA" references from the main user path.
+**Objective**: Stabilize the core flows for real-world production usage.
 **Deliverables**:
-- Replace remaining hardcoded lists with Supabase queries.
-- Implement proper "Empty States" for fresh accounts.
-- Final RLS Audit to ensure data isolation.
+- Fix RLS recursion in `group_members` policy.
+- Add "Clear API Key" functionality to `AISettings.tsx`.
+- Update `ImportExpenses.tsx` to support context selection (Group vs Personal).
+- Ensure `useTransactions` and `usePersonalTransactions` are correctly targeted based on import context.
 
-### Phase 5: Verification & Launch Docs
+### Phase 5: Production Data Clean-up
 **Status**: ⬜ Not Started
-**Objective**: Final polish and setup guides.
-**Deliverables**:
-- End-to-end video walkthrough of the onboarding/invite flow.
-- Setup Guide for Social Auth (Supabase + Providers).
-- Environment Variables template update.
+**Objective**: Remove remaining mock data and finalize launch documentation.
