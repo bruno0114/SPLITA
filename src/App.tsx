@@ -14,6 +14,7 @@ import GroupDetails from '@/features/groups/pages/GroupDetails';
 import JoinGroup from '@/features/groups/pages/JoinGroup';
 import Settings from '@/features/settings/pages/Settings';
 import Categories from '@/features/analytics/pages/Categories';
+import CategoryDetail from '@/features/analytics/pages/CategoryDetail';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 const App: React.FC = () => {
@@ -146,6 +147,7 @@ const App: React.FC = () => {
                             <Route path="/groups" element={<Groups onGroupSelect={handleGroupSelect} />} />
                             <Route path="/groups/:groupId" element={<GroupDetails groupId={selectedGroupId} onBack={() => navigate('/groups')} />} />
                             <Route path="/categories" element={<Categories />} />
+                            <Route path="/categories/:scope/:categoryId" element={<CategoryDetail />} />
                             <Route path="/import" element={<ImportExpenses />} />
                             <Route path="/settings" element={<Settings currentExchangeRate={exchangeRate} onExchangeRateChange={setExchangeRate} />} />
                         </Route>
