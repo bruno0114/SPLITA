@@ -1,0 +1,258 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Group } from '@/types/index';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useToast } from '@/context/ToastContext';
+
+interface GroupsContextValue {
+    groups: Group[];
+    loading: boolean;
+    error: string | null;
+    createGroup: (name: string, type: string) => Promise<{ data?: any; error: any }>;
+    updateGroup: (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string }>) => Promise<{ data?: any; error: any }>;
+    deleteGroup: (id: string) => Promise<{ error: any; success: boolean }>;
+    refreshInviteCode: (id: string) => Promise<{ data?: any; error: any }>;
+    joinGroup: (groupId: string) => Promise<{ error?: string }>;
+    getGroupByInviteCode: (code: string) => Promise<{ data?: any; error?: string }>;
+    refreshGroups: () => Promise<void>;
+}
+
+const GroupsContext = createContext<GroupsContextValue | null>(null);
+
+export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
+    const { showToast } = useToast();
+
+    const fetchGroups = useCallback(async () => {
+        if (!user) {
+            setGroups([]);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: membershipData, error: membershipError } = await supabase
+                .from('group_members')
+                .select('group_id')
+                .eq('user_id', user.id);
+
+            if (membershipError) throw membershipError;
+
+            if (!membershipData || membershipData.length === 0) {
+                setGroups([]);
+                setLoading(false);
+                return;
+            }
+
+            const groupIds = membershipData.map(m => m.group_id);
+
+            const { data: groupsData, error: groupsError } = await supabase
+                .from('groups')
+                .select(`
+          *,
+          members:group_members (
+            profiles (
+              id,
+              full_name,
+              avatar_url
+            )
+          )
+        `)
+                .in('id', groupIds)
+                .order('created_at', { ascending: false });
+
+            if (groupsError) throw groupsError;
+
+            const validGroups: Group[] = (groupsData || []).map((g: any) => ({
+                id: g.id,
+                name: g.name,
+                type: 'other',
+                currency: g.currency,
+                image: g.image_url,
+                inviteCode: g.invite_code,
+                createdBy: g.created_by,
+                lastActivity: new Date(g.created_at).toLocaleDateString(),
+                userBalance: 0,
+                members: g.members.map((m: any) => ({
+                    id: m.profiles.id,
+                    name: m.profiles.full_name || 'Sin nombre',
+                    avatar: m.profiles.avatar_url,
+                    email: ''
+                }))
+            }));
+
+            setGroups(validGroups);
+        } catch (err: any) {
+            console.error('Error fetching groups:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    const createGroup = async (name: string, type: string) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { data: groupData, error: groupError } = await supabase
+                .from('groups')
+                .insert({
+                    name,
+                    created_by: user.id,
+                    currency: 'ARS'
+                })
+                .select()
+                .single();
+
+            if (groupError) throw groupError;
+
+            const { error: memberError } = await supabase
+                .from('group_members')
+                .insert({
+                    group_id: groupData.id,
+                    user_id: user.id,
+                    role: 'admin'
+                });
+
+            if (memberError) throw memberError;
+
+            await fetchGroups();
+            showToast('Grupo creado con éxito', 'success');
+            return { data: groupData, error: null };
+        } catch (err: any) {
+            showToast(err.message || 'Error al crear el grupo', 'error');
+            return { data: null, error: err.message };
+        }
+    };
+
+    const getGroupByInviteCode = async (code: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('groups')
+                .select(`
+                    *,
+                    members:group_members (
+                        profiles (
+                            id,
+                            full_name,
+                            avatar_url
+                        )
+                    )
+                `)
+                .eq('invite_code', code)
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (err: any) {
+            return { data: null, error: err.message };
+        }
+    };
+
+    const joinGroup = async (groupId: string) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { error } = await supabase
+                .from('group_members')
+                .insert({
+                    group_id: groupId,
+                    user_id: user.id,
+                    role: 'member'
+                });
+
+            if (error) throw error;
+
+            await fetchGroups();
+            return { error: undefined };
+        } catch (err: any) {
+            return { error: err.message };
+        }
+    };
+
+    const updateGroup = async (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string }>) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { data, error } = await supabase
+                .from('groups')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            await fetchGroups();
+            showToast('Grupo actualizado', 'success');
+            return { data, error: null };
+        } catch (err: any) {
+            showToast(err.message || 'Error al actualizar el grupo', 'error');
+            return { data: null, error: err.message };
+        }
+    };
+
+    const deleteGroup = async (id: string) => {
+        if (!user) return { error: 'No authenticated user', success: false };
+
+        // Optimistically remove from local state FIRST
+        setGroups(prev => prev.filter(g => g.id !== id));
+
+        try {
+            const { error } = await supabase
+                .from('groups')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                // Rollback: refetch if delete failed
+                await fetchGroups();
+                throw error;
+            }
+
+            showToast('Grupo eliminado correctamente', 'success');
+            return { error: null, success: true };
+        } catch (err: any) {
+            showToast(err.message || 'Error al eliminar el grupo', 'error');
+            return { error: err.message, success: false };
+        }
+    };
+
+    const refreshInviteCode = async (id: string) => {
+        const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        return await updateGroup(id, { invite_code: newCode });
+    };
+
+    useEffect(() => {
+        fetchGroups();
+    }, [fetchGroups]);
+
+    return (
+        <GroupsContext.Provider value={{
+            groups,
+            loading,
+            error,
+            createGroup,
+            updateGroup,
+            deleteGroup,
+            refreshInviteCode,
+            joinGroup,
+            getGroupByInviteCode,
+            refreshGroups: fetchGroups
+        }}>
+            {children}
+        </GroupsContext.Provider>
+    );
+};
+
+export const useGroups = (): GroupsContextValue => {
+    const context = useContext(GroupsContext);
+    if (!context) {
+        throw new Error('useGroups must be used within a GroupsProvider');
+    }
+    return context;
+};

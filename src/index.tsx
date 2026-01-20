@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './features/auth/context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { GroupsProvider } from './context/GroupsContext';
 import { BrowserRouter } from 'react-router-dom';
 
 const rootElement = document.getElementById('root');
@@ -16,7 +17,9 @@ root.render(
     <AuthProvider>
       <ToastProvider>
         <BrowserRouter>
-          <App />
+          <GroupsProvider>
+            <App />
+          </GroupsProvider>
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
