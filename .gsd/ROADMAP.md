@@ -51,10 +51,18 @@
 **Status**: ✅ Complete
 **Objective**: Interactive AI history details, PDF/Image support differentiation, and global currency sync via DolarAPI with creative animations.
 
-### Phase 11: Expert Categories & UI Refactor (Premium Controls)
-**Status**: 🚧 In Progress
-**Objective**: CRUD for categories, dynamic AI auto-creation, and advanced financial management (Bulk actions, Context badges, Recurring/Instalment markers).
+### Phase 11.5: Refined Financial UX & Bulk Actions
+**Status**: ✅ Complete
+**Objective**: Bulk Actions (Toolbar), Context Badges, and Payment Markers (Recurrence/Installments). Refactor all selectors to `PremiumDropdown`.
 
-### Phase 12: Production Readiness & Clean-up
+### Phase 11.6: Advanced Browsing & Insights
+**Status**: ✅ Complete
+**Objective**: Premium filters (Range DatePicker), Infinite Scroll, Stacked Bar Charts for spending evolution, and Category hygiene (duplicate merge).
+
+### Phase 12: Deep Personalization & Premium AI Ecosystem
+**Status**: ✅ Complete
+**Objective**: Per-user group categorization, Advanced Projections Modal (Crypto/ETFs projections for 6m-10y), Daily AI advice caching, and API key validation UX.
+
+### Phase 13: Production Readiness & Clean-up
 **Status**: ⬜ Not Started
 **Objective**: Remove remaining mock data and finalize launch documentation.
