@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
+import { EXTRACTION_PROMPT } from "@/lib/ai-prompts";
 
 /**
  * AI Service Error Codes
@@ -191,28 +192,7 @@ export const extractExpensesFromImages = async (
         }));
 
         parts.push({
-            text: `Contexto: Sos un asistente financiero experto en Argentina. 
-            Analizá los comprobantes adjuntos (pueden ser uno o varios).
-            
-            Tu objetivo es EXTRAR TODAS las transacciones individuales que encuentres. 
-            No omitas nada. Si un ticket tiene múltiples items que sumados dan el total, podés extraer el total como una transacción o los items si parecen ser gastos de categorías distintas. 
-            Lo más importante es que el USUARIO no tenga que cargar nada manualmente después.
-            
-            Respondé ÚNICAMENTE con un JSON array.
-            
-            Mapeo de Categorías (usar EXACTAMENTE estas strings):
-            - 'Supermercado' (comida, bebidas, limpieza)
-            - 'Gastronomía' (restaurantes, bares, delivery)
-            - 'Servicios' (luz, gas, internet, suscripciones)
-            - 'Transporte' (nafta, uber, sube)
-            - 'Compras' (ropa, electrónica, regalos)
-            - 'Varios' (otros)
-    
-            Campos requeridos por cada objeto del array:
-            1. date (Formato YYYY-MM-DD ISO)
-            2. merchant (Nombre del comercio o empresa)
-            3. category (Una de las categorías de arriba de acuerdo al rubro del comercio)
-            4. amount (Numero decimal. Convertí cualquier formato de moneda argentina a float estándar, ignorando el símbolo $ y manejando comas como puntos si es necesario).`
+            text: EXTRACTION_PROMPT
         } as any);
 
         const schema = {
@@ -224,8 +204,11 @@ export const extractExpensesFromImages = async (
                     merchant: { type: Type.STRING },
                     category: { type: Type.STRING },
                     amount: { type: Type.NUMBER },
+                    currency: { type: Type.STRING },
+                    installments: { type: Type.STRING, nullable: true },
+                    is_recurring: { type: Type.BOOLEAN },
                 },
-                required: ["date", "merchant", "category", "amount"]
+                required: ["date", "merchant", "category", "amount", "currency", "is_recurring"]
             }
         };
 

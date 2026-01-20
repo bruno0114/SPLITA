@@ -79,6 +79,12 @@ export const useTransactions = (groupId?: string | null) => {
         category: string;
         date: string;
         splitBetween: string[]; // User IDs
+        customSplits?: { userId: string; amount: number }[];
+        original_amount?: number;
+        original_currency?: string;
+        exchange_rate?: number;
+        is_recurring?: boolean;
+        installments?: string | null;
     }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
@@ -93,7 +99,12 @@ export const useTransactions = (groupId?: string | null) => {
                     amount: data.amount,
                     title: data.title,
                     category: data.category,
-                    date: data.date
+                    date: data.date,
+                    original_amount: data.original_amount,
+                    original_currency: data.original_currency,
+                    exchange_rate: data.exchange_rate,
+                    is_recurring: data.is_recurring,
+                    recurring_pattern: data.installments
                 })
                 .select()
                 .single();
@@ -101,19 +112,24 @@ export const useTransactions = (groupId?: string | null) => {
             if (txError) throw txError;
 
             // 2. Insert Splits
-            const splitAmount = data.amount / data.splitBetween.length;
-            const splitInserts = data.splitBetween.map(uid => ({
-                transaction_id: txData.id,
-                user_id: uid,
-                amount_owed: splitAmount,
-                paid: uid === user.id // Payer is considered "paid" for their part contextually (simplification)
-                // Actually, logic is: Payer paid FULL amount. 
-                // Splits track who owes. 
-                // If I paid 100, and split with You (50/50).
-                // I paid 100.
-                // Split 1: Me, owed 50.
-                // Split 2: You, owed 50.
-            }));
+            let splitInserts = [];
+
+            if (data.customSplits && data.customSplits.length > 0) {
+                splitInserts = data.customSplits.map(s => ({
+                    transaction_id: txData.id,
+                    user_id: s.userId,
+                    amount_owed: s.amount,
+                    paid: s.userId === user.id
+                }));
+            } else {
+                const splitAmount = data.amount / data.splitBetween.length;
+                splitInserts = data.splitBetween.map(uid => ({
+                    transaction_id: txData.id,
+                    user_id: uid,
+                    amount_owed: splitAmount,
+                    paid: uid === user.id
+                }));
+            }
 
             const { error: splitError } = await supabase
                 .from('transaction_splits')
@@ -139,6 +155,7 @@ export const useTransactions = (groupId?: string | null) => {
         category: string;
         date: string;
         splitBetween: string[];
+        customSplits?: { userId: string; amount: number }[];
     }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
@@ -158,7 +175,7 @@ export const useTransactions = (groupId?: string | null) => {
 
             if (txError) throw txError;
 
-            // 2. Refresh Splits (Delete and Re-insert is the safest way for simple logic)
+            // 2. Refresh Splits
             const { error: splitDeleteError } = await supabase
                 .from('transaction_splits')
                 .delete()
@@ -166,13 +183,24 @@ export const useTransactions = (groupId?: string | null) => {
 
             if (splitDeleteError) throw splitDeleteError;
 
-            const splitAmount = data.amount / data.splitBetween.length;
-            const splitInserts = data.splitBetween.map(uid => ({
-                transaction_id: id,
-                user_id: uid,
-                amount_owed: splitAmount,
-                paid: uid === user.id
-            }));
+            let splitInserts = [];
+
+            if (data.customSplits && data.customSplits.length > 0) {
+                splitInserts = data.customSplits.map(s => ({
+                    transaction_id: id,
+                    user_id: s.userId,
+                    amount_owed: s.amount,
+                    paid: s.userId === user.id
+                }));
+            } else {
+                const splitAmount = data.amount / data.splitBetween.length;
+                splitInserts = data.splitBetween.map(uid => ({
+                    transaction_id: id,
+                    user_id: uid,
+                    amount_owed: splitAmount,
+                    paid: uid === user.id
+                }));
+            }
 
             const { error: splitInsertError } = await supabase
                 .from('transaction_splits')

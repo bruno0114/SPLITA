@@ -4,6 +4,7 @@ import App from './App';
 import { AuthProvider } from './features/auth/context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { GroupsProvider } from './context/GroupsContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import { BrowserRouter } from 'react-router-dom';
 
 const rootElement = document.getElementById('root');
@@ -18,7 +19,9 @@ root.render(
       <ToastProvider>
         <BrowserRouter>
           <GroupsProvider>
-            <App />
+            <CurrencyProvider>
+              <App />
+            </CurrencyProvider>
           </GroupsProvider>
         </BrowserRouter>
       </ToastProvider>

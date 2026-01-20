@@ -15,12 +15,13 @@ import JoinGroup from '@/features/groups/pages/JoinGroup';
 import Settings from '@/features/settings/pages/Settings';
 import Categories from '@/features/analytics/pages/Categories';
 import CategoryDetail from '@/features/analytics/pages/CategoryDetail';
+import AIHistory from '@/features/expenses/pages/AIHistory';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { useCurrency } from '@/context/CurrencyContext';
 
 const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>('dark');
-    const [currency, setCurrency] = useState<Currency>('ARS');
-    const [exchangeRate, setExchangeRate] = useState<number>(1);
+    const { currency, exchangeRate } = useCurrency();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ const App: React.FC = () => {
             case '/categories': return AppRoute.CATEGORIES;
             case '/settings': return AppRoute.SETTINGS;
             case '/login': return AppRoute.LOGIN;
+            case '/history-ai': return AppRoute.AI_HISTORY;
             case '/onboarding': return AppRoute.ONBOARDING;
             default:
                 if (pathname.startsWith('/groups/')) return AppRoute.DASHBOARD_GROUPS;
@@ -68,6 +70,7 @@ const App: React.FC = () => {
             case AppRoute.SETTINGS: navigate('/settings'); break;
             case AppRoute.LOGIN: navigate('/login'); break;
             case AppRoute.ONBOARDING: navigate('/onboarding'); break;
+            case AppRoute.AI_HISTORY: navigate('/history-ai'); break;
             case AppRoute.GROUP_DETAILS:
                 if (selectedGroupId) navigate('/groups/' + selectedGroupId);
                 else navigate('/groups');
@@ -135,8 +138,6 @@ const App: React.FC = () => {
                     currentTheme={theme}
                     onThemeChange={setTheme}
                     onNavigate={handleNavigate}
-                    currency={currency}
-                    onCurrencyChange={setCurrency}
                     onLogout={handleLogout}
                 />
                 <main className="flex-1 overflow-y-auto relative scroll-smooth pb-24 md:pb-0">
@@ -149,7 +150,8 @@ const App: React.FC = () => {
                             <Route path="/categories" element={<Categories />} />
                             <Route path="/categories/:scope/:categoryId" element={<CategoryDetail />} />
                             <Route path="/import" element={<ImportExpenses />} />
-                            <Route path="/settings" element={<Settings currentExchangeRate={exchangeRate} onExchangeRateChange={setExchangeRate} />} />
+                            <Route path="/history-ai" element={<AIHistory />} />
+                            <Route path="/settings" element={<Settings />} />
                         </Route>
                         <Route path="/join/:inviteCode" element={<JoinGroup />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
@@ -169,9 +171,10 @@ function getRouteTitle(route: AppRoute): string {
         case AppRoute.DASHBOARD_HEALTH: return 'Salud económica';
         case AppRoute.DASHBOARD_GROUPS: return 'Mis grupos';
         case AppRoute.GROUP_DETAILS: return 'Detalle del grupo';
-        case AppRoute.CATEGORIES: return 'Análisis de gastos';
         case AppRoute.IMPORT: return 'Importar gastos IA';
         case AppRoute.SETTINGS: return 'Configuración';
+        case AppRoute.CATEGORIES: return 'Categorías';
+        case AppRoute.AI_HISTORY: return 'Historial AI';
         default: return 'Splita';
     }
 }

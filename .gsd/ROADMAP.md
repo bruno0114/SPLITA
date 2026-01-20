@@ -36,9 +36,21 @@
 **Goal**: Improved navigation and categorization.gout and implement category-based spending reports.
 
 ### Phase 7: AI Import Evolution (FX & Selection)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Implement item-by-item selection and multi-currency detection/conversion.
 
-### Phase 8: Production Readiness & Clean-up
+### Phase 8: AI Premium UX & Import History
+**Status**: ✅ Complete
+**Objective**: Implement "Stardust" VFX, Argentine personality insights, and persist import history in Supabase Storage.
+
+### Phase 9: Expert Financials & Analytics
+**Status**: ✅ Complete
+**Objective**: Multi-mode splitting, debt simplification algorithm, and creative projection charts.
+
+### Phase 10: Deep History & Real-time FX (DolarAPI)
+**Status**: 🚧 In Progress
+**Objective**: Interactive AI history details, PDF/Image support differentiation, and global currency sync via DolarAPI with creative animations.
+
+### Phase 11: Production Readiness & Clean-up
 **Status**: ⬜ Not Started
 **Objective**: Remove remaining mock data and finalize launch documentation.

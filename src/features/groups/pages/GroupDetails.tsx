@@ -1,12 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import InviteModal from '@/features/groups/components/InviteModal';
 import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
+import { simplifyDebts as expertSimplifyDebts } from '@/lib/expert-math';
+import { Transaction } from '@/types/index';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -225,7 +228,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                      onClick={() => setActiveTab('balances')}
                      className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'balances' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
-                     Balances
+                     Balance sugerido
                   </button>
                </div>
 
@@ -299,28 +302,77 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                         </div>
                      </div>
                   ) : (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {group.members.filter(m => m.id !== user?.id).map(member => {
-                           const balance = balances.memberBalances[member.id];
-                           return (
-                              <div key={member.id} className="glass-panel p-5 rounded-2xl flex items-center justify-between">
-                                 <div className="flex items-center gap-3">
-                                    <img src={member.avatar || undefined} alt={member.name} className="size-12 rounded-full border-2 border-surface" />
-                                    <div>
-                                       <p className="font-bold text-slate-900 dark:text-white">{member.name}</p>
-                                       <p className="text-xs text-slate-500">
-                                          {balance >= 0 ? "Le deben" : "Debe"} $ {Math.abs(balance).toLocaleString('es-AR')}
-                                       </p>
+                     <div className="space-y-6">
+                        <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 flex items-center gap-3">
+                           <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                              <Sparkles className="w-4 h-4" />
+                           </div>
+                           <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                              <span className="font-bold text-blue-600">Simplificación activada:</span> Minimizamos los pagos para que saldar sea más fácil.
+                           </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           {(() => {
+                              const simplified = expertSimplifyDebts(balances.memberBalances, group.members);
+                              if (simplified.length === 0) {
+                                 return <div className="col-span-2 py-10 text-center text-slate-500 font-medium">No hay deudas pendientes. ¡Están al día!</div>;
+                              }
+                              return simplified.map((tx, i) => {
+                                 const fromMember = group.members.find(m => m.id === tx.from);
+                                 const toMember = group.members.find(m => m.id === tx.to);
+                                 return (
+                                    <motion.div
+                                       key={i}
+                                       initial={{ opacity: 0, x: -10 }}
+                                       animate={{ opacity: 1, x: 0 }}
+                                       transition={{ delay: i * 0.1 }}
+                                       className="glass-panel p-5 rounded-2xl flex items-center justify-between group"
+                                    >
+                                       <div className="flex items-center gap-3">
+                                          <div className="flex -space-x-3">
+                                             <img src={fromMember?.avatar} className="size-10 rounded-full border-2 border-surface" alt="" title={fromMember?.name} />
+                                             <div className="size-10 rounded-full bg-surface border-2 border-surface flex items-center justify-center">
+                                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                                             </div>
+                                             <img src={toMember?.avatar} className="size-10 rounded-full border-2 border-surface" alt="" title={toMember?.name} />
+                                          </div>
+                                          <div>
+                                             <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {fromMember?.id === user?.id ? "Tenés que pagarle" : `${fromMember?.name} le paga`}
+                                             </p>
+                                             <p className="text-xs text-slate-500">a <span className="font-bold text-slate-700 dark:text-slate-300">{toMember?.id === user?.id ? "Vos" : toMember?.name}</span></p>
+                                          </div>
+                                       </div>
+                                       <div className="text-right">
+                                          <p className="text-lg font-black text-blue-500">$ {tx.amount.toLocaleString('es-AR')}</p>
+                                          <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500 transition-colors">Saldar</button>
+                                       </div>
+                                    </motion.div>
+                                 );
+                              });
+                           })()}
+                        </div>
+
+                        <div className="pt-6 border-t border-border">
+                           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Resumen Individual</h4>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {group.members.map(member => {
+                                 const balance = balances.memberBalances[member.id];
+                                 return (
+                                    <div key={member.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-border/50">
+                                       <div className="flex items-center gap-2">
+                                          <img src={member.avatar} className="size-6 rounded-full" alt="" />
+                                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{member.name}</span>
+                                       </div>
+                                       <span className={`text-xs font-black ${balance >= 0 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                          {balance >= 0 ? '+' : '-'}$ {Math.abs(balance).toLocaleString('es-AR')}
+                                       </span>
                                     </div>
-                                 </div>
-                                 <div className="text-right">
-                                    <p className={`text-xl font-black ${balance >= 0 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                       {balance >= 0 ? '+' : '-'}$ {Math.abs(balance).toLocaleString('es-AR')}
-                                    </p>
-                                 </div>
-                              </div>
-                           );
-                        })}
+                                 );
+                              })}
+                           </div>
+                        </div>
                      </div>
                   )}
                </div>
@@ -638,23 +690,82 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    const [title, setTitle] = useState(initialData?.merchant || ''); // Note: merchant is mapped from title in useTransactions
    const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
    const [category, setCategory] = useState(initialData?.category || 'General');
+   const [saving, setSaving] = useState(false);
    const [splitBetween, setSplitBetween] = useState<string[]>(
       initialData?.splitWith?.map((m: any) => m.id) || members.map(m => m.id)
    );
-   const [saving, setSaving] = useState(false);
+   const [splitMode, setSplitMode] = useState<'equal' | 'percent' | 'amount'>('equal');
+   const [customValues, setCustomValues] = useState<Record<string, string>>({});
+
+   // Initialize custom values when mode changes or members change
+   useEffect(() => {
+      if (splitMode === 'equal') return;
+
+      const newValues: Record<string, string> = {};
+      const share = splitMode === 'percent'
+         ? (100 / splitBetween.length).toFixed(1)
+         : (parseFloat(amount || '0') / splitBetween.length).toFixed(2);
+
+      splitBetween.forEach(id => {
+         newValues[id] = share;
+      });
+      setCustomValues(newValues);
+   }, [splitMode, splitBetween.length]);
 
    const handleSave = async () => {
       if (!title || !amount || splitBetween.length === 0) return;
+
+      const totalAmount = parseFloat(amount);
+      let finalSplits: { userId: string; amount: number }[] = [];
+
+      if (splitMode === 'equal') {
+         const base = Math.floor((totalAmount / splitBetween.length) * 100) / 100;
+         let remaining = Math.round((totalAmount - (base * splitBetween.length)) * 100) / 100;
+
+         finalSplits = splitBetween.map((id, index) => {
+            // Assign remainder to the first person in the split (often the payer if they are in it)
+            const extra = index === 0 ? remaining : 0;
+            return { userId: id, amount: base + extra };
+         });
+      } else if (splitMode === 'percent') {
+         // Validate 100%
+         const totalPct = splitBetween.reduce((acc, id) => acc + (parseFloat(customValues[id]) || 0), 0);
+         if (Math.abs(totalPct - 100) > 0.1) {
+            alert('El total debe ser 100%');
+            return;
+         }
+         finalSplits = splitBetween.map(id => ({
+            userId: id,
+            amount: Math.round((totalAmount * (parseFloat(customValues[id]) / 100)) * 100) / 100
+         }));
+      } else {
+         // Amount mode
+         const totalCalc = splitBetween.reduce((acc, id) => acc + (parseFloat(customValues[id]) || 0), 0);
+         if (Math.abs(totalCalc - totalAmount) > 0.1) {
+            alert('La suma de los montos debe ser igual al total');
+            return;
+         }
+         finalSplits = splitBetween.map(id => ({
+            userId: id,
+            amount: parseFloat(customValues[id])
+         }));
+      }
+
       setSaving(true);
       const { error } = await onSave({
          title,
-         amount: parseFloat(amount),
+         amount: totalAmount,
          category,
          date: new Date().toISOString(),
-         splitBetween
+         splitBetween, // IDs for backward compatibility
+         customSplits: finalSplits // Precise calculations
       });
       setSaving(false);
       if (!error) onClose();
+   };
+
+   const updateCustomValue = (id: string, val: string) => {
+      setCustomValues(prev => ({ ...prev, [id]: val }));
    };
 
    const toggleMember = (id: string) => {
@@ -701,21 +812,60 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                </div>
 
                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Dividir con:</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                     {members.map(member => (
+                  <div className="flex items-center justify-between mb-3">
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dividir con:</label>
+                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                         <button
-                           key={member.id}
-                           onClick={() => toggleMember(member.id)}
-                           className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${splitBetween.includes(member.id)
-                              ? 'bg-blue-500/10 border-blue-500 text-blue-600'
-                              : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500'
-                              }`}
+                           onClick={() => setSplitMode('equal')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'equal' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
                         >
-                           <img src={member.avatar || undefined} alt="" className="size-6 rounded-full" />
-                           <span className="text-xs font-bold truncate">{member.name}</span>
+                           IGUAL
                         </button>
-                     ))}
+                        <button
+                           onClick={() => setSplitMode('percent')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'percent' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
+                        >
+                           %
+                        </button>
+                        <button
+                           onClick={() => setSplitMode('amount')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'amount' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
+                        >
+                           $
+                        </button>
+                     </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                     {members.map(member => {
+                        const isSelected = splitBetween.includes(member.id);
+                        return (
+                           <div key={member.id} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-2 rounded-xl border border-border/50">
+                              <button
+                                 onClick={() => toggleMember(member.id)}
+                                 className={`size-10 rounded-full border-2 transition-all overflow-hidden ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-transparent opacity-50'}`}
+                              >
+                                 <img src={member.avatar || undefined} alt="" className="w-full h-full object-cover" />
+                              </button>
+                              <div className="flex-1">
+                                 <p className={`text-xs font-bold ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{member.name}</p>
+                                 {isSelected && splitMode === 'equal' && <p className="text-[10px] font-bold text-blue-500 uppercase">1 / {splitBetween.length}</p>}
+                              </div>
+
+                              {isSelected && splitMode !== 'equal' && (
+                                 <div className="relative w-20">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{splitMode === 'percent' ? '%' : '$'}</span>
+                                    <input
+                                       type="number"
+                                       value={customValues[member.id] || ''}
+                                       onChange={(e) => updateCustomValue(member.id, e.target.value)}
+                                       className="w-full bg-white dark:bg-slate-800 border border-border rounded-lg pl-5 pr-2 py-1 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                    />
+                                 </div>
+                              )}
+                           </div>
+                        );
+                     })}
                   </div>
                </div>
             </div>

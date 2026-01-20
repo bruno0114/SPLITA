@@ -84,6 +84,11 @@ export const usePersonalTransactions = () => {
         type: 'income' | 'expense';
         date?: string;
         payment_method?: string;
+        original_amount?: number;
+        original_currency?: string;
+        exchange_rate?: number;
+        is_recurring?: boolean;
+        installments?: string | null;
     }) => {
         if (!user) return { error: 'No authenticated user' };
 
@@ -97,7 +102,12 @@ export const usePersonalTransactions = () => {
                     category: data.category || null,
                     type: data.type,
                     date: data.date || new Date().toISOString(),
-                    payment_method: data.payment_method || null
+                    payment_method: data.payment_method || null,
+                    original_amount: data.original_amount,
+                    original_currency: data.original_currency,
+                    exchange_rate: data.exchange_rate,
+                    is_recurring: data.is_recurring,
+                    recurring_pattern: data.installments
                 })
                 .select()
                 .single();

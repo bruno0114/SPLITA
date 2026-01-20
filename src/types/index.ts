@@ -20,6 +20,11 @@ export interface Transaction {
   iconBg: string;
   categoryColor: string;
   categoryBg: string;
+  original_amount?: number;
+  original_currency?: string;
+  exchange_rate?: number;
+  is_recurring?: boolean;
+  installments?: string | null;
 }
 
 export interface Insight {
@@ -52,7 +57,8 @@ export enum AppRoute {
   GROUP_DETAILS = 'group_details',
   IMPORT = 'import',
   SETTINGS = 'settings',
-  CATEGORIES = 'categories'
+  CATEGORIES = 'categories',
+  AI_HISTORY = 'ai_history'
 }
 
 export type Theme = 'light' | 'dark' | 'system';

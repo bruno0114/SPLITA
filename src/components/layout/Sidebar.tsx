@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart } from 'lucide-react';
+import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart, Clock } from 'lucide-react';
 import { AppRoute } from '@/types/index';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -94,6 +94,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
               onClick={() => onNavigate(AppRoute.IMPORT)}
               isCollapsed={isCollapsed}
               highlight
+            />
+            <NavItem
+              active={currentRoute === AppRoute.AI_HISTORY}
+              icon={<Clock className="w-[20px] h-[20px]" />}
+              label="Historial AI"
+              onClick={() => onNavigate(AppRoute.AI_HISTORY)}
+              isCollapsed={isCollapsed}
             />
           </ul>
         </div>

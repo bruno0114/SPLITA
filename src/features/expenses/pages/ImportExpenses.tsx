@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import { MOCK_TRANSACTIONS } from '@/lib/constants';
-import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle } from 'lucide-react';
+import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Transaction } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
@@ -10,6 +11,10 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { useProfile } from '@/features/settings/hooks/useProfile';
 import { getGeminiClient, extractExpensesFromImages } from '@/services/ai';
+import StardustOverlay from '@/components/ai/StardustOverlay';
+import { useAIHistory } from '@/features/expenses/hooks/useAIHistory';
+import { getOffTopicJoke } from '@/lib/ai-prompts';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -18,6 +23,7 @@ const ImportExpenses: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { groups, loading: loadingGroups } = useGroups();
+  const { uploadReceipt, saveSession } = useAIHistory();
 
   // Default to the first group if available, or user must select
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -33,6 +39,7 @@ const ImportExpenses: React.FC = () => {
   const [showConfig, setShowConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [offTopicJoke, setOffTopicJoke] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Handlers ---
@@ -74,14 +81,31 @@ const ImportExpenses: React.FC = () => {
         throw new Error("PROFILE_LOADING");
       }
 
+      // 1. Upload files to Storage for history
+      const imageUrls = await Promise.all(files.map(file => uploadReceipt(file)));
+      const validUrls = imageUrls.filter((url): url is string => url !== null);
+
+      // 2. Prepare for Gemini
       const fileParts = await Promise.all(files.map(async file => {
         const base64Data = await fileToGenerativePart(file);
         const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
         return { data: base64Data, mimeType };
       }));
 
+      // 3. Extract data
       const extractedData = await extractExpensesFromImages(profile.gemini_api_key!, fileParts);
 
+      // 4. Save session to DB
+      await saveSession(validUrls, extractedData);
+
+      if (extractedData.length === 0) {
+        setOffTopicJoke(getOffTopicJoke());
+        setStep('review');
+        setScannedTransactions([]);
+        return;
+      }
+
+      setOffTopicJoke(null);
       const mappedTransactions: Transaction[] = extractedData.map((item: any, index: number) => ({
         id: `scan-${Date.now()}-${index}`,
         date: new Date(item.date).toLocaleDateString('es-AR'), // Display format
@@ -99,6 +123,10 @@ const ImportExpenses: React.FC = () => {
         iconBg: 'bg-blue-500/10',
         categoryColor: 'text-slate-600',
         categoryBg: 'bg-slate-100',
+        original_amount: item.amount,
+        original_currency: item.currency,
+        is_recurring: item.is_recurring,
+        installments: item.installments,
       }));
 
       setScannedTransactions(mappedTransactions);
@@ -145,10 +173,76 @@ const ImportExpenses: React.FC = () => {
     return map[category] || 'Receipt';
   };
 
+  // --- REVIEW VIEW ---
+  const [txSettings, setTxSettings] = useState<Record<string, {
+    selected: boolean,
+    exchangeRate: number,
+    isRecurring: boolean,
+    originalAmount: number,
+    currency: string,
+    installments: string | null
+  }>>({});
+
+  // Initialize settings when scannedTransactions changes
+  React.useEffect(() => {
+    if (scannedTransactions.length > 0) {
+      const initialSettings: Record<string, any> = {};
+      scannedTransactions.forEach(tx => {
+        initialSettings[tx.id] = {
+          selected: true,
+          exchangeRate: tx.original_currency === 'USD' ? 1000 : 1, // Default approx rate
+          isRecurring: tx.is_recurring || false,
+          originalAmount: tx.amount,
+          currency: tx.original_currency || 'ARS',
+          installments: tx.installments || null
+        };
+      });
+      setTxSettings(initialSettings);
+    }
+  }, [scannedTransactions]);
+
+  const toggleSelection = (id: string) => {
+    setTxSettings(prev => ({
+      ...prev,
+      [id]: { ...prev[id], selected: !prev[id].selected }
+    }));
+  };
+
+  const updateRate = (id: string, rate: string) => {
+    const num = parseFloat(rate) || 0;
+    setTxSettings(prev => ({
+      ...prev,
+      [id]: { ...prev[id], exchangeRate: num }
+    }));
+  };
+
+  const toggleRecurring = (id: string) => {
+    setTxSettings(prev => ({
+      ...prev,
+      [id]: { ...prev[id], isRecurring: !prev[id].isRecurring }
+    }));
+  };
+
+  const calculateConvertedAmount = (id: string) => {
+    const s = txSettings[id];
+    if (!s) return 0;
+    return s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1);
+  };
+
+  const totalConverted = Object.keys(txSettings)
+    .filter(id => txSettings[id].selected)
+    .reduce((acc, id) => acc + calculateConvertedAmount(id), 0);
+
   const handleConfirmImport = async () => {
     setError(null);
     if (!selectedGroupId) {
       setError("Por favor seleccioná un destino (Personal o Grupo) para estos gastos.");
+      return;
+    }
+
+    const selectedIds = Object.keys(txSettings).filter(id => txSettings[id].selected);
+    if (selectedIds.length === 0) {
+      setError("No seleccionaste ningún gasto para importar.");
       return;
     }
 
@@ -157,13 +251,22 @@ const ImportExpenses: React.FC = () => {
 
     try {
       if (selectedGroupId === 'personal') {
-        for (const tx of scannedTransactions) {
+        for (const id of selectedIds) {
+          const tx = scannedTransactions.find(t => t.id === id);
+          const s = txSettings[id];
+          if (!tx || !s) continue;
+
           const { error } = await addPersonalTransaction({
             title: tx.merchant,
-            amount: tx.amount,
+            amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: tx.category,
             type: 'expense',
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            original_amount: s.originalAmount,
+            original_currency: s.currency,
+            exchange_rate: s.currency === 'USD' ? s.exchangeRate : undefined,
+            is_recurring: s.isRecurring,
+            installments: s.installments
           });
           if (!error) successCount++;
         }
@@ -171,13 +274,22 @@ const ImportExpenses: React.FC = () => {
         const selectedGroup = groups.find(g => g.id === selectedGroupId);
         if (!selectedGroup) throw new Error("Grupo no encontrado");
 
-        for (const tx of scannedTransactions) {
+        for (const id of selectedIds) {
+          const tx = scannedTransactions.find(t => t.id === id);
+          const s = txSettings[id];
+          if (!tx || !s) continue;
+
           const { error } = await addTransaction({
-            amount: tx.amount,
+            amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: tx.category,
             title: tx.merchant,
             date: new Date().toISOString(),
-            splitBetween: selectedGroup.members.map(m => m.id)
+            splitBetween: selectedGroup.members.map(m => m.id),
+            original_amount: s.originalAmount,
+            original_currency: s.currency,
+            exchange_rate: s.currency === 'USD' ? s.exchangeRate : undefined,
+            is_recurring: s.isRecurring,
+            installments: s.installments
           });
           if (!error) successCount++;
         }
@@ -305,12 +417,16 @@ const ImportExpenses: React.FC = () => {
     );
   }
 
-  if (step === 'processing' || step === 'saving') {
+  if (step === 'processing') {
+    return <StardustOverlay />;
+  }
+
+  if (step === 'saving') {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-6 text-center">
         <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-6" />
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{step === 'processing' ? 'Analizando...' : 'Guardando gastos...'}</h2>
-        <p className="text-slate-500">Estamos {step === 'processing' ? 'leyendo tus comprobantes' : 'sincronizando con Supabase'}.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Guardando gastos...</h2>
+        <p className="text-slate-500">Estamos sincronizando con Supabase.</p>
       </div>
     );
   }
@@ -342,75 +458,136 @@ const ImportExpenses: React.FC = () => {
         </div>
       </div>
 
-      {/* Destination Selection */}
-      <div className="mb-8 p-6 bg-surface border border-blue-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-            <Icons.LayoutDashboard className="w-5 h-5" />
+      {offTopicJoke ? (
+        <div className="bg-surface border border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-16 text-center max-w-2xl mx-auto">
+          <div className="size-24 bg-blue-100 dark:bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+            <BrainCircuit className="w-12 h-12 text-blue-500" />
           </div>
-          <div>
-            <h4 className="font-bold text-slate-900 dark:text-white">Destino de los gastos</h4>
-            <p className="text-xs text-slate-500">¿A dónde querés enviar estos registros?</p>
-          </div>
-        </div>
-        <select
-          value={selectedGroupId}
-          onChange={(e) => setSelectedGroupId(e.target.value)}
-          className="w-full md:w-64 bg-background border border-border rounded-xl px-4 py-3 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
-        >
-          <option value="" disabled>Seleccionar destino...</option>
-          <option value="personal">👤 Mis Finanzas Personales</option>
-          {groups.length > 0 && (
-            <optgroup label="Mis Grupos">
-              {groups.map(g => (
-                <option key={g.id} value={g.id}>👥 {g.name}</option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </div>
-
-      <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl overflow-hidden mb-24">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 border-b border-border bg-slate-50/50 dark:bg-slate-800/20 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-          <div className="col-span-2">Fecha</div>
-          <div className="col-span-4">Comercio</div>
-          <div className="col-span-3">Categoría</div>
-          <div className="col-span-3 text-right">Monto</div>
-        </div>
-
-        <div className="divide-y divide-border/50">
-          {scannedTransactions.map(tx => (
-            <div key={tx.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-              <div className="col-span-2 text-sm font-medium">{tx.date}</div>
-              <div className="col-span-4 font-bold text-slate-900 dark:text-white">{tx.merchant}</div>
-              <div className="col-span-3">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  {tx.category}
-                </span>
-              </div>
-              <div className="col-span-3 text-right font-bold text-slate-900 dark:text-white">
-                $ {tx.amount.toLocaleString('es-AR')}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="fixed bottom-0 left-0 lg:left-64 right-0 glass-panel border-t border-border p-6 z-30 bg-surface/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="text-sm font-medium text-slate-500">
-            Total: <strong className="text-slate-900 dark:text-white text-lg ml-2">$ {scannedTransactions.reduce((acc, t) => acc + t.amount, 0).toLocaleString('es-AR')}</strong>
-          </div>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 italic">"{offTopicJoke}"</h3>
+          <p className="text-slate-500 mb-8">
+            Parece que la IA no encontró nada que parezca un recibo.
+            Probá subiendo un ticket, factura o comprobante de transferencia.
+          </p>
           <button
-            onClick={handleConfirmImport}
-            disabled={!selectedGroupId || scannedTransactions.length === 0}
-            className="bg-blue-gradient px-8 py-3 rounded-xl font-bold text-white shadow-lg shadow-blue-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+            onClick={() => setStep('upload')}
+            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform"
           >
-            Confirmar importación
+            Volver a intentar
           </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Destination Selection */}
+          <div className="mb-8 p-6 bg-surface/50 backdrop-blur-xl border border-blue-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                <Icons.LayoutDashboard className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white">Destino de los gastos</h4>
+                <p className="text-xs text-slate-500">¿A dónde querés enviar estos registros?</p>
+              </div>
+            </div>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="w-full md:w-64 bg-background border border-border rounded-xl px-4 py-3 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="" disabled>Seleccionar destino...</option>
+              <option value="personal">👤 Mis Finanzas Personales</option>
+              {groups.length > 0 && (
+                <optgroup label="Mis Grupos">
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>👥 {g.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
+          <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl overflow-hidden mb-24">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 border-b border-border bg-slate-50/50 dark:bg-slate-800/20 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+              <div className="col-span-1"></div>
+              <div className="col-span-2">Fecha</div>
+              <div className="col-span-3">Comercio</div>
+              <div className="col-span-2">Categoría</div>
+              <div className="col-span-1 text-center">Recur.</div>
+              <div className="col-span-3 text-right">Monto / Cambio</div>
+            </div>
+
+            <div className="divide-y divide-border/50">
+              {scannedTransactions.map(tx => {
+                const s = txSettings[tx.id];
+                if (!s) return null;
+
+                return (
+                  <div key={tx.id} className={`grid grid-cols-12 gap-4 px-6 py-4 items-center transition-colors ${s.selected ? 'hover:bg-black/5 dark:hover:bg-white/5' : 'opacity-40 grayscale-sm'}`}>
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        onClick={() => toggleSelection(tx.id)}
+                        className={`size-6 rounded-lg border-2 flex items-center justify-center transition-all ${s.selected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-700'}`}
+                      >
+                        {s.selected && <Check className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="col-span-2 text-sm font-medium">{tx.date}</div>
+                    <div className="col-span-3">
+                      <p className="font-bold text-slate-900 dark:text-white truncate">{tx.merchant}</p>
+                      {s.installments && <p className="text-[10px] font-bold text-blue-500 uppercase">Cuota {s.installments}</p>}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {tx.category}
+                      </span>
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        onClick={() => toggleRecurring(tx.id)}
+                        className={`p-2 rounded-lg transition-colors ${s.isRecurring ? 'bg-orange-500/20 text-orange-500' : 'text-slate-300'}`}
+                        title="Marcar como recurrente"
+                      >
+                        <History className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="col-span-3 text-right space-y-1">
+                      <div className="font-bold text-slate-900 dark:text-white">
+                        <AnimatedPrice amount={calculateConvertedAmount(tx.id)} showCode />
+                      </div>
+                      {s.currency === 'USD' && (
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 capitalize">T.C.</span>
+                          <input
+                            type="number"
+                            value={s.exchangeRate}
+                            onChange={(e) => updateRate(tx.id, e.target.value)}
+                            className="w-16 bg-white dark:bg-slate-800 border border-border rounded px-1.5 py-0.5 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="fixed bottom-0 left-0 lg:left-64 right-0 glass-panel border-t border-border p-6 z-30 bg-surface/90 backdrop-blur-xl">
+            <div className="max-w-7xl mx-auto flex justify-between items-center">
+              <div className="text-sm font-medium text-slate-500">
+                Total a importar: <strong className="text-slate-900 dark:text-white text-lg ml-2">$ {totalConverted.toLocaleString('es-AR')}</strong>
+              </div>
+              <button
+                onClick={handleConfirmImport}
+                disabled={!selectedGroupId || scannedTransactions.length === 0}
+                className="bg-blue-gradient px-8 py-3 rounded-xl font-bold text-white shadow-lg shadow-blue-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+              >
+                Confirmar importación
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

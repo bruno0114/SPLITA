@@ -7,12 +7,10 @@ import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
 import { AISettings } from '../components/AISettings';
 
-interface SettingsProps {
-   currentExchangeRate: number;
-   onExchangeRateChange: (rate: number) => void;
-}
+import { useCurrency } from '@/context/CurrencyContext';
 
-const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRateChange }) => {
+const Settings: React.FC = () => {
+   const { exchangeRate, rateSource, setRateSource, rates, loading: ratesLoading } = useCurrency();
    // Real profile data from Supabase
    const { profile, loading: profileLoading, saving, updateProfile } = useProfile();
    const { user } = useAuth();
@@ -40,38 +38,9 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
       }
    }, [profile, user]);
 
-   // Dollar API State
-   const [dollarRates, setDollarRates] = useState<DollarRate[]>([]);
-   const [isLoadingRates, setIsLoadingRates] = useState(false);
-   const [selectedRateType, setSelectedRateType] = useState<string>('manual');
-   const [lastUpdated, setLastUpdated] = useState<string>('');
-
-   useEffect(() => {
-      fetchDollarRates();
-   }, []);
-
-   const fetchDollarRates = async () => {
-      setIsLoadingRates(true);
-      try {
-         const response = await fetch('https://dolarapi.com/v1/dolares');
-         const data = await response.json();
-         setDollarRates(data);
-         setLastUpdated(new Date().toLocaleString());
-      } catch (error) {
-         console.error("Error fetching dollar rates", error);
-      } finally {
-         setIsLoadingRates(false);
-      }
-   };
-
    const handleRateSelection = (type: string) => {
-      setSelectedRateType(type);
-      if (type !== 'manual') {
-         const rate = dollarRates.find(d => d.casa === type);
-         if (rate) {
-            onExchangeRateChange(rate.venta);
-         }
-      }
+      if (type === 'manual') return; // For now
+      setRateSource(type as any);
    };
 
    const handleSaveProfile = async () => {
@@ -245,7 +214,6 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
          <section className="space-y-6">
             <div className="flex justify-between items-end border-b border-border pb-2">
                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Conversión de Moneda</h3>
-               {lastUpdated && <span className="text-xs text-slate-500">Actualizado: {lastUpdated}</span>}
             </div>
 
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-center">
@@ -263,12 +231,10 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                         <input
                            type="number"
-                           value={currentExchangeRate}
-                           onChange={(e) => {
-                              setSelectedRateType('manual');
-                              onExchangeRateChange(parseFloat(e.target.value));
-                           }}
-                           className="w-full bg-white dark:bg-black/20 border border-border rounded-lg pl-6 pr-2 py-2 font-bold text-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                           value={exchangeRate}
+                           readOnly
+                           disabled
+                           className="w-full bg-slate-100 dark:bg-black/40 border border-border rounded-lg pl-6 pr-2 py-2 font-bold text-lg cursor-not-allowed opacity-70"
                         />
                      </div>
                      <span className="text-xl font-bold text-slate-500">ARS</span>
@@ -278,45 +244,34 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
                <div className="w-full md:w-1/2 space-y-3">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Seleccionar cotización (DolarAPI)</p>
 
-                  {isLoadingRates ? (
+                  {ratesLoading ? (
                      <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                      </div>
                   ) : (
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {dollarRates.map((rate) => (
+                        {Object.entries(rates).map(([casa, value]) => (
                            <button
-                              key={rate.casa}
-                              onClick={() => handleRateSelection(rate.casa)}
-                              className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden group ${selectedRateType === rate.casa
+                              key={casa}
+                              onClick={() => handleRateSelection(casa)}
+                              className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden group ${rateSource === casa
                                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30'
                                  : 'bg-surface border-border hover:border-blue-300 dark:hover:border-slate-600'
                                  }`}
                            >
-                              <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${selectedRateType === rate.casa ? 'text-blue-100' : 'text-slate-500'}`}>
-                                 Dolar {rate.nombre}
+                              <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${rateSource === casa ? 'text-blue-100' : 'text-slate-500'}`}>
+                                 Dolar {casa}
                               </p>
-                              <p className={`text-lg font-bold ${selectedRateType === rate.casa ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                                 $ {rate.venta}
+                              <p className={`text-lg font-bold ${rateSource === casa ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                                 $ {value}
                               </p>
-                              {selectedRateType === rate.casa && (
+                              {rateSource === casa && (
                                  <div className="absolute top-0 right-0 p-1.5 bg-white/20 rounded-bl-xl">
                                     <TrendingUp className="w-3 h-3 text-white" />
                                  </div>
                               )}
                            </button>
                         ))}
-
-                        <button
-                           onClick={() => setSelectedRateType('manual')}
-                           className={`p-3 rounded-xl border text-left transition-all ${selectedRateType === 'manual'
-                              ? 'bg-slate-800 border-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
-                              : 'bg-surface border-border hover:border-slate-400'
-                              }`}
-                        >
-                           <p className={`text-xs font-bold uppercase tracking-wider mb-1 opacity-70`}>Manual</p>
-                           <p className="text-lg font-bold">Personalizado</p>
-                        </button>
                      </div>
                   )}
                </div>

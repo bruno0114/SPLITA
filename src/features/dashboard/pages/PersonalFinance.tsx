@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { usePersonalTransactions, PersonalTransaction } from '../hooks/usePersonalTransactions';
+import ProjectionCard from '../components/ProjectionCard';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 const PersonalFinance: React.FC = () => {
   const { transactions, summary, loading, addTransaction, updateTransaction, deleteTransaction } = usePersonalTransactions();
@@ -70,9 +72,8 @@ const PersonalFinance: React.FC = () => {
           <p className="text-blue-600 dark:text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Tu balance general</p>
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-4xl md:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
-              {formatCurrency(summary.balance)}
+              <AnimatedPrice amount={summary.balance} showCode />
             </span>
-            <span className="text-lg md:text-xl text-slate-500 dark:text-slate-400 font-medium">ARS</span>
           </div>
           <div className="mt-6 flex gap-4">
             {summary.balance !== 0 && (
@@ -94,7 +95,9 @@ const PersonalFinance: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mis ingresos</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatCurrency(summary.totalIncome)}</p>
+            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">
+              <AnimatedPrice amount={summary.totalIncome} />
+            </p>
           </div>
         </div>
         <div className="glass-panel p-5 md:p-6 rounded-2xl flex flex-row md:flex-col items-center md:items-start gap-4 group hover:bg-black/5 dark:hover:bg-white/[0.07] transition-all">
@@ -114,6 +117,15 @@ const PersonalFinance: React.FC = () => {
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Movimientos</p>
             <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{transactions.length}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Projections & Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+        <ProjectionCard currentSpent={summary.totalExpenses} />
+        {/* Placeholder for another creative card or empty space */}
+        <div className="hidden lg:block bg-surface/20 rounded-[32px] border border-dashed border-slate-300 dark:border-white/10 flex items-center justify-center">
+          <p className="text-slate-400 text-sm font-medium italic">¿Planeando las próximas vacaciones?</p>
         </div>
       </div>
 
