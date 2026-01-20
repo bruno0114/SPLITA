@@ -13,6 +13,7 @@ import { useProfile } from '@/features/settings/hooks/useProfile';
 import { getGeminiClient, extractExpensesFromImages } from '@/services/ai';
 import StardustOverlay from '@/components/ai/StardustOverlay';
 import { useAIHistory } from '@/features/expenses/hooks/useAIHistory';
+import { useCategories } from '@/features/analytics/hooks/useCategories';
 import { getOffTopicJoke } from '@/lib/ai-prompts';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
@@ -34,6 +35,7 @@ const ImportExpenses: React.FC = () => {
   const { addTransaction } = useTransactions(selectedGroupId === 'personal' ? null : selectedGroupId);
   const { addTransaction: addPersonalTransaction } = usePersonalTransactions();
   const { profile } = useProfile();
+  const { categories, addCategory } = useCategories();
 
   const [step, setStep] = useState<ImportStep>('upload');
   const [files, setFiles] = useState<File[]>([]);
@@ -252,16 +254,37 @@ const ImportExpenses: React.FC = () => {
     let successCount = 0;
 
     try {
+      // Helper to ensure category exists
+      const ensureCategory = async (catName: string) => {
+        const normalized = catName.trim();
+        const exists = categories.find(c => c.name.toLowerCase() === normalized.toLowerCase());
+        if (!exists) {
+          try {
+            await addCategory({
+              name: normalized,
+              icon: 'LayoutGrid',
+              color: 'text-indigo-500',
+              bg_color: 'bg-indigo-500/10'
+            });
+          } catch (e) {
+            console.warn("Could not auto-create category:", normalized);
+          }
+        }
+        return normalized;
+      };
+
       if (selectedGroupId === 'personal') {
         for (const id of selectedIds) {
           const tx = scannedTransactions.find(t => t.id === id);
           const s = txSettings[id];
           if (!tx || !s) continue;
 
+          const categoryName = await ensureCategory(tx.category);
+
           const { error } = await addPersonalTransaction({
             title: tx.merchant,
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
-            category: tx.category,
+            category: categoryName,
             type: 'expense',
             date: new Date().toISOString(),
             original_amount: s.originalAmount,
@@ -281,9 +304,11 @@ const ImportExpenses: React.FC = () => {
           const s = txSettings[id];
           if (!tx || !s) continue;
 
+          const categoryName = await ensureCategory(tx.category);
+
           const { error } = await addTransaction({
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
-            category: tx.category,
+            category: categoryName,
             title: tx.merchant,
             date: new Date().toISOString(),
             splitBetween: selectedGroup.members.map(m => m.id),
