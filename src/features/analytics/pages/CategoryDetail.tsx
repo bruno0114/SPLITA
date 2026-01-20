@@ -13,7 +13,9 @@ import { getCategoryConfig } from '@/lib/constants';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
+import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 import { Transaction, PersonalTransaction } from '@/types/index';
+import { supabase } from '@/lib/supabase';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -35,6 +37,7 @@ const CategoryDetail: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [showModal, setShowModal] = useState(false);
     const [editingTx, setEditingTx] = useState<any>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const activeTransactions = scope === 'personal' ? personalTx : groupTx;
 
@@ -140,6 +143,38 @@ const CategoryDetail: React.FC = () => {
             } else {
                 return await groupFuncs.addTransaction({ ...data, splitBetween: members });
             }
+        }
+    };
+
+    const handleSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleMassDelete = async () => {
+        const table = isActiveScopePersonal ? 'personal_transactions' : 'transactions';
+        const { error } = await supabase
+            .from(table)
+            .delete()
+            .in('id', selectedIds);
+
+        if (!error) {
+            setSelectedIds([]);
+            isActiveScopePersonal ? personalFuncs.refreshTransactions() : groupFuncs.refreshTransactions();
+        }
+    };
+
+    const handleMassMove = async (newCategoryId: string) => {
+        const table = isActiveScopePersonal ? 'personal_transactions' : 'transactions';
+        const { error } = await supabase
+            .from(table)
+            .update({ category: newCategoryId })
+            .in('id', selectedIds);
+
+        if (!error) {
+            setSelectedIds([]);
+            isActiveScopePersonal ? personalFuncs.refreshTransactions() : groupFuncs.refreshTransactions();
         }
     };
 
@@ -272,6 +307,9 @@ const CategoryDetail: React.FC = () => {
                                     transaction={tx}
                                     onEdit={() => handleEdit(tx)}
                                     onDelete={() => handleDelete(tx.id)}
+                                    onSelect={handleSelect}
+                                    isSelected={selectedIds.includes(tx.id)}
+                                    contextName={isActiveScopePersonal ? 'Personal' : (groups.find(g => g.id === scope)?.name || 'Grupo')}
                                 />
                             ))}
                         </div>
@@ -318,6 +356,13 @@ const CategoryDetail: React.FC = () => {
                     defaultCategory={config.label}
                 />
             )}
+
+            <BulkActionsBar
+                selectedCount={selectedIds.length}
+                onClear={() => setSelectedIds([])}
+                onDelete={handleMassDelete}
+                onMove={handleMassMove}
+            />
         </div>
     );
 };

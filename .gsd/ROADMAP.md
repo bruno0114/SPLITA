@@ -52,8 +52,8 @@
 **Objective**: Interactive AI history details, PDF/Image support differentiation, and global currency sync via DolarAPI with creative animations.
 
 ### Phase 11: Expert Categories & UI Refactor (Premium Controls)
-**Status**: ✅ Complete
-**Objective**: CRUD for categories in Supabase, paginated drill-down for category stats, and global replacement of native selects with custom PremiumDropdowns.
+**Status**: 🚧 In Progress
+**Objective**: CRUD for categories, dynamic AI auto-creation, and advanced financial management (Bulk actions, Context badges, Recurring/Instalment markers).
 
 ### Phase 12: Production Readiness & Clean-up
 **Status**: ⬜ Not Started

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles, LayoutGrid, Repeat, CreditCard } from 'lucide-react';
+import { useCategories } from '@/features/analytics/hooks/useCategories';
+import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { motion } from 'framer-motion';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
@@ -10,6 +12,8 @@ import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
 import { simplifyDebts as expertSimplifyDebts } from '@/lib/expert-math';
 import { Transaction } from '@/types/index';
+import TransactionCard from '@/features/expenses/components/TransactionCard';
+import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -31,6 +35,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const [showInviteModal, setShowInviteModal] = useState(false);
    const [inviteCopied, setInviteCopied] = useState(false);
    const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
+   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
    const group = groups.find(g => g.id === groupId);
 
@@ -114,6 +119,37 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const handleCloseModal = () => {
       setShowModal(false);
       setEditingTransaction(null);
+   };
+
+   const handleSelect = (id: string) => {
+      setSelectedIds(prev =>
+         prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      );
+   };
+
+   const handleMassDelete = async () => {
+      const { error } = await supabase
+         .from('transactions')
+         .delete()
+         .in('id', selectedIds);
+
+      if (!error) {
+         setSelectedIds([]);
+         // We might need a refresh function from useTransactions
+         window.location.reload(); // Quick fix or add refresh to hook
+      }
+   };
+
+   const handleMassMove = async (newCategoryId: string) => {
+      const { error } = await supabase
+         .from('transactions')
+         .update({ category: newCategoryId })
+         .in('id', selectedIds);
+
+      if (!error) {
+         setSelectedIds([]);
+         window.location.reload();
+      }
    };
 
    const handleCloseSettings = () => {
@@ -256,47 +292,15 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                               <div className="text-center p-4 text-slate-500">No hay movimientos aún.</div>
                            ) : (
                               transactions.map(tx => (
-                                 <div key={tx.id} className="glass-panel p-4 rounded-xl flex items-center justify-between group hover:bg-surface/50 transition-all cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                       <div className="flex flex-col items-center justify-center w-12 text-center">
-                                          <span className="text-xs text-slate-500 font-semibold">{tx.date.split(' ')[0]}</span>
-                                          <span className="text-xs font-bold text-slate-900 dark:text-white uppercase">{tx.date.split(' ')[1]}</span>
-                                       </div>
-                                       <div className={`size-10 rounded-full ${tx.iconBg} flex items-center justify-center ${tx.iconColor}`}>
-                                          <Receipt className="w-5 h-5" />
-                                       </div>
-                                       <div>
-                                          <p className="font-bold text-sm text-slate-900 dark:text-white">{tx.merchant}</p>
-                                          <p className="text-xs text-slate-500">Pagó <span className="font-semibold text-slate-700 dark:text-slate-300">{tx.payer.name}</span></p>
-                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                       <div className="text-right flex flex-col items-end">
-                                          <p className="font-bold text-slate-900 dark:text-white">$ {tx.amount.toLocaleString('es-AR')}</p>
-                                          <p className={`text-xs font-medium ${tx.payer.id === user?.id ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                             {tx.payer.id === user?.id ? 'Pagaste' : 'Debés (part)'}
-                                          </p>
-                                       </div>
-
-                                       {/* Actions - visible on group hover */}
-                                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button
-                                             onClick={(e) => { e.stopPropagation(); handleEdit(tx); }}
-                                             className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
-                                             title="Editar"
-                                          >
-                                             <Edit2 className="w-4 h-4" />
-                                          </button>
-                                          <button
-                                             onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
-                                             className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
-                                             title="Eliminar"
-                                          >
-                                             <Trash2 className="w-4 h-4" />
-                                          </button>
-                                       </div>
-                                    </div>
-                                 </div>
+                                 <TransactionCard
+                                    key={tx.id}
+                                    transaction={tx}
+                                    onEdit={() => handleEdit(tx)}
+                                    onDelete={() => handleDelete(tx.id)}
+                                    onSelect={handleSelect}
+                                    isSelected={selectedIds.includes(tx.id)}
+                                    contextName={group.name}
+                                 />
                               ))
                            )}
                         </div>
@@ -404,6 +408,13 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             onClose={() => setShowInviteModal(false)}
             groupName={group.name}
             inviteCode={group.inviteCode || ''}
+         />
+
+         <BulkActionsBar
+            selectedCount={selectedIds.length}
+            onClear={() => setSelectedIds([])}
+            onDelete={handleMassDelete}
+            onMove={handleMassMove}
          />
       </div>
    );
@@ -696,6 +707,20 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    );
    const [splitMode, setSplitMode] = useState<'equal' | 'percent' | 'amount'>('equal');
    const [customValues, setCustomValues] = useState<Record<string, string>>({});
+   const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
+   const [currentInstallment, setCurrentInstallment] = useState('');
+   const [totalInstallments, setTotalInstallments] = useState('');
+   const { categories } = useCategories();
+
+   // Parse existing installments if any (e.g. "2/6")
+   useEffect(() => {
+      const pattern = initialData?.recurring_pattern || initialData?.installments;
+      if (pattern && typeof pattern === 'string' && pattern.includes('/')) {
+         const [curr, tot] = pattern.split('/');
+         setCurrentInstallment(curr);
+         setTotalInstallments(tot);
+      }
+   }, [initialData]);
 
    // Initialize custom values when mode changes or members change
    useEffect(() => {
@@ -758,7 +783,9 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
          category,
          date: new Date().toISOString(),
          splitBetween, // IDs for backward compatibility
-         customSplits: finalSplits // Precise calculations
+         customSplits: finalSplits, // Precise calculations
+         is_recurring: isRecurring,
+         installments: currentInstallment && totalInstallments ? `${currentInstallment}/${totalInstallments}` : null
       });
       setSaving(false);
       if (!error) onClose();
@@ -797,16 +824,39 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                      className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
                   />
                </div>
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto</label>
-                  <div className="relative">
-                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                     <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0"
-                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto</label>
+                     <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                        <input
+                           type="number"
+                           value={amount}
+                           onChange={(e) => setAmount(e.target.value)}
+                           placeholder="0"
+                           className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                        />
+                     </div>
+                  </div>
+
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Categoría</label>
+                     <PremiumDropdown
+                        value={category}
+                        onChange={setCategory}
+                        groups={[
+                           {
+                              title: 'Categorías',
+                              options: categories.map(c => ({
+                                 id: c.name,
+                                 label: c.name,
+                                 icon: LayoutGrid,
+                                 color: c.color,
+                                 bgColor: c.bg_color
+                              }))
+                           }
+                        ]}
+                        className="w-full h-[54px]"
                      />
                   </div>
                </div>
@@ -866,6 +916,56 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                            </div>
                         );
                      })}
+                  </div>
+               </div>
+
+               {/* Recurring & Installments */}
+               <div className="pt-4 border-t border-border mt-2">
+                  <div className="flex items-center justify-between mb-4">
+                     <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${isRecurring ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                           <Repeat className="w-4 h-4" />
+                        </div>
+                        <div>
+                           <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">Recurrente</p>
+                           <p className="text-[10px] text-slate-500 font-medium">Auto-remitente mensual</p>
+                        </div>
+                     </div>
+                     <button
+                        onClick={() => setIsRecurring(!isRecurring)}
+                        className={`w-10 h-5 rounded-full transition-all relative ${isRecurring ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                     >
+                        <div className={`absolute top-0.5 size-4 bg-white rounded-full transition-all ${isRecurring ? 'left-5.5' : 'left-0.5'}`} />
+                     </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${currentInstallment ? 'bg-purple-500/10 text-purple-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                           <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                           <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">Cuotas</p>
+                           <p className="text-[10px] text-slate-500 font-medium">Ej: 2 de 12</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-border">
+                        <input
+                           type="number"
+                           placeholder="1"
+                           value={currentInstallment}
+                           onChange={(e) => setCurrentInstallment(e.target.value)}
+                           className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-7"
+                        />
+                        <span className="text-slate-400 text-[10px] font-bold">/</span>
+                        <input
+                           type="number"
+                           placeholder="1"
+                           value={totalInstallments}
+                           onChange={(e) => setTotalInstallments(e.target.value)}
+                           className="w-10 bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-7"
+                        />
+                     </div>
                   </div>
                </div>
             </div>

@@ -6,11 +6,14 @@ import ProjectionCard from '../components/ProjectionCard';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
+import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
+import { supabase } from '@/lib/supabase';
 
 const PersonalFinance: React.FC = () => {
-  const { transactions, summary, loading, addTransaction, updateTransaction, deleteTransaction } = usePersonalTransactions();
+  const { transactions, summary, loading, addTransaction, updateTransaction, deleteTransaction, refreshTransactions } = usePersonalTransactions();
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<PersonalTransaction | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
@@ -42,6 +45,36 @@ const PersonalFinance: React.FC = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingTransaction(null);
+  };
+
+  const handleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleMassDelete = async () => {
+    const { error } = await supabase
+      .from('personal_transactions')
+      .delete()
+      .in('id', selectedIds);
+
+    if (!error) {
+      setSelectedIds([]);
+      refreshTransactions();
+    }
+  };
+
+  const handleMassMove = async (newCategoryId: string) => {
+    const { error } = await supabase
+      .from('personal_transactions')
+      .update({ category: newCategoryId })
+      .in('id', selectedIds);
+
+    if (!error) {
+      setSelectedIds([]);
+      refreshTransactions();
+    }
   };
 
   if (loading) {
@@ -156,12 +189,15 @@ const PersonalFinance: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {transactions.slice(0, 10).map((tx) => (
+            {transactions.slice(0, 20).map((tx) => (
               <TransactionCard
                 key={tx.id}
                 transaction={tx}
                 onEdit={() => handleEdit(tx)}
                 onDelete={() => handleDelete(tx.id)}
+                onSelect={handleSelect}
+                isSelected={selectedIds.includes(tx.id)}
+                contextName="Personal"
               />
             ))}
           </div>
@@ -176,6 +212,14 @@ const PersonalFinance: React.FC = () => {
           initialData={editingTransaction}
         />
       )}
+
+      {/* Bulk Actions */}
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClear={() => setSelectedIds([])}
+        onDelete={handleMassDelete}
+        onMove={handleMassMove}
+      />
     </div>
   );
 };

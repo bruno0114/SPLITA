@@ -66,3 +66,28 @@
 ### Constraints
 - **Design Consistency**: All custom components must strictly adhere to the established glassmorphic/premium aesthetic.
 - **PWA Feel**: Transitions between category drill-down and main views must be smooth and animated (Framer Motion).
+---
+
+## Phase 11.5: Refined Financial UX & Bulk Actions
+
+**Date:** 2026-01-20
+
+### Scope
+- **Transaction Card Enhancement**:
+    - **Context Badges**: Cards will show if a movement belongs to "Finanzas Personales" or a specific group.
+    - **Payment Markers**: Visibility for "Recurrente" (icon) and "Cuotas" (marker like "2/6").
+    - **Multi-select**: Creative toggle (checkpoint) on each card to enable bulk selection.
+- **Transaction Modal Evolution**:
+    - **Premium Selection**: Replace text input for Category with `PremiumDropdown`.
+    - **Recurring/Instalments**: Explicit fields to configure these properties during creation or edit.
+- **Bulk Actions**:
+    - **Floating Toolbar**: Appears when transactions are selected.
+    - **Mass Operations**: "Mover Categoría" (batch re-assignment) and "Eliminar" (batch deletion).
+
+### Approach
+- **Quick Re-assignment**: Use an instant-access category switcher in the Card's hover menu (Action Option B).
+- **Consolidated Components**: Ensure `TransactionCard` is the single source of truth for all transaction lists across the app.
+
+### Constraints
+- **Aesthetics**: Selection toggles must be non-intrusive and maintain the "clean" glassmorphic look.
+- **Safety**: Bulk deletions MUST require a confirmation prompt showing the count of items to be deleted.
