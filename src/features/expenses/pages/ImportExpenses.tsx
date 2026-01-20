@@ -15,6 +15,8 @@ import StardustOverlay from '@/components/ai/StardustOverlay';
 import { useAIHistory } from '@/features/expenses/hooks/useAIHistory';
 import { getOffTopicJoke } from '@/lib/ai-prompts';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
+import PremiumDropdown from '@/components/ui/PremiumDropdown';
+import { Wallet, Users } from 'lucide-react';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -488,21 +490,22 @@ const ImportExpenses: React.FC = () => {
                 <p className="text-xs text-slate-500">¿A dónde querés enviar estos registros?</p>
               </div>
             </div>
-            <select
+            <PremiumDropdown
               value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
-              className="w-full md:w-64 bg-background border border-border rounded-xl px-4 py-3 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              <option value="" disabled>Seleccionar destino...</option>
-              <option value="personal">👤 Mis Finanzas Personales</option>
-              {groups.length > 0 && (
-                <optgroup label="Mis Grupos">
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>👥 {g.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+              onChange={setSelectedGroupId}
+              groups={[
+                {
+                  title: 'Cuenta Personal',
+                  options: [{ id: 'personal', label: 'Mis Finanzas Personales', icon: Wallet, color: 'text-blue-500', bgColor: 'bg-blue-500/10' }]
+                },
+                ...(groups.length > 0 ? [{
+                  title: 'Mis Grupos',
+                  options: groups.map(g => ({ id: g.id, label: g.name, icon: Users, color: 'text-purple-500', bgColor: 'bg-purple-500/10' }))
+                }] : [])
+              ]}
+              className="w-full md:w-64"
+              placeholder="Seleccionar destino..."
+            />
           </div>
 
           <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl overflow-hidden mb-24">

@@ -3,6 +3,7 @@ import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
     ChevronDown, Wallet, Users, LayoutGrid, ArrowRight
 } from 'lucide-react';
+import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
@@ -38,45 +39,21 @@ const Categories: React.FC = () => {
                 </div>
 
                 {/* Scope Switcher */}
-                <div className="relative group z-20">
-                    <button className="flex items-center gap-3 bg-surface border border-border px-5 py-3 rounded-xl shadow-sm hover:border-primary/50 transition-all min-w-[200px] justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded-lg ${scope === 'personal' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
-                                {scope === 'personal' ? <Wallet className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                            </div>
-                            <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
-                                {scope === 'personal' ? 'Mis Finanzas' : selectedGroup?.name || 'Seleccionar Grupo'}
-                            </span>
-                        </div>
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                    </button>
-
-                    {/* Dropdown */}
-                    <div className="absolute right-0 top-full mt-2 w-64 bg-surface border border-border rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right">
-                        <div className="p-2">
-                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Cuenta Personal</div>
-                            <button
-                                onClick={() => setScope('personal')}
-                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${scope === 'personal' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                            >
-                                <Wallet className="w-4 h-4" />
-                                <span className="font-medium text-sm">Finanzas Personales</span>
-                            </button>
-
-                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2 mt-2">Grupos</div>
-                            {groups.map(group => (
-                                <button
-                                    key={group.id}
-                                    onClick={() => setScope(group.id)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${scope === group.id ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                                >
-                                    <Users className="w-4 h-4" />
-                                    <span className="font-medium text-sm truncate text-left">{group.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+                <PremiumDropdown
+                    value={scope}
+                    onChange={setScope}
+                    groups={[
+                        {
+                            title: 'Cuenta Personal',
+                            options: [{ id: 'personal', label: 'Finanzas Personales', icon: Wallet, color: 'text-blue-500', bgColor: 'bg-blue-500/10' }]
+                        },
+                        {
+                            title: 'Grupos',
+                            options: groups.map(g => ({ id: g.id, label: g.name, icon: Users, color: 'text-purple-500', bgColor: 'bg-purple-500/10' }))
+                        }
+                    ]}
+                    className="min-w-[220px]"
+                />
             </header>
 
             {/* Summary Card */}
