@@ -5,7 +5,6 @@ import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { ArrowLeft, Calendar, DollarSign, ShoppingBag } from 'lucide-react';
 import { getCategoryConfig } from '@/lib/constants';
-import { PERSONAL_TRANSACTIONS_MOCK } from '@/features/dashboard/hooks/usePersonalTransactions';
 
 // Reusing TransactionCard logic or importing it?
 // Since TransactionCard is inside PersonalFinance.tsx (not exported), I should probably duplicate it lightly or refactor.
@@ -110,11 +109,11 @@ const CategoryDetail: React.FC = () => {
                                     <DollarSign className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-slate-900 dark:text-white">{tx.title || tx.merchant || 'Sin título'}</p>
+                                    <p className="font-bold text-slate-900 dark:text-white">{(tx as any).title || (tx as any).merchant || 'Sin título'}</p>
                                     <div className="flex items-center gap-2 text-xs text-slate-500">
                                         <Calendar className="w-3 h-3" />
                                         <span>{formatDate(tx.date)}</span>
-                                        {tx.payer && <span className="text-blue-500">• Pagado por {tx.payer.name}</span>}
+                                        {(tx as any).payer && <span className="text-blue-500">• Pagado por {(tx as any).payer.name}</span>}
                                     </div>
                                 </div>
                             </div>
