@@ -5,6 +5,7 @@ import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
+import { AISettings } from '../components/AISettings';
 
 interface SettingsProps {
    currentExchangeRate: number;
@@ -229,6 +230,15 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
                   Guardar Cambios
                </button>
             </div>
+         </section>
+
+         {/* AI Settings Section */}
+         <section className="space-y-6">
+            <AISettings
+               apiKey={profile?.gemini_api_key || ''}
+               onSave={(key) => updateProfile({ gemini_api_key: key })}
+               saving={saving}
+            />
          </section>
 
          {/* Currency Section */}

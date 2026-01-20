@@ -28,8 +28,8 @@ export const analyzeFinancialHealth = async (
     }
 ) => {
     try {
-        const genAI = getGeminiClient(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const ai = getGeminiClient(apiKey);
+        const model = "gemini-2.0-flash-exp";
 
         const prompt = `Actúa como un asesor financiero experto en Argentina. 
     Analiza mis finanzas del último mes:
@@ -41,9 +41,12 @@ export const analyzeFinancialHealth = async (
     Mantené un tono alentador pero profesional. Usa términos locales (ARS, pesos, etc).
     Respondé directamente con los 3 puntos.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const result = await ai.models.generateContent({
+            model,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        });
+
+        const text = result.text;
 
         // Split by lines or format into array
         return text.split('\n').filter(line => line.trim().length > 0).slice(0, 3);
