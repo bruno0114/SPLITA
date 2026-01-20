@@ -40,6 +40,7 @@ export interface Group {
   lastActivity: string;
   image?: string;
   inviteCode?: string;
+  createdBy: string;
 }
 
 export enum AppRoute {

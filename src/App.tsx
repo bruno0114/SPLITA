@@ -34,7 +34,9 @@ const App: React.FC = () => {
             case '/settings': return AppRoute.SETTINGS;
             case '/login': return AppRoute.LOGIN;
             case '/onboarding': return AppRoute.ONBOARDING;
-            default: return AppRoute.DASHBOARD_PERSONAL;
+            default:
+                if (pathname.startsWith('/groups/')) return AppRoute.DASHBOARD_GROUPS;
+                return AppRoute.DASHBOARD_PERSONAL;
         }
     };
 

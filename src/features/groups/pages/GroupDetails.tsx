@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle } from 'lucide-react';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import InviteModal from '@/features/groups/components/InviteModal';
 import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
 
@@ -24,6 +25,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
    const [showModal, setShowModal] = useState(false);
    const [showSettings, setShowSettings] = useState(false);
+   const [showInviteModal, setShowInviteModal] = useState(false);
    const [inviteCopied, setInviteCopied] = useState(false);
    const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
 
@@ -95,11 +97,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    };
 
    const handleInvite = () => {
-      if (!group.inviteCode) return;
-      const inviteUrl = `${window.location.origin}/join/${group.inviteCode}`;
-      navigator.clipboard.writeText(inviteUrl);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 2000);
+      setShowInviteModal(true);
    };
 
    const handleSave = async (data: any) => {
@@ -173,10 +171,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                   <div className="flex gap-3 w-full md:w-auto relative">
                      <button
                         onClick={handleInvite}
-                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl border font-bold text-sm shadow-sm transition-all ${inviteCopied ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-surface border-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-surface border border-border text-slate-700 dark:text-slate-200 font-bold text-sm shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                      >
-                        {inviteCopied ? <Check className="w-4 h-4" /> : <Share className="w-4 h-4" />}
-                        {inviteCopied ? '¡Copiado!' : 'Invitar'}
+                        <Share className="w-4 h-4" />
+                        Invitar
                      </button>
                      <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/20 hover:brightness-110 transition-all">
                         <Receipt className="w-4 h-4" />
@@ -344,8 +342,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             <GroupSettingsModal
                group={group}
                onClose={handleCloseSettings}
+               onBack={onBack}
             />
          )}
+
+         {/* Invite Modal */}
+         <InviteModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            groupName={group.name}
+            inviteCode={group.inviteCode || ''}
+         />
       </div>
    );
 };
@@ -353,18 +360,22 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 interface GroupSettingsModalProps {
    group: any;
    onClose: () => void;
+   onBack?: () => void;
 }
 
-const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose }) => {
-   const { updateGroup } = useGroups();
+const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose, onBack }) => {
+   const { updateGroup, deleteGroup, refreshInviteCode } = useGroups();
    const { user } = useAuth();
    const [name, setName] = useState(group.name);
    const [currency, setCurrency] = useState(group.currency || 'ARS');
    const [saving, setSaving] = useState(false);
    const [uploading, setUploading] = useState(false);
+   const [deleting, setDeleting] = useState(false);
+   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
    const [error, setError] = useState<string | null>(null);
    const [success, setSuccess] = useState(false);
    const fileInputRef = React.useRef<HTMLInputElement>(null);
+   const isOwner = user?.id === group.createdBy;
 
    const handleSave = async () => {
       if (!name) return;
@@ -382,6 +393,21 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose 
       } else {
          setError(error);
          setSaving(false);
+      }
+   };
+
+   const handleDelete = async () => {
+      setDeleting(true);
+      setError(null);
+      try {
+         const { error } = await deleteGroup(group.id);
+         if (error) throw new Error(error);
+         onClose();
+         if (onBack) onBack();
+      } catch (err: any) {
+         setError(err.message);
+      } finally {
+         setDeleting(false);
       }
    };
 
@@ -480,25 +506,67 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose 
                   <div className="pt-2">
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Código de Invitación</label>
                      <div className="flex items-center gap-2">
-                        <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl font-mono text-sm font-bold text-center">
+                        <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl font-mono text-xs font-bold text-center border border-border">
                            {group.inviteCode || 'No generado'}
                         </code>
                         <button
-                           onClick={() => {
-                              const { refreshInviteCode } = useGroups(); // Note: inside component it works differently, but we have it from the hook at top level
-                           }}
-                           className="hidden" // Placeholder logic check
-                        >
-                        </button>
-                        <button
                            onClick={async () => {
-                              const { refreshInviteCode } = useGroups(); // This is wrong, use the one from scope
+                              setSaving(true);
+                              await refreshInviteCode(group.id);
+                              setSaving(false);
                            }}
-                           className="hidden"
-                        ></button>
+                           className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors"
+                           title="Regenerar código"
+                        >
+                           <History className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
+                        </button>
                      </div>
-                     <p className="text-[10px] text-slate-500 mt-1">Cualquiera con este código puede unirse al grupo.</p>
+                     <p className="text-[10px] text-slate-500 mt-1 font-medium">Cualquiera con este código puede unirse al grupo.</p>
                   </div>
+
+                  {/* Danger Zone */}
+                  {isOwner && (
+                     <div className="pt-6 border-t border-border mt-4">
+                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Zona de Peligro</p>
+
+                        {showDeleteConfirm ? (
+                           <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                              <p className="text-xs font-bold text-red-600 mb-3">¿Estás seguro? Esta acción es irreversible.</p>
+                              <div className="flex gap-2">
+                                 <button
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                    className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-500/20"
+                                 >
+                                    {deleting ? 'Eliminando...' : 'Sí, eliminar grupo'}
+                                 </button>
+                                 <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="flex-1 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl"
+                                 >
+                                    Cancelar
+                                 </button>
+                              </div>
+                           </div>
+                        ) : (
+                           <button
+                              onClick={() => setShowDeleteConfirm(true)}
+                              className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all group"
+                           >
+                              <div className="flex items-center gap-3">
+                                 <div className="size-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
+                                    <Trash2 className="w-4 h-4" />
+                                 </div>
+                                 <div className="text-left">
+                                    <p className="text-sm font-bold text-red-600">Eliminar Grupo</p>
+                                    <p className="text-[10px] text-red-400 font-medium">Se perderán todos los datos</p>
+                                 </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-red-300 group-hover:translate-x-1 transition-transform" />
+                           </button>
+                        )}
+                     </div>
+                  )}
                </div>
 
                {error && (
@@ -536,14 +604,6 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose 
    );
 };
 
-interface AppAlertCircleProps { className?: string }
-const AlertCircle: React.FC<AppAlertCircleProps> = ({ className }) => <Icons.AlertCircle className={className} />;
-const Check: React.FC<AppAlertCircleProps> = ({ className }) => <Icons.Check className={className} />;
-
-const Icons = {
-   AlertCircle: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
-   Check: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="20 6 9 17 4 12" /></svg>
-};
 
 interface GroupTransactionModalProps {
    onClose: () => void;

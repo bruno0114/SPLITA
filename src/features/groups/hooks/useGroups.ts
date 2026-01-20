@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Group, User } from '@/types/index';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useToast } from '@/context/ToastContext';
 
 export const useGroups = () => {
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+    const { showToast } = useToast();
 
     const fetchGroups = useCallback(async () => {
         if (!user) {
@@ -59,6 +61,7 @@ export const useGroups = () => {
                 currency: g.currency,
                 image: g.image_url,
                 inviteCode: g.invite_code,
+                createdBy: g.created_by,
                 lastActivity: new Date(g.created_at).toLocaleDateString(), // Placeholder
                 userBalance: 0, // Pivot calculation to be implemented later
                 members: g.members.map((m: any) => ({
@@ -117,9 +120,11 @@ export const useGroups = () => {
             console.log('[useGroups] Creator added as admin');
             // Refresh list - AWAIT to ensure UI updates
             await fetchGroups();
+            showToast('Grupo creado con éxito', 'success');
             return { data: groupData, error: null };
         } catch (err: any) {
             console.error('[useGroups] Error:', err);
+            showToast(err.message || 'Error al crear el grupo', 'error');
             return { data: null, error: err.message };
         }
     };
@@ -186,9 +191,31 @@ export const useGroups = () => {
             if (error) throw error;
 
             await fetchGroups();
+            showToast('Grupo actualizado', 'success');
             return { data, error: null };
         } catch (err: any) {
+            showToast(err.message || 'Error al actualizar el grupo', 'error');
             return { data: null, error: err.message };
+        }
+    };
+
+    const deleteGroup = async (id: string) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { error } = await supabase
+                .from('groups')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            await fetchGroups();
+            showToast('Grupo eliminado correctamente', 'success');
+            return { error: null };
+        } catch (err: any) {
+            showToast(err.message || 'Error al eliminar el grupo', 'error');
+            return { error: err.message };
         }
     };
 
@@ -207,6 +234,7 @@ export const useGroups = () => {
         error,
         createGroup,
         updateGroup,
+        deleteGroup,
         refreshInviteCode,
         joinGroup,
         getGroupByInviteCode,
