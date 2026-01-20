@@ -51,7 +51,8 @@ export enum AppRoute {
   DASHBOARD_GROUPS = 'dashboard_groups',
   GROUP_DETAILS = 'group_details',
   IMPORT = 'import',
-  SETTINGS = 'settings'
+  SETTINGS = 'settings',
+  CATEGORIES = 'categories'
 }
 
 export type Theme = 'light' | 'dark' | 'system';

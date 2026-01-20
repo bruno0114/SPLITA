@@ -31,6 +31,7 @@ const App: React.FC = () => {
             case '/health': return AppRoute.DASHBOARD_HEALTH;
             case '/groups': return AppRoute.DASHBOARD_GROUPS;
             case '/import': return AppRoute.IMPORT;
+            case '/categories': return AppRoute.CATEGORIES;
             case '/settings': return AppRoute.SETTINGS;
             case '/login': return AppRoute.LOGIN;
             case '/onboarding': return AppRoute.ONBOARDING;
@@ -61,6 +62,7 @@ const App: React.FC = () => {
             case AppRoute.DASHBOARD_HEALTH: navigate('/health'); break;
             case AppRoute.DASHBOARD_GROUPS: navigate('/groups'); break;
             case AppRoute.IMPORT: navigate('/import'); break;
+            case AppRoute.CATEGORIES: navigate('/categories'); break;
             case AppRoute.SETTINGS: navigate('/settings'); break;
             case AppRoute.LOGIN: navigate('/login'); break;
             case AppRoute.ONBOARDING: navigate('/onboarding'); break;
@@ -142,6 +144,7 @@ const App: React.FC = () => {
                             <Route path="/health" element={<EconomicHealth />} />
                             <Route path="/groups" element={<Groups onGroupSelect={handleGroupSelect} />} />
                             <Route path="/groups/:groupId" element={<GroupDetails groupId={selectedGroupId} onBack={() => navigate('/groups')} />} />
+                            <Route path="/categories" element={<div className="p-10 flex items-center justify-center h-full text-slate-500">Categories Placeholder</div>} />
                             <Route path="/import" element={<ImportExpenses />} />
                             <Route path="/settings" element={<Settings currentExchangeRate={exchangeRate} onExchangeRateChange={setExchangeRate} />} />
                         </Route>
@@ -163,6 +166,7 @@ function getRouteTitle(route: AppRoute): string {
         case AppRoute.DASHBOARD_HEALTH: return 'Salud económica';
         case AppRoute.DASHBOARD_GROUPS: return 'Mis grupos';
         case AppRoute.GROUP_DETAILS: return 'Detalle del grupo';
+        case AppRoute.CATEGORIES: return 'Análisis de gastos';
         case AppRoute.IMPORT: return 'Importar gastos IA';
         case AppRoute.SETTINGS: return 'Configuración';
         default: return 'Splita';
