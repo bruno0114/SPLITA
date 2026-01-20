@@ -19,6 +19,7 @@
 | `@google/genai` | ^1.37.0 | AI/LLM SDK |
 | `react-router-dom` | ^6.30.3 | Client-side Routing |
 | `lucide-react` | ^0.562.0 | Iconography |
+| `framer-motion` | ^12.27.1 | Animations |
 
 ### Development
 | Package | Version | Purpose |
