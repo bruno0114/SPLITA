@@ -364,6 +364,7 @@ interface GroupSettingsModalProps {
 }
 
 const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose, onBack }) => {
+   const navigate = useNavigate();
    const { updateGroup, deleteGroup, refreshInviteCode } = useGroups();
    const { user } = useAuth();
    const [name, setName] = useState(group.name);
@@ -400,15 +401,21 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
       setDeleting(true);
       setError(null);
       try {
-         const { error } = await deleteGroup(group.id);
-         if (error) throw new Error(error);
+         const result = await deleteGroup(group.id);
+         if (result.error) throw new Error(result.error);
+
+         // Close modal first
          onClose();
-         if (onBack) onBack();
+         // Small delay ensures React state updates propagate
+         setTimeout(() => {
+            if (onBack) onBack();
+            else navigate('/groups');
+         }, 50);
       } catch (err: any) {
          setError(err.message);
-      } finally {
          setDeleting(false);
       }
+      // Don't reset deleting in finally - we're navigating away on success
    };
 
    const handleImageClick = () => {

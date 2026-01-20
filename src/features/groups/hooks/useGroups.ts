@@ -197,7 +197,10 @@ export const useGroups = () => {
     };
 
     const deleteGroup = async (id: string) => {
-        if (!user) return { error: 'No authenticated user' };
+        if (!user) return { error: 'No authenticated user', success: false };
+
+        // Optimistically remove from local state FIRST
+        setGroups(prev => prev.filter(g => g.id !== id));
 
         try {
             const { error } = await supabase
@@ -205,14 +208,17 @@ export const useGroups = () => {
                 .delete()
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error) {
+                // Rollback: refetch if delete failed
+                await fetchGroups();
+                throw error;
+            }
 
-            await fetchGroups();
             showToast('Grupo eliminado correctamente', 'success');
-            return { error: null };
+            return { error: null, success: true };
         } catch (err: any) {
             showToast(err.message || 'Error al eliminar el grupo', 'error');
-            return { error: err.message };
+            return { error: err.message, success: false };
         }
     };
 

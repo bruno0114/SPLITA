@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, ArrowUpRight, ArrowDownLeft, Receipt, Plane, Home, Beer, Loader2, X, Users, DollarSign } from 'lucide-react';
 import { Group } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
@@ -8,8 +8,13 @@ interface GroupsProps {
 }
 
 const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
-   const { groups, loading, createGroup } = useGroups();
+   const { groups, loading, createGroup, refreshGroups } = useGroups();
    const [showCreateModal, setShowCreateModal] = useState(false);
+
+   // Safety net: always get fresh data on mount
+   useEffect(() => {
+      refreshGroups();
+   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
    // Calculate totals based on real groups
    const totalOwedToUser = groups.reduce((acc, g) => acc + (g.userBalance > 0 ? g.userBalance : 0), 0);
@@ -191,8 +196,8 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
                            key={gt.id}
                            onClick={() => setType(gt.id)}
                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${type === gt.id
-                                 ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                 : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
+                              ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
                               }`}
                         >
                            {gt.icon}
@@ -211,8 +216,8 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
                            key={c.code}
                            onClick={() => setCurrency(c.code)}
                            className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${currency === c.code
-                                 ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                 : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
+                              ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'border-border bg-white dark:bg-black/10 text-slate-500 hover:border-slate-300'
                               }`}
                         >
                            <span className="text-lg font-bold">{c.symbol}</span>

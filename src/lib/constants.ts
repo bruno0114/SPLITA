@@ -120,7 +120,8 @@ export const MOCK_GROUPS: Group[] = [
     userBalance: 24500, // Te deben
     currency: 'ARS',
     lastActivity: 'Hace 2 horas',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073&auto=format&fit=crop',
+    createdBy: 'u1'
   },
   {
     id: 'g2',
@@ -130,7 +131,8 @@ export const MOCK_GROUPS: Group[] = [
     userBalance: -12800, // Debes
     currency: 'ARS',
     lastActivity: 'Ayer',
-    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b91d?q=80&w=1974&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b91d?q=80&w=1974&auto=format&fit=crop',
+    createdBy: 'u1'
   },
   {
     id: 'g3',
@@ -140,6 +142,34 @@ export const MOCK_GROUPS: Group[] = [
     userBalance: 0,
     currency: 'ARS',
     lastActivity: 'Hace 5 días',
-    image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d03?q=80&w=2070&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d03?q=80&w=2070&auto=format&fit=crop',
+    createdBy: 'u1'
   }
 ];
+
+// --- APP CONFIGURATION ---
+
+export const CATEGORY_CONFIG: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  'compras': { label: 'Compras', icon: 'ShoppingBag', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+  'supermercado': { label: 'Supermercado', icon: 'ShoppingCart', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  'gastronomia': { label: 'Gastronomía', icon: 'Coffee', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  'servicios': { label: 'Servicios', icon: 'Zap', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  'transporte': { label: 'Transporte', icon: 'Car', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+  'casa': { label: 'Casa', icon: 'Home', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+  'viajes': { label: 'Viajes', icon: 'Plane', color: 'text-sky-500', bg: 'bg-sky-500/10' },
+  'varios': { label: 'Varios', icon: 'MoreHorizontal', color: 'text-slate-500', bg: 'bg-slate-500/10' }
+};
+
+export const getCategoryConfig = (categoryName: string) => {
+  const normalized = (categoryName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes('super')) return CATEGORY_CONFIG['supermercado'];
+  if (normalized.includes('compra') || normalized.includes('shop')) return CATEGORY_CONFIG['compras'];
+  if (normalized.includes('gastro') || normalized.includes('comida') || normalized.includes('cafe') || normalized.includes('restaurante')) return CATEGORY_CONFIG['gastronomia'];
+  if (normalized.includes('servicio') || normalized.includes('luz') || normalized.includes('gas') || normalized.includes('internet') || normalized.includes('netflix')) return CATEGORY_CONFIG['servicios'];
+  if (normalized.includes('transporte') || normalized.includes('nafta') || normalized.includes('uber') || normalized.includes('subte')) return CATEGORY_CONFIG['transporte'];
+  if (normalized.includes('casa') || normalized.includes('alquiler') || normalized.includes('expensas')) return CATEGORY_CONFIG['casa'];
+  if (normalized.includes('viaje')) return CATEGORY_CONFIG['viajes'];
+
+  return CATEGORY_CONFIG['varios'];
+};
