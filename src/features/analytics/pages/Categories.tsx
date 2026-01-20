@@ -8,6 +8,8 @@ import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalT
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useCategoryStats } from '../hooks/useCategoryStats';
+import CategoryManagerModal from '@/features/analytics/components/CategoryManagerModal';
+import { Settings2 } from 'lucide-react';
 
 // Map string icon names to components
 const IconMap: Record<string, React.ElementType> = {
@@ -16,6 +18,7 @@ const IconMap: Record<string, React.ElementType> = {
 
 const Categories: React.FC = () => {
     const [scope, setScope] = useState<string>('personal'); // 'personal' or groupId
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Data Fetching
     const { transactions: personalTx } = usePersonalTransactions();
@@ -38,22 +41,35 @@ const Categories: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Desglose detallado por categorías.</p>
                 </div>
 
-                {/* Scope Switcher */}
-                <PremiumDropdown
-                    value={scope}
-                    onChange={setScope}
-                    groups={[
-                        {
-                            title: 'Cuenta Personal',
-                            options: [{ id: 'personal', label: 'Finanzas Personales', icon: Wallet, color: 'text-blue-500', bgColor: 'bg-blue-500/10' }]
-                        },
-                        {
-                            title: 'Grupos',
-                            options: groups.map(g => ({ id: g.id, label: g.name, icon: Users, color: 'text-purple-500', bgColor: 'bg-purple-500/10' }))
-                        }
-                    ]}
-                    className="min-w-[220px]"
-                />
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="p-3 rounded-xl bg-surface border border-border text-slate-500 hover:text-primary hover:border-primary/50 transition-all flex items-center gap-2 shadow-sm"
+                        title="Gestionar Categorías"
+                    >
+                        <Settings2 className="w-5 h-5" />
+                        <span className="text-sm font-bold hidden md:inline">Gestionar</span>
+                    </button>
+
+                    {/* Scope Switcher */}
+                    <PremiumDropdown
+                        value={scope}
+                        onChange={setScope}
+                        groups={[
+                            {
+                                title: 'Cuenta Personal',
+                                options: [{ id: 'personal', label: 'Finanzas Personales', icon: Wallet, color: 'text-blue-500', bgColor: 'bg-blue-500/10' }]
+                            },
+                            {
+                                title: 'Grupos',
+                                options: groups.map(g => ({ id: g.id, label: g.name, icon: Users, color: 'text-purple-500', bgColor: 'bg-purple-500/10' }))
+                            }
+                        ]}
+                        className="min-w-[220px]"
+                    />
+                </div>
+
+                <CategoryManagerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
             </header>
 
             {/* Summary Card */}
