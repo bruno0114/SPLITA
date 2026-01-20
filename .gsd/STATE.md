@@ -1,16 +1,15 @@
 # GSD State
 
 ## Current Position
-- **Phase:** 4 (Core UX & Data Integrity Fixes)
-- **Status:** ✅ Complete
+- **Phase:** 5 (Groups Management & Invite Recovery)
+- **Status:** Milestone Planned
 - **Last Updated:** 2026-01-20
 
 ## Last Session Summary
-Phase 4 executed successfully.
-- Resolved RLS recursion via Security Definer pattern (SQL migration provided).
-- Implemented API key removal and dynamic cache invalidation.
-- Enhanced Import flow with Personal vs Group destination logic.
+Resolved RLS recursion blockers and stabilized Gemini API key management. Initiated new milestone for Core UX and Groups management.
 
 ## Next Steps
 
-1. `/plan 5` — Production Data Clean-up and final launch preparations.
+1. `/plan 5` — Decompose group management and invite recovery into tasks.
+2. Restore group settings actions (edit name, image).
+3. Implement join link logic.

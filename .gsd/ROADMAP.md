@@ -1,13 +1,13 @@
 # ROADMAP.md
 
-> **Current Milestone**: Phase 4 - Core UX & Data Integrity Fixes
-> **Goal**: Stabilize core flows for real usage by fixing RLS blockers, improving AI key management, and enabling personal vs group imports.
+> **Current Milestone**: Core UX, Groups Management & AI Evolution
+> **Goal**: Fix group blockers, implement invites, add spending analytics, and upgrade AI import with FX/Per-item control.
 
 ## Must-Haves
-- [ ] **RLS Stability**: Fix "infinite recursion" in group_members and ensure reliable group creation.
-- [ ] **AI Key Lifecycle**: Support removing and re-adding Gemini API keys with immediate UI feedback.
-- [ ] **Flexible AI Import**: Let users choose between "Personal Finances" or a specific "Group" during AI scan review.
-- [ ] **Data Integrity**: Ensure imported records end up in the correct tables (personal_transactions vs transactions).
+- [ ] **Group Recovery (P0)**: Functional group editing (settings, image) and working Invite/Join flow.
+- [ ] **Navigation (P1)**: Logout accessibility in header (independent of sidebar state).
+- [ ] **Categories (P1)**: Spend analytics by category with drilldown to transaction lists.
+- [ ] **AI Import v2 (P1)**: Per-item selection (toggles) and currency/FX detection with user confirmation.
 
 ## Phases
 
@@ -15,9 +15,9 @@
 **Status**: ⬜ Not Started
 **Objective**: Ensure the 6-step onboarding flow isn't just visual.
 
-### Phase 2: Avatars & Group Invites
-**Status**: 🚧 Partial
-**Objective**: Fix CRUD sync and implement link-based joining.
+### Phase 2: Avatars & Basic Sync
+**Status**: ✅ Complete
+**Objective**: Fix CRUD sync and initial profile setup.
 
 ### Phase 3: AI UX & API Key Management
 **Status**: ✅ Complete
@@ -26,12 +26,19 @@
 ### Phase 4: Core UX & Data Integrity Fixes
 **Status**: ✅ Complete
 **Objective**: Stabilize the core flows for real-world production usage.
-**Deliverables**:
-- Fix RLS recursion in `group_members` policy.
-- Add "Clear API Key" functionality to `AISettings.tsx`.
-- Update `ImportExpenses.tsx` to support context selection (Group vs Personal).
-- Ensure `useTransactions` and `usePersonalTransactions` are correctly targeted based on import context.
 
-### Phase 5: Production Data Clean-up
+### Phase 5: Groups Management & Invite Recovery
+**Status**: ⬜ Not Started
+**Objective**: Restore group settings (edit/image) and implement join links with proper RLS.
+
+### Phase 6: Navigation, Categories & Analytics
+**Status**: ⬜ Not Started
+**Objective**: Add header logout and implement category-based spending reports.
+
+### Phase 7: AI Import Evolution (FX & Selection)
+**Status**: ⬜ Not Started
+**Objective**: Implement item-by-item selection and multi-currency detection/conversion.
+
+### Phase 8: Production Readiness & Clean-up
 **Status**: ⬜ Not Started
 **Objective**: Remove remaining mock data and finalize launch documentation.
