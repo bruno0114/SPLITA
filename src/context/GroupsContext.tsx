@@ -11,6 +11,7 @@ interface GroupsContextValue {
     createGroup: (name: string, type: string) => Promise<{ data?: any; error: any }>;
     updateGroup: (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string }>) => Promise<{ data?: any; error: any }>;
     deleteGroup: (id: string) => Promise<{ error: any; success: boolean }>;
+    leaveGroup: (groupId: string) => Promise<{ error: any; success: boolean }>;
     refreshInviteCode: (id: string) => Promise<{ data?: any; error: any }>;
     joinGroup: (groupId: string) => Promise<{ error?: string }>;
     getGroupByInviteCode: (code: string) => Promise<{ data?: any; error?: string }>;
@@ -200,24 +201,59 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!user) return { error: 'No authenticated user', success: false };
 
         // Optimistically remove from local state FIRST
+        const previousGroups = [...groups];
         setGroups(prev => prev.filter(g => g.id !== id));
 
         try {
-            const { error } = await supabase
+            // We use 'count: exact' to see if rows were actually affected
+            const { error, count } = await supabase
                 .from('groups')
-                .delete()
+                .delete({ count: 'exact' })
                 .eq('id', id);
 
-            if (error) {
-                // Rollback: refetch if delete failed
-                await fetchGroups();
-                throw error;
+            if (error) throw error;
+
+            if (count === 0) {
+                // This happens if RLS policy fails (non-owner) or group doesn't exist
+                throw new Error('No tenés permisos para eliminar este grupo o no existe.');
             }
 
             showToast('Grupo eliminado correctamente', 'success');
             return { error: null, success: true };
         } catch (err: any) {
+            console.error('[GroupsContext] Delete error:', err);
+            // Rollback optimistic update
+            setGroups(previousGroups);
             showToast(err.message || 'Error al eliminar el grupo', 'error');
+            return { error: err.message, success: false };
+        }
+    };
+
+    const leaveGroup = async (groupId: string) => {
+        if (!user) return { error: 'No authenticated user', success: false };
+
+        // Optimistically remove
+        const previousGroups = [...groups];
+        setGroups(prev => prev.filter(g => g.id !== groupId));
+
+        try {
+            const { error, count } = await supabase
+                .from('group_members')
+                .delete({ count: 'exact' })
+                .eq('group_id', groupId)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                throw new Error('No sos miembro de este grupo o ya saliste.');
+            }
+
+            showToast('Saliste del grupo correctamente', 'success');
+            return { error: null, success: true };
+        } catch (err: any) {
+            setGroups(previousGroups);
+            showToast(err.message || 'Error al salir del grupo', 'error');
             return { error: err.message, success: false };
         }
     };
@@ -239,6 +275,7 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             createGroup,
             updateGroup,
             deleteGroup,
+            leaveGroup,
             refreshInviteCode,
             joinGroup,
             getGroupByInviteCode,

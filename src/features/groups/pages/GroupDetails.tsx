@@ -365,7 +365,7 @@ interface GroupSettingsModalProps {
 
 const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose, onBack }) => {
    const navigate = useNavigate();
-   const { updateGroup, deleteGroup, refreshInviteCode } = useGroups();
+   const { updateGroup, deleteGroup, leaveGroup, refreshInviteCode } = useGroups();
    const { user } = useAuth();
    const [name, setName] = useState(group.name);
    const [currency, setCurrency] = useState(group.currency || 'ARS');
@@ -378,12 +378,28 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    const fileInputRef = React.useRef<HTMLInputElement>(null);
    const isOwner = user?.id === group.createdBy;
 
+   const handleLeave = async () => {
+      setDeleting(true);
+      setError(null);
+      try {
+         const result = await leaveGroup(group.id);
+         if (result.error) throw new Error(result.error);
+         onClose();
+         setTimeout(() => {
+            if (onBack) onBack();
+            else navigate('/groups');
+         }, 50);
+      } catch (err: any) {
+         setError(err.message);
+         setDeleting(false);
+      }
+   };
+
    const handleSave = async () => {
       if (!name) return;
       setSaving(true);
       setError(null);
       const { error } = await updateGroup(group.id, { name, currency });
-      setSaving(true); // Small delay to show success
       if (!error) {
          setSuccess(true);
          setTimeout(() => {
@@ -392,7 +408,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
             onClose();
          }, 1500);
       } else {
-         setError(error);
+         setError(error || 'Error al guardar');
          setSaving(false);
       }
    };
@@ -404,9 +420,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
          const result = await deleteGroup(group.id);
          if (result.error) throw new Error(result.error);
 
-         // Close modal first
          onClose();
-         // Small delay ensures React state updates propagate
          setTimeout(() => {
             if (onBack) onBack();
             else navigate('/groups');
@@ -415,7 +429,6 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
          setError(err.message);
          setDeleting(false);
       }
-      // Don't reset deleting in finally - we're navigating away on success
    };
 
    const handleImageClick = () => {
@@ -532,79 +545,81 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
                   </div>
 
                   {/* Danger Zone */}
-                  {isOwner && (
-                     <div className="pt-6 border-t border-border mt-4">
-                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Zona de Peligro</p>
+                  <div className="pt-6 border-t border-border mt-4">
+                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Zona de Peligro</p>
 
-                        {showDeleteConfirm ? (
-                           <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                              <p className="text-xs font-bold text-red-600 mb-3">¿Estás seguro? Esta acción es irreversible.</p>
-                              <div className="flex gap-2">
-                                 <button
-                                    onClick={handleDelete}
-                                    disabled={deleting}
-                                    className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-500/20"
-                                 >
-                                    {deleting ? 'Eliminando...' : 'Sí, eliminar grupo'}
-                                 </button>
-                                 <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    className="flex-1 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl"
-                                 >
-                                    Cancelar
-                                 </button>
+                     {showDeleteConfirm ? (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                           <p className="text-xs font-bold text-red-600 mb-3">
+                              {isOwner ? '¿Estás seguro? Esta acción eliminará el grupo para todos.' : '¿Estás seguro de que querés salir del grupo?'}
+                           </p>
+                           <div className="flex gap-2">
+                              <button
+                                 onClick={isOwner ? handleDelete : handleLeave}
+                                 disabled={deleting}
+                                 className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-500/20"
+                              >
+                                 {deleting ? 'Procesando...' : isOwner ? 'Sí, eliminar grupo' : 'Sí, salir del grupo'}
+                              </button>
+                              <button
+                                 onClick={() => setShowDeleteConfirm(false)}
+                                 className="flex-1 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl"
+                              >
+                                 Cancelar
+                              </button>
+                           </div>
+                        </div>
+                     ) : (
+                        <button
+                           onClick={() => setShowDeleteConfirm(true)}
+                           className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <div className="size-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
+                                 <Trash2 className="w-4 h-4" />
+                              </div>
+                              <div className="text-left">
+                                 <p className="text-sm font-bold text-red-600">{isOwner ? 'Eliminar Grupo' : 'Salir del Grupo'}</p>
+                                 <p className="text-[10px] text-red-400 font-medium">
+                                    {isOwner ? 'Se perderán todos los datos' : 'Ya no tendrás acceso a este grupo'}
+                                 </p>
                               </div>
                            </div>
-                        ) : (
-                           <button
-                              onClick={() => setShowDeleteConfirm(true)}
-                              className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all group"
-                           >
-                              <div className="flex items-center gap-3">
-                                 <div className="size-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
-                                    <Trash2 className="w-4 h-4" />
-                                 </div>
-                                 <div className="text-left">
-                                    <p className="text-sm font-bold text-red-600">Eliminar Grupo</p>
-                                    <p className="text-[10px] text-red-400 font-medium">Se perderán todos los datos</p>
-                                 </div>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-red-300 group-hover:translate-x-1 transition-transform" />
-                           </button>
-                        )}
+                           <ChevronRight className="w-4 h-4 text-red-300 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                     )}
+                  </div>
+
+                  {error && (
+                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-600 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        {error}
+                     </div>
+                  )}
+
+                  {success && (
+                     <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500" />
+                        Cambios guardados con éxito
                      </div>
                   )}
                </div>
 
-               {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-600 flex items-center gap-2">
-                     <AlertCircle className="w-4 h-4 text-red-500" />
-                     {error}
-                  </div>
-               )}
-
-               {success && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 flex items-center gap-2">
-                     <Check className="w-4 h-4 text-emerald-500" />
-                     Cambios guardados con éxito
-                  </div>
-               )}
-            </div>
-
-            <div className="flex gap-3 mt-8">
-               <button
-                  onClick={onClose}
-                  className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-               >
-                  Cancelar
-               </button>
-               <button
-                  onClick={handleSave}
-                  disabled={!name || saving || uploading}
-                  className="flex-1 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg shadow-black/5 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-               >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
-               </button>
+               <div className="flex gap-3 mt-8">
+                  <button
+                     onClick={onClose}
+                     className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                     Cancelar
+                  </button>
+                  <button
+                     onClick={handleSave}
+                     disabled={!name || saving || uploading}
+                     className="flex-1 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg shadow-black/5 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                  >
+                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+                  </button>
+               </div>
             </div>
          </div>
       </div>

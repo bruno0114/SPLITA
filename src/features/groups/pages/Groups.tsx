@@ -8,13 +8,8 @@ interface GroupsProps {
 }
 
 const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
-   const { groups, loading, createGroup, refreshGroups } = useGroups();
+   const { groups, loading, createGroup } = useGroups();
    const [showCreateModal, setShowCreateModal] = useState(false);
-
-   // Safety net: always get fresh data on mount
-   useEffect(() => {
-      refreshGroups();
-   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
    // Calculate totals based on real groups
    const totalOwedToUser = groups.reduce((acc, g) => acc + (g.userBalance > 0 ? g.userBalance : 0), 0);
