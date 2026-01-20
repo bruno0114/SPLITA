@@ -18,10 +18,12 @@ import CategoryDetail from '@/features/analytics/pages/CategoryDetail';
 import AIHistory from '@/features/expenses/pages/AIHistory';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useAuthContext } from '@/features/auth/context/AuthContext';
 
 const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>('dark');
     const { currency, exchangeRate } = useCurrency();
+    const { signOut } = useAuthContext();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
@@ -86,9 +88,15 @@ const App: React.FC = () => {
         navigate('/');
     };
 
-    const handleLogout = () => {
-        // AuthContext handles the actual signOut, here we just navigate
-        navigate('/login');
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            navigate('/login');
+        } catch (err) {
+            console.error("Error signing out:", err);
+            // Fallback navigate to login even if signOut fails (local cleanup)
+            navigate('/login');
+        }
     };
 
     const handleGroupSelect = (groupId: string) => {

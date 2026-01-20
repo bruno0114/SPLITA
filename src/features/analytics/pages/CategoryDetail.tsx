@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { getCategoryConfig } from '@/lib/constants';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
+import TransactionCard from '@/features/expenses/components/TransactionCard';
+import TransactionModal from '@/features/expenses/components/TransactionModal';
+import { Transaction, PersonalTransaction } from '@/types/index';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -30,8 +33,13 @@ const CategoryDetail: React.FC = () => {
     const [dateTo, setDateTo] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [showModal, setShowModal] = useState(false);
+    const [editingTx, setEditingTx] = useState<any>(null);
 
     const activeTransactions = scope === 'personal' ? personalTx : groupTx;
+
+    const personalFuncs = usePersonalTransactions();
+    const groupFuncs = useTransactions(scope !== 'personal' ? scope : null);
 
     // Filter and Paginate logic
     const {
@@ -101,6 +109,40 @@ const CategoryDetail: React.FC = () => {
         }
     };
 
+    const handleEdit = (tx: any) => {
+        setEditingTx(tx);
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('¿Estás seguro de que querés eliminar este movimiento?')) return;
+
+        if (isActiveScopePersonal) {
+            await personalFuncs.deleteTransaction(id);
+        } else {
+            await groupFuncs.deleteTransaction(id);
+        }
+    };
+
+    const handleSave = async (data: any) => {
+        if (isActiveScopePersonal) {
+            if (editingTx) {
+                return await personalFuncs.updateTransaction(editingTx.id, data);
+            } else {
+                return await personalFuncs.addTransaction(data);
+            }
+        } else {
+            // Group transactions need splitBetween
+            // For now, let's keep all members splitting or current logic
+            const members = groups.find(g => g.id === scope)?.members.map(m => m.id) || [];
+            if (editingTx) {
+                return await groupFuncs.updateTransaction(editingTx.id, { ...data, splitBetween: members });
+            } else {
+                return await groupFuncs.addTransaction({ ...data, splitBetween: members });
+            }
+        }
+    };
+
     return (
         <div className="px-6 md:px-12 py-6 md:py-10 pb-32 max-w-5xl mx-auto">
             {/* Header */}
@@ -133,6 +175,7 @@ const CategoryDetail: React.FC = () => {
                         {showFilters ? 'Ocultar Filtros' : 'Filtrar'}
                     </button>
                     <button
+                        onClick={() => { setEditingTx(null); setShowModal(true); }}
                         className="p-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 border border-transparent transition-all flex items-center gap-2 font-bold text-sm hover:scale-105"
                     >
                         <Plus className="w-4 h-4" />
@@ -224,36 +267,12 @@ const CategoryDetail: React.FC = () => {
                     <>
                         <div className="grid grid-cols-1 gap-3">
                             {paginatedTransactions.map((tx) => (
-                                <div key={tx.id} className="glass-panel p-4 rounded-2xl flex items-center justify-between hover:border-primary/30 transition-all group">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`size-12 rounded-xl ${config.bg} ${config.color} flex items-center justify-center shrink-0 transition-transform group-hover:scale-110`}>
-                                            <ShoppingBag className="w-6 h-6" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="font-bold text-slate-900 dark:text-white truncate">
-                                                {(tx as any).title || (tx as any).merchant || 'Sin título'}
-                                            </p>
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                <Calendar className="w-3 h-3" />
-                                                <span>{formatDate(tx.date)}</span>
-                                                {(tx as any).payer && (
-                                                    <span className="flex items-center gap-1 text-primary">
-                                                        <span className="text-slate-300">•</span>
-                                                        {(tx as any).payer.name}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <div className="text-lg font-black text-slate-900 dark:text-white">
-                                            {formatCurrency(tx.amount)}
-                                        </div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                            ARS
-                                        </div>
-                                    </div>
-                                </div>
+                                <TransactionCard
+                                    key={tx.id}
+                                    transaction={tx}
+                                    onEdit={() => handleEdit(tx)}
+                                    onDelete={() => handleDelete(tx.id)}
+                                />
                             ))}
                         </div>
 
@@ -290,6 +309,15 @@ const CategoryDetail: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {showModal && (
+                <TransactionModal
+                    onClose={() => setShowModal(false)}
+                    onSave={handleSave}
+                    initialData={editingTx}
+                    defaultCategory={config.label}
+                />
+            )}
         </div>
     );
 };

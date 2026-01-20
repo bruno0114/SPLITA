@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
     ChevronDown, Wallet, Users, LayoutGrid, ArrowRight
@@ -17,6 +18,7 @@ const IconMap: Record<string, React.ElementType> = {
 };
 
 const Categories: React.FC = () => {
+    const navigate = useNavigate();
     const [scope, setScope] = useState<string>('personal'); // 'personal' or groupId
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -94,7 +96,11 @@ const Categories: React.FC = () => {
                     const Icon = IconMap[cat.icon] || LayoutGrid;
 
                     return (
-                        <div key={cat.id} className="glass-panel p-6 rounded-2xl group hover:border-primary/20 transition-all cursor-pointer">
+                        <div
+                            key={cat.id}
+                            onClick={() => navigate(`/categories/${scope}/${cat.id}`)}
+                            className="glass-panel p-6 rounded-2xl group hover:border-primary/30 active:scale-[0.98] transition-all cursor-pointer"
+                        >
                             <div className="flex justify-between items-start mb-4">
                                 <div className={`size-12 rounded-xl flex items-center justify-center ${cat.bg} ${cat.color}`}>
                                     <Icon className="w-6 h-6" />

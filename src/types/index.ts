@@ -27,6 +27,18 @@ export interface Transaction {
   installments?: string | null;
 }
 
+export interface PersonalTransaction {
+  id: string;
+  user_id: string;
+  title: string;
+  amount: number;
+  category: string | null;
+  type: 'income' | 'expense';
+  date: string;
+  payment_method: string | null;
+  created_at: string;
+}
+
 export interface Category {
   id: string;
   user_id: string | null;
