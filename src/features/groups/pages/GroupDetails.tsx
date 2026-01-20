@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2 } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users } from 'lucide-react';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -17,9 +17,12 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const { user } = useAuth();
 
    const { groups } = useGroups();
-   const { transactions, loading: loadingTx, addTransaction } = useTransactions(groupId);
+   const { transactions, loading: loadingTx, addTransaction, updateTransaction, deleteTransaction } = useTransactions(groupId);
 
    const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
+   const [showModal, setShowModal] = useState(false);
+   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
+   
    const group = groups.find(g => g.id === groupId);
 
    // Calculate Group Balances
@@ -71,32 +74,33 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       else navigate('/groups');
    };
 
-   const handleAddTransaction = async () => {
-      if (!groupId || !group) return;
+   const handleAddTransaction = () => {
+      setEditingTransaction(null);
+      setShowModal(true);
+   };
 
-      // Simple MVP Prompt
-      const input = window.prompt("Ingresá el gasto (Formato: Titulo, Monto):", "Cena, 5000");
-      if (!input) return;
+   const handleEdit = (tx: any) => {
+      setEditingTransaction(tx);
+      setShowModal(true);
+   };
 
-      const [title, amountStr] = input.split(',');
-      if (!title || !amountStr) {
-         alert("Formato inválido");
-         return;
+   const handleDelete = async (id: string) => {
+      if (window.confirm('¿Estás seguro de que querés eliminar este gasto?')) {
+         await deleteTransaction(id);
       }
+   };
 
-      const amount = parseFloat(amountStr.trim());
-      if (isNaN(amount)) {
-         alert("Monto inválido");
-         return;
+   const handleSave = async (data: any) => {
+      if (editingTransaction) {
+         return await updateTransaction(editingTransaction.id, data);
+      } else {
+         return await addTransaction(data);
       }
+   };
 
-      await addTransaction({
-         title: title.trim(),
-         amount,
-         category: 'General',
-         date: new Date().toISOString(),
-         splitBetween: group.members.map(m => m.id) // Split with everyone by default
-      });
+   const handleCloseModal = () => {
+      setShowModal(false);
+      setEditingTransaction(null);
    };
 
    if (!group) {
@@ -243,11 +247,31 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                                           <p className="text-xs text-slate-500">Pagó <span className="font-semibold text-slate-700 dark:text-slate-300">{tx.payer.name}</span></p>
                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                       <p className="font-bold text-slate-900 dark:text-white">$ {tx.amount.toLocaleString('es-AR')}</p>
-                                       <p className={`text-xs font-medium ${tx.payer.id === user?.id ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                          {tx.payer.id === user?.id ? 'Pagaste' : 'Debés (part)'}
-                                       </p>
+                                    <div className="flex items-center gap-6">
+                                       <div className="text-right flex flex-col items-end">
+                                          <p className="font-bold text-slate-900 dark:text-white">$ {tx.amount.toLocaleString('es-AR')}</p>
+                                          <p className={`text-xs font-medium ${tx.payer.id === user?.id ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                             {tx.payer.id === user?.id ? 'Pagaste' : 'Debés (part)'}
+                                          </p>
+                                       </div>
+                                       
+                                       {/* Actions - visible on group hover */}
+                                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); handleEdit(tx); }}
+                                             className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
+                                             title="Editar"
+                                          >
+                                             <Edit2 className="w-4 h-4" />
+                                          </button>
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
+                                             className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
+                                             title="Eliminar"
+                                          >
+                                             <Trash2 className="w-4 h-4" />
+                                          </button>
+                                       </div>
                                     </div>
                                  </div>
                               ))
@@ -280,6 +304,130 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                      </div>
                   )}
                </div>
+            </div>
+         </div>
+
+         {/* Transaction Modal */}
+         {showModal && (
+            <GroupTransactionModal
+               onClose={handleCloseModal}
+               onSave={handleSave}
+               members={group.members}
+               initialData={editingTransaction}
+            />
+         )}
+      </div>
+   );
+};
+
+interface GroupTransactionModalProps {
+   onClose: () => void;
+   onSave: (data: any) => Promise<{ data?: any; error: any }>;
+   members: any[];
+   initialData?: any | null;
+}
+
+const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, onSave, members, initialData }) => {
+   const [title, setTitle] = useState(initialData?.merchant || ''); // Note: merchant is mapped from title in useTransactions
+   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+   const [category, setCategory] = useState(initialData?.category || 'General');
+   const [splitBetween, setSplitBetween] = useState<string[]>(
+      initialData?.splitWith?.map((m: any) => m.id) || members.map(m => m.id)
+   );
+   const [saving, setSaving] = useState(false);
+
+   const handleSave = async () => {
+      if (!title || !amount || splitBetween.length === 0) return;
+      setSaving(true);
+      const { error } = await onSave({
+         title,
+         amount: parseFloat(amount),
+         category,
+         date: new Date().toISOString(),
+         splitBetween
+      });
+      setSaving(false);
+      if (!error) onClose();
+   };
+
+   const toggleMember = (id: string) => {
+      setSplitBetween(prev => 
+         prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+      );
+   };
+
+   return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+         <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {initialData ? 'Editar gasto' : 'Nuevo gasto'}
+               </h3>
+               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-slate-500" />
+               </button>
+            </div>
+
+            <div className="space-y-4">
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Descripción</label>
+                  <input
+                     type="text"
+                     value={title}
+                     onChange={(e) => setTitle(e.target.value)}
+                     placeholder="Ej: Cena en Palermo"
+                     className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+               </div>
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto</label>
+                  <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                     <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-3 text-2xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                     />
+                  </div>
+               </div>
+               
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Dividir con:</label>
+                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                     {members.map(member => (
+                        <button
+                           key={member.id}
+                           onClick={() => toggleMember(member.id)}
+                           className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
+                              splitBetween.includes(member.id) 
+                                 ? 'bg-blue-500/10 border-blue-500 text-blue-600' 
+                                 : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500'
+                           }`}
+                        >
+                           <img src={member.avatar || undefined} alt="" className="size-6 rounded-full" />
+                           <span className="text-xs font-bold truncate">{member.name}</span>
+                        </button>
+                     ))}
+                  </div>
+               </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+               <button
+                  onClick={onClose}
+                  className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+               >
+                  Cancelar
+               </button>
+               <button
+                  onClick={handleSave}
+                  disabled={!title || !amount || splitBetween.length === 0 || saving}
+                  className="flex-1 py-3 rounded-xl bg-blue-gradient text-white font-bold shadow-lg shadow-blue-500/30 hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+               >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
+               </button>
             </div>
          </div>
       </div>

@@ -1,40 +1,19 @@
 # GSD State
 
 ## Current Position
-- **Phase:** Bugfix - Avatar & CRUD Fixes
-- **Status:** ✅ Complete
-- **Last Updated:** 2026-01-19 17:29
+- **Phase:** Mapping
+- **Status:** Active (resumed 2026-01-19T21:03)
+- **Last Updated:** 2026-01-19
 
-## Session Summary
-
-### Issues Fixed
-
-**Avatar Handling:**
-- Updated `handle_new_user` trigger to use Google's `picture` field
-- Removed hardcoded `avatar_url` from Onboarding signup
-- Fixed Sidebar to check `picture` first, then `avatar_url`
-
-**CRUD Operations:**
-- Added `await` to `fetchTransactions()` calls in `usePersonalTransactions`
-- Added `await` to `fetchGroups()` calls in `useGroups`
-- Added console.log for debugging insert/delete operations
-
-### Files Changed
-- `src/features/auth/pages/Onboarding.tsx`
-- `src/components/layout/Sidebar.tsx`
-- `src/features/dashboard/hooks/usePersonalTransactions.ts`
-- `src/features/groups/hooks/useGroups.ts`
-- Supabase migration: `fix_handle_new_user_avatar`
-
-## Verification Needed
-
-1. Login with Google → should see Google profile picture
-2. Create new email account → should see generated avatar
-3. Add personal transaction → should appear immediately
-4. Create group → should appear immediately
+## Last Session Summary
+**Codebase Mapping Complete.**
+- 5 feature modules identified and documented in ARCHITECTURE.md
+- Dependencies and infrastructure inventory updated in STACK.md
+- Technical debt updated: **Transaction CRUD** and **Avatar Upload** are now implemented.
+- Verified hooks and UI logic for Personal and Group transactions.
 
 ## Next Steps
 
-1. Test the fixes manually
-2. If issues persist, check browser console for errors
-3. Verify RLS policies are not blocking reads
+1. `/plan` — create execution plans for remaining technical debt or new features.
+2. `/verify` — empirically validate the new CRUD operations and avatar upload.
+3. Test group invitations logic (high priority technical debt).

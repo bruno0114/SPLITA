@@ -133,11 +133,93 @@ export const useTransactions = (groupId?: string | null) => {
         fetchTransactions();
     }, [fetchTransactions]);
 
+    const updateTransaction = async (id: string, data: {
+        title: string;
+        amount: number;
+        category: string;
+        date: string;
+        splitBetween: string[];
+    }) => {
+        if (!user || !groupId) return { error: 'Missing user or group' };
+
+        try {
+            // 1. Update Transaction
+            const { data: txData, error: txError } = await supabase
+                .from('transactions')
+                .update({
+                    title: data.title,
+                    amount: data.amount,
+                    category: data.category,
+                    date: data.date
+                })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (txError) throw txError;
+
+            // 2. Refresh Splits (Delete and Re-insert is the safest way for simple logic)
+            const { error: splitDeleteError } = await supabase
+                .from('transaction_splits')
+                .delete()
+                .eq('transaction_id', id);
+
+            if (splitDeleteError) throw splitDeleteError;
+
+            const splitAmount = data.amount / data.splitBetween.length;
+            const splitInserts = data.splitBetween.map(uid => ({
+                transaction_id: id,
+                user_id: uid,
+                amount_owed: splitAmount,
+                paid: uid === user.id
+            }));
+
+            const { error: splitInsertError } = await supabase
+                .from('transaction_splits')
+                .insert(splitInserts);
+
+            if (splitInsertError) throw splitInsertError;
+
+            await fetchTransactions();
+            return { data: txData, error: null };
+        } catch (err: any) {
+            console.error('[useTransactions] Update error:', err);
+            return { data: null, error: err.message };
+        }
+    };
+
+    const deleteTransaction = async (id: string) => {
+        if (!user || !groupId) return { error: 'Missing user or group' };
+
+        try {
+            // Splits should be deleted by cascade if configured, but manually for safety
+            await supabase
+                .from('transaction_splits')
+                .delete()
+                .eq('transaction_id', id);
+
+            const { error } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            await fetchTransactions();
+            return { error: null };
+        } catch (err: any) {
+            console.error('[useTransactions] Delete error:', err);
+            return { error: err.message };
+        }
+    };
+
     return {
         transactions,
         loading,
         error,
         addTransaction,
+        updateTransaction,
+        deleteTransaction,
         refreshTransactions: fetchTransactions
     };
 };

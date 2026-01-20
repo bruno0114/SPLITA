@@ -29,6 +29,13 @@
 - "Join" page to handle incoming invite links.
 - Auto-join logic after Auth redirect (handling the 'next' parameter).
 
+### Phase 2: Avatars & CRUD Synchronization
+- [x] Create Supabase Storage bucket `avatars` with RLS policies
+- [x] Implement client-side WebP compression utility
+- [x] Integrate image upload in Settings page
+- [x] Fix non-awaited refresh calls in `usePersonalTransactions` and `useGroups`
+- [x] Synchronize profile creation in Supabase trigger (fix 406 errors)
+
 ### Phase 3: AI UX & API Key Management
 **Status**: ⬜ Not Started
 **Objective**: Secure and user-scoped Gemini API usage.

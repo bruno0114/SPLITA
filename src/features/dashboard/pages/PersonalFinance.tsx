@@ -1,18 +1,42 @@
 import React, { useState } from 'react';
-import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt } from 'lucide-react';
+import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { usePersonalTransactions, PersonalTransaction } from '../hooks/usePersonalTransactions';
 
 const PersonalFinance: React.FC = () => {
-  const { transactions, summary, loading, addTransaction } = usePersonalTransactions();
+  const { transactions, summary, loading, addTransaction, updateTransaction, deleteTransaction } = usePersonalTransactions();
   const [showModal, setShowModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<PersonalTransaction | null>(null);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
 
   const getBalanceChange = () => {
-    // Calculate month-over-month change (simplified for now)
     if (summary.totalIncome === 0) return 0;
     return Math.round((summary.balance / summary.totalIncome) * 100);
+  };
+
+  const handleEdit = (tx: PersonalTransaction) => {
+    setEditingTransaction(tx);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que querés eliminar este movimiento?')) {
+      await deleteTransaction(id);
+    }
+  };
+
+  const handleSave = async (data: any) => {
+    if (editingTransaction) {
+      return await updateTransaction(editingTransaction.id, data);
+    } else {
+      return await addTransaction(data);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingTransaction(null);
   };
 
   if (loading) {
@@ -118,24 +142,36 @@ const PersonalFinance: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {transactions.slice(0, 10).map((tx) => (
-              <TransactionCard key={tx.id} transaction={tx} />
+              <TransactionCard
+                key={tx.id}
+                transaction={tx}
+                onEdit={() => handleEdit(tx)}
+                onDelete={() => handleDelete(tx.id)}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* Add Transaction Modal */}
+      {/* Transaction Modal */}
       {showModal && (
-        <AddTransactionModal
-          onClose={() => setShowModal(false)}
-          onSave={addTransaction}
+        <TransactionModal
+          onClose={handleCloseModal}
+          onSave={handleSave}
+          initialData={editingTransaction}
         />
       )}
     </div>
   );
 };
 
-const TransactionCard = ({ transaction }: { transaction: PersonalTransaction }) => {
+interface TransactionCardProps {
+  transaction: PersonalTransaction;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const TransactionCard = ({ transaction, onEdit, onDelete }: TransactionCardProps) => {
   const isIncome = transaction.type === 'income';
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
@@ -152,7 +188,7 @@ const TransactionCard = ({ transaction }: { transaction: PersonalTransaction }) 
   };
 
   return (
-    <div className={`glass-panel p-4 rounded-2xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer ${isIncome ? 'border-l-4 border-l-emerald-500' : ''}`}>
+    <div className={`glass-panel p-4 rounded-2xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-all group cursor-pointer ${isIncome ? 'border-l-4 border-l-emerald-500' : ''}`}>
       <div className="flex items-center gap-4">
         <div className={`size-12 rounded-xl flex items-center justify-center ${isIncome ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
           {isIncome ? <DollarSign className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
@@ -164,48 +200,72 @@ const TransactionCard = ({ transaction }: { transaction: PersonalTransaction }) 
           </p>
         </div>
       </div>
-      <div className="text-right">
-        <p className={`font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-          {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
-        </p>
-        <p className="text-[10px] text-slate-500 uppercase tracking-tight">
-          {transaction.payment_method || 'Efectivo'}
-        </p>
+
+      <div className="flex items-center gap-6">
+        <div className="text-right flex flex-col items-end">
+          <p className={`font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+            {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+          </p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-tight">
+            {transaction.payment_method || 'Efectivo'}
+          </p>
+        </div>
+
+        {/* Actions - visible on group hover */}
+        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
+            title="Editar"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-interface AddTransactionModalProps {
+interface TransactionModalProps {
   onClose: () => void;
   onSave: (data: any) => Promise<{ data?: any; error: any }>;
+  initialData?: PersonalTransaction | null;
 }
 
-const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onSave }) => {
-  const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, initialData }) => {
+  const [type, setType] = useState<'income' | 'expense'>(initialData?.type || 'expense');
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [amount, setAmount] = useState(initialData?.amount.toString() || '');
+  const [category, setCategory] = useState(initialData?.category || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!title || !amount) return;
     setSaving(true);
-    await onSave({
+    const { error } = await onSave({
       title,
       amount: parseFloat(amount),
       category,
       type
     });
     setSaving(false);
-    onClose();
+    if (!error) onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
       <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nuevo movimiento</h3>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+            {initialData ? 'Editar movimiento' : 'Nuevo movimiento'}
+          </h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
@@ -283,7 +343,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, onSa
             disabled={!title || !amount || saving}
             className="flex-1 py-3 rounded-xl bg-blue-gradient text-white font-bold shadow-lg shadow-blue-500/30 hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
           </button>
         </div>
       </div>

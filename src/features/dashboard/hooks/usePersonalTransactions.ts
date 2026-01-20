@@ -48,9 +48,11 @@ export const usePersonalTransactions = () => {
     };
 
     const fetchTransactions = useCallback(async () => {
-        if (!user) {
+        if (!user?.id) { // Check for user.id specifically
             setTransactions([]);
+            setSummary({ balance: 0, totalIncome: 0, totalExpenses: 0 }); // Reset summary as well
             setLoading(false);
+            setError(null); // Clear any previous errors
             return;
         }
 
@@ -73,7 +75,7 @@ export const usePersonalTransactions = () => {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user?.id]); // Depend on user.id specifically
 
     const addTransaction = async (data: {
         title: string;
@@ -115,6 +117,32 @@ export const usePersonalTransactions = () => {
         }
     };
 
+    const updateTransaction = async (id: string, data: Partial<Omit<PersonalTransaction, 'id' | 'user_id' | 'created_at'>>) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { data: updatedTx, error } = await supabase
+                .from('personal_transactions')
+                .update(data)
+                .eq('id', id)
+                .eq('user_id', user.id)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('[usePersonalTransactions] Update error:', error);
+                throw error;
+            }
+
+            console.log('[usePersonalTransactions] Transaction updated:', updatedTx);
+            await fetchTransactions();
+            return { data: updatedTx, error: null };
+        } catch (err: any) {
+            console.error('[usePersonalTransactions] Error:', err);
+            return { data: null, error: err.message };
+        }
+    };
+
     const deleteTransaction = async (id: string) => {
         if (!user) return { error: 'No authenticated user' };
 
@@ -149,6 +177,7 @@ export const usePersonalTransactions = () => {
         loading,
         error,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         refreshTransactions: fetchTransactions
     };

@@ -10,19 +10,34 @@ export const useGroups = () => {
     const { user } = useAuth();
 
     const fetchGroups = useCallback(async () => {
-        if (!user) return;
-
+        if (!user) {
+            setGroups([]); // Clear groups if no user
+            setLoading(false);
+            return;
+        }
         setLoading(true);
-        setError(null);
+        setError(null); // Reset error state
         try {
-            // Fetch groups where the current user is a member
-            const { data, error } = await supabase
+            // Get group IDs where the user is a member
+            const { data: membershipData, error: membershipError } = await supabase
+                .from('group_members')
+                .select('group_id')
+                .eq('user_id', user.id);
+
+            if (membershipError) throw membershipError;
+
+            if (!membershipData || membershipData.length === 0) {
+                setGroups([]);
+                return;
+            }
+
+            const groupIds = membershipData.map(m => m.group_id);
+
+            // Fetch actual group data and members
+            const { data: groupsData, error: groupsError } = await supabase
                 .from('groups')
                 .select(`
           *,
-          group_members!inner (
-            user_id
-          ),
           members:group_members (
             profiles (
               id,
@@ -31,13 +46,13 @@ export const useGroups = () => {
             )
           )
         `)
-                .eq('group_members.user_id', user.id)
+                .in('id', groupIds)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (groupsError) throw groupsError;
 
             // Transform data to match UI Group interface
-            const validGroups: Group[] = data.map((g: any) => ({
+            const validGroups: Group[] = (groupsData || []).map((g: any) => ({
                 id: g.id,
                 name: g.name,
                 type: 'other', // Default as we don't have this column yet

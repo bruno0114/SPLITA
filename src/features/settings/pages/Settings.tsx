@@ -3,6 +3,8 @@ import { User, Mail, Briefcase, Camera, Save, ArrowRightLeft, TrendingUp, AlertC
 import { DollarRate } from '@/types/index';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { compressToWebP } from '@/lib/image-utils';
+import { supabase } from '@/lib/supabase';
 
 interface SettingsProps {
    currentExchangeRate: number;
@@ -21,6 +23,10 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
       avatar: ''
    });
    const [saveSuccess, setSaveSuccess] = useState(false);
+   const [uploading, setUploading] = useState(false);
+
+   // Ref for hidden file input
+   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
    // Sync form data when profile loads
    useEffect(() => {
@@ -80,6 +86,51 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
       }
    };
 
+   const handleAvatarClick = () => {
+      fileInputRef.current?.click();
+   };
+
+   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !user) return;
+
+      setUploading(true);
+      try {
+         // 1. Compress to WebP
+         const webpBlob = await compressToWebP(file);
+
+         // 2. Upload to Supabase Storage
+         const fileName = `${user.id}/${Date.now()}.webp`;
+         const { data, error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, webpBlob, {
+               contentType: 'image/webp',
+               upsert: true
+            });
+
+         if (uploadError) throw uploadError;
+
+         // 3. Get Public URL
+         const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+         // 4. Update local state
+         setFormData(prev => ({ ...prev, avatar: publicUrl }));
+
+         // 5. Update profile in database immediately
+         await updateProfile({ avatar_url: publicUrl });
+
+         setSaveSuccess(true);
+         setTimeout(() => setSaveSuccess(false), 3000);
+      } catch (error: any) {
+         console.error("Error uploading avatar:", error);
+         alert("Error al subir la imagen: " + error.message);
+      } finally {
+         setUploading(false);
+      }
+   };
+
    const formatCurrency = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val);
 
    if (profileLoading) {
@@ -106,10 +157,31 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
             <div className="flex flex-col md:flex-row gap-8 items-start">
                {/* Avatar */}
                <div className="relative group">
-                  <div className="size-32 rounded-full border-4 border-surface shadow-xl bg-cover bg-center" style={{ backgroundImage: `url(${formData.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(formData.name || 'User')})` }}></div>
-                  <button className="absolute bottom-1 right-1 p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors">
+                  <div
+                     className="size-32 rounded-full border-4 border-surface shadow-xl bg-cover bg-center transition-all group-hover:brightness-75 cursor-pointer"
+                     style={{ backgroundImage: `url(${formData.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(formData.name || 'User')})` }}
+                     onClick={handleAvatarClick}
+                  >
+                     {uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                           <Loader2 className="w-8 h-8 text-white animate-spin" />
+                        </div>
+                     )}
+                  </div>
+                  <button
+                     onClick={handleAvatarClick}
+                     disabled={uploading}
+                     className="absolute bottom-1 right-1 p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                  >
                      <Camera className="w-4 h-4" />
                   </button>
+                  <input
+                     type="file"
+                     ref={fileInputRef}
+                     onChange={handleFileChange}
+                     accept="image/*"
+                     className="hidden"
+                  />
                </div>
 
                {/* Form */}
@@ -207,8 +279,8 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
                               key={rate.casa}
                               onClick={() => handleRateSelection(rate.casa)}
                               className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden group ${selectedRateType === rate.casa
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                    : 'bg-surface border-border hover:border-blue-300 dark:hover:border-slate-600'
+                                 ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                 : 'bg-surface border-border hover:border-blue-300 dark:hover:border-slate-600'
                                  }`}
                            >
                               <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${selectedRateType === rate.casa ? 'text-blue-100' : 'text-slate-500'}`}>
@@ -228,8 +300,8 @@ const Settings: React.FC<SettingsProps> = ({ currentExchangeRate, onExchangeRate
                         <button
                            onClick={() => setSelectedRateType('manual')}
                            className={`p-3 rounded-xl border text-left transition-all ${selectedRateType === 'manual'
-                                 ? 'bg-slate-800 border-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
-                                 : 'bg-surface border-border hover:border-slate-400'
+                              ? 'bg-slate-800 border-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
+                              : 'bg-surface border-border hover:border-slate-400'
                               }`}
                         >
                            <p className={`text-xs font-bold uppercase tracking-wider mb-1 opacity-70`}>Manual</p>

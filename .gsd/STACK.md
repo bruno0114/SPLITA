@@ -39,7 +39,7 @@
 |---------|----------|---------|
 | Database | Supabase (PostgreSQL) | Data storage |
 | Authentication | Supabase Auth | User management |
-| Storage | Supabase Storage | File uploads (planned) |
+| Storage | Supabase Storage | Avatar uploads (avatars bucket) |
 | AI | Google Gemini | Receipt scanning |
 
 ## Configuration

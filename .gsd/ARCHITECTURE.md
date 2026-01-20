@@ -74,8 +74,9 @@ SPLITA is a financial management PWA for personal finance tracking and group exp
 - **Purpose:** User profile and preferences
 - **Location:** `src/features/settings/`
 - **Components:**
-  - `Settings.tsx` - Profile edit, currency settings
+  - `Settings.tsx` - Profile edit, currency settings, **Avatar upload (WebP)**
   - `useProfile.ts` - Profile CRUD
+  - `image-utils.ts` - Client-side WebP compression
 
 ## Data Flow
 
@@ -108,9 +109,9 @@ SPLITA is a financial management PWA for personal finance tracking and group exp
 ## Technical Debt
 
 - [ ] Group invitations (pending members) not implemented
-- [ ] Avatar upload with WebP compression not implemented
+- [x] Avatar upload with WebP compression (**COMPLETED**)
 - [ ] Real-time activity feed placeholder
-- [ ] Group balance calculation returns 0 (needs pivot query)
+- [ ] Group balance calculation (Simplistic equal split, needs complex logic for custom splits)
 - [ ] No automated tests
 
 ## Conventions
