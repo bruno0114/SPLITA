@@ -27,6 +27,18 @@ export interface Transaction {
   installments?: string | null;
 }
 
+export interface Category {
+  id: string;
+  user_id: string | null;
+  name: string;
+  icon: string;
+  color: string;
+  bg_color: string;
+  is_system: boolean;
+  created_at?: string;
+}
+
+
 export interface Insight {
   id: string;
   title: string;
