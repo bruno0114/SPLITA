@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart } from 'lucide-react';
 import { AppRoute } from '@/types/index';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -71,6 +71,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
               icon={<Users className="w-[20px] h-[20px]" />}
               label="Mis Grupos"
               onClick={() => onNavigate(AppRoute.DASHBOARD_GROUPS)}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              active={currentRoute === AppRoute.CATEGORIES}
+              icon={<PieChart className="w-[20px] h-[20px]" />}
+              label="Categorías"
+              onClick={() => onNavigate(AppRoute.CATEGORIES)}
               isCollapsed={isCollapsed}
             />
             <NavItem
