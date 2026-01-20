@@ -31,9 +31,9 @@
 **Status**: ✅ Complete
 **Objective**: Restore group settings (edit/image) and implement join links with proper RLS.
 
-### Phase 6: Navigation, Categories & Analytics
-**Status**: ⬜ Not Started
-**Objective**: Add header logout and implement category-based spending reports.
+### Phase 6: UX Polish - Navigation & Categories
+**Status**: ✅ Complete
+**Goal**: Improved navigation and categorization.gout and implement category-based spending reports.
 
 ### Phase 7: AI Import Evolution (FX & Selection)
 **Status**: ⬜ Not Started
