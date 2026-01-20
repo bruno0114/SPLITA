@@ -7,7 +7,9 @@ import { Transaction } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useProfile } from '@/features/settings/hooks/useProfile';
+import { getGeminiClient } from '@/services/ai';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -25,6 +27,7 @@ const ImportExpenses: React.FC = () => {
   // but hooks rules require top level. We can pass `selectedGroupId` to useTransactions 
   // but it might change. Let's just instantiate it with the selected one when meaningful.
   const { addTransaction } = useTransactions(selectedGroupId || null);
+  const { profile } = useProfile();
 
   const [step, setStep] = useState<ImportStep>('upload');
   const [files, setFiles] = useState<File[]>([]);
@@ -62,17 +65,11 @@ const ImportExpenses: React.FC = () => {
   const processFilesWithGemini = async () => {
     if (files.length === 0) return;
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      alert("API Key de Gemini no encontrada. Por favor configurala en .env como VITE_GEMINI_API_KEY");
-      return;
-    }
-
     setStep('processing');
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = 'gemini-2.0-flash-exp'; // Using flash for speed/cost
+      const ai = getGeminiClient(profile?.gemini_api_key);
+      const model = 'gemini-2.0-flash-exp';
 
       const parts = [];
 
@@ -292,10 +289,28 @@ const ImportExpenses: React.FC = () => {
         {/* Config Modal */}
         {showConfig && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-[#0F1623] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-              <h3 className="text-lg font-bold mb-4 dark:text-white">API Key</h3>
-              <p className="text-sm text-slate-500 mb-4">Asegúrate de tener <code>VITE_GEMINI_API_KEY</code> en tu archivo .env</p>
-              <button onClick={() => setShowConfig(false)} className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold">Cerrar</button>
+            <div className="bg-white dark:bg-[#0F1623] rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-border">
+              <div className="size-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
+                <BrainCircuit className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-bold mb-2 dark:text-white">API Key de Gemini</h3>
+              <p className="text-slate-500 mb-8">
+                Para usar el escaneo inteligente, necesitás configurar tu propia API Key de Google Gemini en los ajustes de tu perfil.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/settings"
+                  className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-center hover:scale-[1.02] transition-transform"
+                >
+                  Ir a Ajustes
+                </Link>
+                <button
+                  onClick={() => setShowConfig(false)}
+                  className="w-full py-3.5 rounded-xl border border-border text-slate-500 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         )}

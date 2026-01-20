@@ -1,9 +1,11 @@
 import React from 'react';
-import { PieChart, TrendingUp, Lightbulb, PiggyBank, AlertTriangle, Rocket, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { PieChart, TrendingUp, Lightbulb, PiggyBank, AlertTriangle, Rocket, Sparkles, CheckCircle2, Loader2, BrainCircuit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useEconomicHealth } from '../hooks/useEconomicHealth';
 
 const EconomicHealth: React.FC = () => {
    const { data, loading } = useEconomicHealth();
+   const navigate = useNavigate();
 
    // Score Config
    const score = data.score;
@@ -97,26 +99,57 @@ const EconomicHealth: React.FC = () => {
                <div className="bg-white dark:bg-[#0F1623] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
-                  <div className="flex items-center gap-3 mb-4">
-                     <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Análisis</h3>
+                  <div className="flex items-center justify-between mb-6">
+                     <div className="flex items-center gap-3">
+                        <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Análisis con Inteligencia Artificial</h3>
+                     </div>
+                     {data.isAiLoading && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
                   </div>
 
                   <div className="space-y-4">
-                     {data.insights.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                           {data.insights.map((insight, idx) => (
-                              <div key={idx} className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-white/5 rounded-xl">
-                                 <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5" />
-                                 <p className="text-xs text-slate-600 dark:text-slate-300">{insight}</p>
+                     {data.aiInsights && data.aiInsights.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4">
+                           {data.aiInsights.map((insight, idx) => (
+                              <div key={idx} className="flex items-start gap-3 p-4 bg-blue-500/5 dark:bg-white/5 border border-blue-500/10 rounded-2xl relative overflow-hidden">
+                                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-50" />
+                                 <div className="size-6 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                                 </div>
+                                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{insight}</p>
                               </div>
                            ))}
                         </div>
-                     ) : (
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-                           Comenzá a registrar tus movimientos para obtener insights personalizados.
-                        </p>
+                     ) : !data.isAiLoading && (
+                        <div className="flex flex-col items-center py-6 text-center space-y-4">
+                           <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
+                              <BrainCircuit className="w-6 h-6" />
+                           </div>
+                           <div className="max-w-xs">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Potenciá tu análisis con Gemini</p>
+                              <p className="text-xs text-slate-500">Configurá tu propia API Key para obtener consejos financieros expertos basados en tus gastos.</p>
+                           </div>
+                           <button
+                              onClick={() => navigate('/settings')}
+                              className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors uppercase tracking-widest"
+                           >
+                              Configurar ahora
+                           </button>
+                        </div>
                      )}
+
+                     {/* Instant Rule-based insights footer */}
+                     <div className="pt-4 border-t border-border mt-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Escaneo rápido</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                           {data.insights.map((insight, idx) => (
+                              <div key={idx} className="flex items-center gap-2 opacity-60">
+                                 <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                 <p className="text-[11px] text-slate-500">{insight}</p>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
                   </div>
                </div>
 
