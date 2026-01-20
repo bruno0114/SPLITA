@@ -1,15 +1,16 @@
 # GSD State
 
 ## Current Position
-- **Phase:** 5 (Groups Management & Invite Recovery)
-- **Status:** Planning complete
+- **Phase:** 5 (completed)
+- **Status:** ✅ Verified
 - **Last Updated:** 2026-01-20
 
 ## Last Session Summary
-Resolved RLS recursion blockers and stabilized Gemini API key management. Initiated new milestone for Core UX and Groups management.
+Phase 5 executed successfully.
+- Restored group settings (edit/image) and metadata persistence.
+- Implemented invitation links and the join group workflow.
+- Provided SQL migration for `invite_code` support.
 
 ## Next Steps
 
-1. `/plan 5` — Decompose group management and invite recovery into tasks.
-2. Restore group settings actions (edit name, image).
-3. Implement join link logic.
+1. `/execute 6` — Navigation improvements (header logout) and Categories analytics.

@@ -57,7 +57,8 @@ export const useGroups = () => {
                 name: g.name,
                 type: 'other', // Default as we don't have this column yet
                 currency: g.currency,
-                image: undefined, // No image column yet
+                image: g.image_url,
+                inviteCode: g.invite_code,
                 lastActivity: new Date(g.created_at).toLocaleDateString(), // Placeholder
                 userBalance: 0, // Pivot calculation to be implemented later
                 members: g.members.map((m: any) => ({
@@ -123,14 +124,60 @@ export const useGroups = () => {
         }
     };
 
-    const updateGroup = async (id: string, updates: Partial<{ name: string; currency: string; image_url: string }>) => {
+    const getGroupByInviteCode = async (code: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('groups')
+                .select(`
+                    *,
+                    members:group_members (
+                        profiles (
+                            id,
+                            full_name,
+                            avatar_url
+                        )
+                    )
+                `)
+                .eq('invite_code', code)
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (err: any) {
+            return { data: null, error: err.message };
+        }
+    };
+
+    const joinGroup = async (groupId: string) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { error } = await supabase
+                .from('group_members')
+                .insert({
+                    group_id: groupId,
+                    user_id: user.id,
+                    role: 'member'
+                });
+
+            if (error) throw error;
+
+            await fetchGroups();
+            return { error: null };
+        } catch (err: any) {
+            return { error: err.message };
+        }
+    };
+
+    const updateGroup = async (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string }>) => {
         if (!user) return { error: 'No authenticated user' };
 
         try {
             const { data, error } = await supabase
                 .from('groups')
                 .update({
-                    ...updates
+                    ...updates,
+                    updated_at: new Date().toISOString()
                 })
                 .eq('id', id)
                 .select()
@@ -145,6 +192,11 @@ export const useGroups = () => {
         }
     };
 
+    const refreshInviteCode = async (id: string) => {
+        const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        return await updateGroup(id, { invite_code: newCode });
+    };
+
     useEffect(() => {
         fetchGroups();
     }, [fetchGroups]);
@@ -155,6 +207,9 @@ export const useGroups = () => {
         error,
         createGroup,
         updateGroup,
+        refreshInviteCode,
+        joinGroup,
+        getGroupByInviteCode,
         refreshGroups: fetchGroups
     };
 };

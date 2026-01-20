@@ -28,7 +28,7 @@
 **Objective**: Stabilize the core flows for real-world production usage.
 
 ### Phase 5: Groups Management & Invite Recovery
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Restore group settings (edit/image) and implement join links with proper RLS.
 
 ### Phase 6: Navigation, Categories & Analytics

@@ -39,6 +39,7 @@ export interface Group {
   currency: string;
   lastActivity: string;
   image?: string;
+  inviteCode?: string;
 }
 
 export enum AppRoute {

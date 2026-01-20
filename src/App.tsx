@@ -11,6 +11,7 @@ import PersonalFinance from '@/features/dashboard/pages/PersonalFinance';
 import EconomicHealth from '@/features/dashboard/pages/EconomicHealth';
 import Groups from '@/features/groups/pages/Groups';
 import GroupDetails from '@/features/groups/pages/GroupDetails';
+import JoinGroup from '@/features/groups/pages/JoinGroup';
 import Settings from '@/features/settings/pages/Settings';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
@@ -142,6 +143,7 @@ const App: React.FC = () => {
                             <Route path="/import" element={<ImportExpenses />} />
                             <Route path="/settings" element={<Settings currentExchangeRate={exchangeRate} onExchangeRateChange={setExchangeRate} />} />
                         </Route>
+                        <Route path="/join/:inviteCode" element={<JoinGroup />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </main>
