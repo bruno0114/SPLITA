@@ -4,6 +4,8 @@ import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, 
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { compressToWebP } from '@/lib/image-utils';
+import { supabase } from '@/lib/supabase';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -21,8 +23,9 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
    const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
    const [showModal, setShowModal] = useState(false);
+   const [showSettings, setShowSettings] = useState(false);
    const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
-   
+
    const group = groups.find(g => g.id === groupId);
 
    // Calculate Group Balances
@@ -103,6 +106,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       setEditingTransaction(null);
    };
 
+   const handleCloseSettings = () => {
+      setShowSettings(false);
+   };
+
    if (!group) {
       if (groups.length === 0) return <div className="p-10 text-center">Cargando grupos...</div>;
       return <div className="p-10 text-center">Grupo no encontrado.</div>;
@@ -125,7 +132,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             >
                <ChevronLeft className="w-6 h-6" />
             </button>
-            <button className="absolute top-6 right-6 z-20 size-10 rounded-full bg-surface/50 backdrop-blur-md flex items-center justify-center text-slate-900 dark:text-white hover:bg-surface transition-all">
+            <button
+               onClick={() => setShowSettings(true)}
+               className="absolute top-6 right-6 z-20 size-10 rounded-full bg-surface/50 backdrop-blur-md flex items-center justify-center text-slate-900 dark:text-white hover:bg-surface transition-all"
+            >
                <Settings className="w-5 h-5" />
             </button>
          </div>
@@ -254,17 +264,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                                              {tx.payer.id === user?.id ? 'Pagaste' : 'Debés (part)'}
                                           </p>
                                        </div>
-                                       
+
                                        {/* Actions - visible on group hover */}
                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button 
+                                          <button
                                              onClick={(e) => { e.stopPropagation(); handleEdit(tx); }}
                                              className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
                                              title="Editar"
                                           >
                                              <Edit2 className="w-4 h-4" />
                                           </button>
-                                          <button 
+                                          <button
                                              onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
                                              className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
                                              title="Eliminar"
@@ -316,8 +326,189 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                initialData={editingTransaction}
             />
          )}
+
+         {/* Settings Modal */}
+         {showSettings && (
+            <GroupSettingsModal
+               group={group}
+               onClose={handleCloseSettings}
+            />
+         )}
       </div>
    );
+};
+
+interface GroupSettingsModalProps {
+   group: any;
+   onClose: () => void;
+}
+
+const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose }) => {
+   const { updateGroup } = useGroups();
+   const { user } = useAuth();
+   const [name, setName] = useState(group.name);
+   const [currency, setCurrency] = useState(group.currency || 'ARS');
+   const [saving, setSaving] = useState(false);
+   const [uploading, setUploading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+   const [success, setSuccess] = useState(false);
+   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+   const handleSave = async () => {
+      if (!name) return;
+      setSaving(true);
+      setError(null);
+      const { error } = await updateGroup(group.id, { name, currency });
+      setSaving(true); // Small delay to show success
+      if (!error) {
+         setSuccess(true);
+         setTimeout(() => {
+            setSuccess(false);
+            setSaving(false);
+            onClose();
+         }, 1500);
+      } else {
+         setError(error);
+         setSaving(false);
+      }
+   };
+
+   const handleImageClick = () => {
+      fileInputRef.current?.click();
+   };
+
+   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !user) return;
+
+      setUploading(true);
+      setError(null);
+      try {
+         const webpBlob = await compressToWebP(file);
+         const fileName = `group_${group.id}_${Date.now()}.webp`;
+
+         const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, webpBlob, {
+               contentType: 'image/webp',
+               upsert: true
+            });
+
+         if (uploadError) throw uploadError;
+
+         const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+         await updateGroup(group.id, { image_url: publicUrl });
+         setSuccess(true);
+         setTimeout(() => setSuccess(false), 3000);
+      } catch (err: any) {
+         setError(err.message);
+      } finally {
+         setUploading(false);
+      }
+   };
+
+   return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+         <div className="w-full max-w-md bg-surface rounded-3xl p-6 shadow-2xl border border-border animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
+               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-slate-500" />
+               </button>
+            </div>
+
+            <div className="space-y-6">
+               <div className="flex flex-col items-center gap-2">
+                  <div
+                     className="size-24 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden cursor-pointer hover:brightness-90 transition-all relative border-2 border-border"
+                     onClick={handleImageClick}
+                  >
+                     {uploading ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                     ) : group.image ? (
+                        <img src={group.image} alt="" className="w-full h-full object-cover" />
+                     ) : (
+                        <Users className="w-8 h-8 text-slate-400" />
+                     )}
+                  </div>
+                  <button
+                     onClick={handleImageClick}
+                     className="text-xs font-bold text-primary hover:underline"
+                  >
+                     Cambiar imagen
+                  </button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+               </div>
+
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre del Grupo</label>
+                     <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Moneda principal</label>
+                     <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
+                     >
+                        <option value="ARS">ARS - Peso Argentino</option>
+                        <option value="USD">USD - Dólar Estadounidense</option>
+                        <option value="EUR">EUR - Euro</option>
+                     </select>
+                  </div>
+               </div>
+
+               {error && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-600 flex items-center gap-2">
+                     <AlertCircle className="w-4 h-4 text-red-500" />
+                     {error}
+                  </div>
+               )}
+
+               {success && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 flex items-center gap-2">
+                     <Check className="w-4 h-4 text-emerald-500" />
+                     Cambios guardados con éxito
+                  </div>
+               )}
+            </div>
+
+            <div className="flex gap-3 mt-8">
+               <button
+                  onClick={onClose}
+                  className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+               >
+                  Cancelar
+               </button>
+               <button
+                  onClick={handleSave}
+                  disabled={!name || saving || uploading}
+                  className="flex-1 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg shadow-black/5 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+               >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+               </button>
+            </div>
+         </div>
+      </div>
+   );
+};
+
+interface AppAlertCircleProps { className?: string }
+const AlertCircle: React.FC<AppAlertCircleProps> = ({ className }) => <Icons.AlertCircle className={className} />;
+const Check: React.FC<AppAlertCircleProps> = ({ className }) => <Icons.Check className={className} />;
+
+const Icons = {
+   AlertCircle: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
+   Check: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="20 6 9 17 4 12" /></svg>
 };
 
 interface GroupTransactionModalProps {
@@ -351,7 +542,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    };
 
    const toggleMember = (id: string) => {
-      setSplitBetween(prev => 
+      setSplitBetween(prev =>
          prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
       );
    };
@@ -392,7 +583,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                      />
                   </div>
                </div>
-               
+
                <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">Dividir con:</label>
                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
@@ -400,11 +591,10 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                         <button
                            key={member.id}
                            onClick={() => toggleMember(member.id)}
-                           className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                              splitBetween.includes(member.id) 
-                                 ? 'bg-blue-500/10 border-blue-500 text-blue-600' 
-                                 : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500'
-                           }`}
+                           className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${splitBetween.includes(member.id)
+                              ? 'bg-blue-500/10 border-blue-500 text-blue-600'
+                              : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-500'
+                              }`}
                         >
                            <img src={member.avatar || undefined} alt="" className="size-6 rounded-full" />
                            <span className="text-xs font-bold truncate">{member.name}</span>

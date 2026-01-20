@@ -123,6 +123,28 @@ export const useGroups = () => {
         }
     };
 
+    const updateGroup = async (id: string, updates: Partial<{ name: string; currency: string; image_url: string }>) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const { data, error } = await supabase
+                .from('groups')
+                .update({
+                    ...updates
+                })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            await fetchGroups();
+            return { data, error: null };
+        } catch (err: any) {
+            return { data: null, error: err.message };
+        }
+    };
+
     useEffect(() => {
         fetchGroups();
     }, [fetchGroups]);
@@ -132,6 +154,7 @@ export const useGroups = () => {
         loading,
         error,
         createGroup,
+        updateGroup,
         refreshGroups: fetchGroups
     };
 };
