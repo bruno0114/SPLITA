@@ -1,16 +1,17 @@
 # STATE.md
 
 ## Current Position
-- **Phase**: 10 (Deep History & Real-time FX)
-- **Status**: Planning complete
-- **Task**: Ready for execution
+- **Phase**: 11 (Expert Categories & UI Refactor)
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Accomplished
-- Phase 8 (AI Premium UX & History) implemented.
-- Phase 9 (Expert Financials & Analytics) implemented.
-- Phase 10 researched and planned (3 waves).
+- Phase 10 (Deep History & Real-time FX) implemented and verified.
+- Phase 11 researched and planned (4 atomic plans).
+- Decision documented: CRUD Categories, PremiumDropdown, AI Auto-creation.
 
 ## Next Steps
-1. `/execute 10` — Implement Global Currency Engine (DolarAPI).
-2. Implement Deep History Details and Modal.
-3. Update AI prompts for off-topic detection.
+1. `/execute 11` — Implement Categories table and `useCategories` hook.
+2. Build `PremiumDropdown` for global select replacement.
+3. Evolve `CategoryDetail` with pagination and filters.
+4. Integrate AI auto-creation of categories.

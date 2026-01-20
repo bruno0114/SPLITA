@@ -43,3 +43,26 @@
 - **Supported Formats**: System must support Images, PDFs, XLS, and DOCX for AI processing.
 - **UI Differentiation**: Icons in the history list will reflect the file type (PDF icon, Spreadsheet icon, Word icon, Image preview).
 - **Storage**: All files will be persisted in the `receipts` bucket for historical reference.
+---
+
+## Phase 11: Expert Categories & UI Refactor
+
+**Date:** 2026-01-20
+
+### Scope
+- **Category CRUD**: Implement a full CRUD system for categories stored in a new Supabase `categories` table.
+- **AI Auto-creation**: Categories will be created automatically if Gemini detects a new category during bulk import.
+- **Category Colors**: Each category will have a persistent color property saved in the database.
+- **System vs User Categories**: Users can manage their own categories, while a set of defaults is provided.
+- **Category Detail Page**:
+    - **Pagination**: Traditional numeric pagination with arrows.
+    - **Filtering**: Filter by date range, group/personal scope, and amount.
+    - **Actions**: Add movements directly from the category detail page.
+
+### Approach
+- **Premium Dropdowns**: Replace all native HTML `<select>` elements with a custom `PremiumDropdown` component that matches the glassmorphic "Mis Finanzas" style.
+- **Modular Modals**: Reuse the `TransactionModal` for adding expenses from the category page, pre-linking the selected category.
+
+### Constraints
+- **Design Consistency**: All custom components must strictly adhere to the established glassmorphic/premium aesthetic.
+- **PWA Feel**: Transitions between category drill-down and main views must be smooth and animated (Framer Motion).

@@ -48,9 +48,13 @@
 **Objective**: Multi-mode splitting, debt simplification algorithm, and creative projection charts.
 
 ### Phase 10: Deep History & Real-time FX (DolarAPI)
-**Status**: 🚧 In Progress
+**Status**: ✅ Complete
 **Objective**: Interactive AI history details, PDF/Image support differentiation, and global currency sync via DolarAPI with creative animations.
 
-### Phase 11: Production Readiness & Clean-up
+### Phase 11: Expert Categories & UI Refactor (Premium Controls)
+**Status**: 🚧 In Progress
+**Objective**: CRUD for categories in Supabase, paginated drill-down for category stats, and global replacement of native selects with custom PremiumDropdowns.
+
+### Phase 12: Production Readiness & Clean-up
 **Status**: ⬜ Not Started
 **Objective**: Remove remaining mock data and finalize launch documentation.
