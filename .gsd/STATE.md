@@ -2,9 +2,10 @@
 
 ## Current Position
 - **Milestone**: v1.1 (Interactions & Localization)
-- **Phase**: Debugging (Group Transaction Visibility)
-- **Status**: Active (resumed Wed Jan 21 17:27:00 -03 2026)
-- **Next**: Verify console logs for group splits
+- **Phase**: 18 (Group Join Links)
+- **Task**: Planning complete
+- **Status**: Ready for execution
+- **Next**: /execute 18
 
 ## Last Session Summary
 Completed Phase 16 (Router Localization). 
