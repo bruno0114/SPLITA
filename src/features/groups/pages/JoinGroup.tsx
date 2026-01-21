@@ -39,7 +39,7 @@ const JoinGroup: React.FC = () => {
         if (!authLoading) {
             fetchInviteGroup();
         }
-    }, [inviteCode, user, authLoading]);
+    }, [inviteCode, user, authLoading, getGroupByInviteCode]);
 
     const handleJoin = async () => {
         if (!user) {
