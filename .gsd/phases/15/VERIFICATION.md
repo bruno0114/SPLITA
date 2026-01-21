@@ -12,6 +12,7 @@
 - [x] **Theme Persistence**: `App.tsx` now reads from `localStorage` on init — FIXED.
 - [x] **Calendar Overlap**: `PersonalFinance.tsx` filter container has `relative z-30` — FIXED.
 - [x] **Menu Overlap**: `Header.tsx` mobile menu z-index increased to `z-[100]` — FIXED.
+- [x] **SPA Routing**: Added `vercel.json` to fix 404s on refresh/direct access — FIXED.
 
 ### Verdict: PASS
 All UX/UI polish tasks for Phase 15 have been implemented and verified.
