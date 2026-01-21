@@ -41,10 +41,24 @@ const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Effect to handle post-OAuth onboarding setup
     useEffect(() => {
         const syncOnboarding = async () => {
             if (!user) return;
+
+            // Handle Invite/Deep Link Redirects
+            const redirectPath = localStorage.getItem('splita_redirect_path');
+            if (redirectPath) {
+                const currentFn = () => location.pathname + location.search + location.hash;
+
+                // Loop Guard: If we are already there, don't redirect again
+                if (currentFn() !== redirectPath) {
+                    navigate(redirectPath, { replace: true });
+                }
+
+                // Clear only after successful check/redirect
+                localStorage.removeItem('splita_redirect_path');
+                return; // Prioritize redirect over onboarding sync
+            }
 
             const pendingData = localStorage.getItem('pending_onboarding');
             if (pendingData) {
