@@ -7,17 +7,18 @@ wave: 1
 # Plan 18.1: Secure Group Join Implementation
 
 ## Objective
-Enable secure group joining via invite codes (`/unirse/:code`) using `SECURITY DEFINER` RPCs. This ensures users can only join if they possess the valid code, bypassing RLS restrictions for the initial lookup while maintaining strict membership security.
+Enable secure group joining via invite codes (`/unirse/:code`) using `SECURITY DEFINER` RPCs. Ensure all generated invite links use the localized route, while maintaining backward compatibility for any existing `/join/:code` links.
 
 ## Context
-- .gsd/SPEC.md
 - src/context/GroupsContext.tsx
 - src/features/groups/pages/JoinGroup.tsx (`/unirse/:code`)
+- src/features/groups/components/InviteModal.tsx (Link generation)
+- src/App.tsx (Routing)
 
 ## Constraints & Assumptions
-- **Route**: The invite route is `/unirse/:code` (Spanish localization).
-- **Invite Codes**: Currently permanent (no expiration). This is known technical debt.
-- **Security**: Joining MUST be performed by `code`, not `group_id`, to prevent ID enumeration attacks.
+- **Route**: The primary route is `/unirse/:code`.
+- **Legacy Route**: `/join/:code` must redirect to `/unirse/:code`.
+- **Security**: Joining MUST be performed by `code`, not `group_id`.
 - **Navigation**: User must be redirected to the group page immediately after joining.
 
 ## Tasks
@@ -30,13 +31,12 @@ Enable secure group joining via invite codes (`/unirse/:code`) using `SECURITY D
     1. `get_group_details_by_code(p_code)`:
        - SECURITY DEFINER
        - Returns: id, name, image_url, member_count
-       - NO sensitive data (balance, etc.)
     2. `join_group_by_code(p_code)`:
        - SECURITY DEFINER
-       - Validates code exists (Exact match).
-       - Checks if user is already a member (Idempotent success or specific error).
-       - Inserts into `group_members` (role: 'member').
-       - Returns: group_id (needed for redirect).
+       - Validates code exists.
+       - Checks membership (Idempotent).
+       - Inserts into `group_members`.
+       - Returns: group_id.
   </action>
   <verify>Run the migration via Supabase tool.</verify>
   <done>Functions exist in database.</done>
@@ -47,53 +47,51 @@ Enable secure group joining via invite codes (`/unirse/:code`) using `SECURITY D
   <files>supabase_phase18_rls_check.sql</files>
   <action>
     Ensure RLS policies allow new members to immediately interact with the group.
-    1. Create `supabase_phase18_rls_check.sql` to explicitly verify/update:
-       - `transactions`: New members must SELECT existing transactions.
-       - `transaction_splits`: New members must SELECT related splits.
-    2. Since we recently fixed RLS recursion, ensure these policies don't conflict.
-    3. If policies rely on `check_is_group_member`, they should automatically work for new members.
-    4. Apply any necessary policy tweaks if gaps are found.
+    - Create `supabase_phase18_rls_check.sql` to explicitly verify policy coverage.
   </action>
   <verify>Run SQL to confirm policies cover new members.</verify>
-  <done>RLS policies confirmed for new members.</done>
+  <done>RLS policies confirmed.</done>
 </task>
 
 <task type="auto">
-  <name>Update Groups Context & Frontend</name>
+  <name>Update Frontend Logic</name>
   <files>src/context/GroupsContext.tsx, src/features/groups/pages/JoinGroup.tsx</files>
   <action>
     Refactor `getGroupByInviteCode` and `joinGroup` to use the new RPCs.
-    1. `getGroupByInviteCode`: call `rpc('get_group_details_by_code', { p_code: code })`
-    2. `joinGroup`: 
-       - Change signature to accept `code` (string) instead of `groupId`.
-       - Call `rpc('join_group_by_code', { p_code: code })`.
-       - On success, call `fetchGroups()` to refresh list and UI immediately.
-    3. Update `JoinGroup.tsx`:
-       - Use `joinGroup(inviteCode)` instead of passing ID.
-       - Ensure `inviteCode` from URL (`/unirse/:inviteCode`) is passed correctly.
+    - `joinGroup` must accept `code` and call `rpc('join_group_by_code')`.
+    - `JoinGroup.tsx` must pass the code from URL params.
   </action>
   <verify>Build project successfully.</verify>
-  <done>Frontend uses RPCs and refreshes data.</done>
+  <done>Frontend uses RPCs.</done>
+</task>
+
+<task type="auto">
+  <name>Fix Link Generation & Routing</name>
+  <files>src/features/groups/components/InviteModal.tsx, src/App.tsx</files>
+  <action>
+    1. **Update Link Generation**:
+       - In `InviteModal.tsx`, change `${window.location.origin}/join/${inviteCode}` to `${window.location.origin}/unirse/${inviteCode}`.
+    2. **Add Backward Compatibility**:
+       - In `App.tsx`, add a route: `<Route path="/join/:inviteCode" element={<Navigate to="/unirse/:inviteCode" replace />} />`.
+       - Ensure it captures the param and passes it to the new route.
+  </action>
+  <verify>Check file content for correct strings.</verify>
+  <done>Links generate with /unirse/ and old links redirect.</done>
 </task>
 
 <task type="checkpoint:human-verify">
   <name>Verify Join Flow</name>
   <files>src/features/groups/pages/JoinGroup.tsx</files>
   <action>
-    1. Generate a new invite code for a group (or use existing).
-    2. Incognito window: Open `/unirse/<code_here>`.
-    3. Verify group details appear (Name, Image).
-    4. Login/Register.
-    5. Click "Unirme".
-    6. Verify redirect to `/grupos/<id>` works.
-    7. **CRITICAL**: Verify the new member can see PAST transactions in the group.
+    1. **Test New Link**: Copy link from Invite Modal. Paste in new tab. Verify it is `/unirse/...`.
+    2. **Test Old Link**: Manually type `/join/<code_here>`. Verify it redirects to `/unirse/...`.
+    3. **Test Join**: Click validation. Verify success and redirect to group.
   </action>
   <verify>Manual confirmation</verify>
-  <done>User succesfully joins and sees group data.</done>
+  <done>Flow works for both route variants.</done>
 </task>
 
 ## Success Criteria
-- [ ] `/unirse/:code` works for unauthenticated users (shows preview).
-- [ ] Joining effectively adds member via RPC using only the code.
-- [ ] New members immediately see the group in their list.
-- [ ] New members can see existing group transactions (RLS verification).
+- [ ] Invite Modal generates `/unirse/` links.
+- [ ] `/join/:code` redirects to `/unirse/:code`.
+- [ ] Joining via code works securely via RPC.
