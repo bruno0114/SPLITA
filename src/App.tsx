@@ -28,20 +28,6 @@ const App: React.FC = () => {
         }
         return 'dark';
     });
-
-    // Save theme change
-    useEffect(() => {
-        localStorage.setItem('theme', theme);
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            root.classList.add(systemTheme);
-        } else {
-            root.classList.add(theme);
-        }
-    }, [theme]);
     const { user, signOut } = useAuthContext();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -106,67 +92,70 @@ const App: React.FC = () => {
         syncOnboarding();
     }, [user]);
 
-    const getAppRoute = (pathname: string): AppRoute => {
+    const getRouteTitle = (pathname: string): string => {
+        // Handle dynamic routes first
+        if (pathname.startsWith('/grupos/') && pathname !== '/grupos') return 'Detalle del grupo';
+        if (pathname.startsWith('/categories/') && pathname !== '/categories') return 'Detalle de categoría';
+
         switch (pathname) {
-            case '/': return AppRoute.DASHBOARD_PERSONAL;
-            case '/health': return AppRoute.DASHBOARD_HEALTH;
-            case '/groups': return AppRoute.DASHBOARD_GROUPS;
-            case '/import': return AppRoute.IMPORT;
-            case '/categories': return AppRoute.CATEGORIES;
-            case '/settings': return AppRoute.SETTINGS;
-            case '/login': return AppRoute.LOGIN;
-            case '/history-ai': return AppRoute.AI_HISTORY;
-            case '/onboarding': return AppRoute.ONBOARDING;
-            default:
-                if (pathname.startsWith('/groups/')) return AppRoute.DASHBOARD_GROUPS;
-                return AppRoute.DASHBOARD_PERSONAL;
+            case AppRoute.DASHBOARD_PERSONAL: return 'Finanzas personales';
+            case AppRoute.DASHBOARD_HEALTH: return 'Salud económica';
+            case AppRoute.DASHBOARD_GROUPS: return 'Mis grupos';
+            case AppRoute.IMPORT: return 'Importar gastos IA';
+            case AppRoute.SETTINGS: return 'Configuración';
+            case AppRoute.CATEGORIES: return 'Categorías';
+            case AppRoute.AI_HISTORY: return 'Historial AI';
+            default: return 'Splita';
         }
     };
 
-    const currentRoute = getAppRoute(location.pathname);
+    const currentRoute = location.pathname as AppRoute;
 
+    // Handle Theme Logic (consolidated)
+    useEffect(() => {
+        localStorage.setItem('theme', theme);
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
 
+        if (theme === 'system') {
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            root.classList.add(systemTheme);
+        } else {
+            root.classList.add(theme);
+        }
+    }, [theme]);
 
     const handleNavigate = (route: AppRoute) => {
-        switch (route) {
-            case AppRoute.DASHBOARD_PERSONAL: navigate('/'); break;
-            case AppRoute.DASHBOARD_HEALTH: navigate('/health'); break;
-            case AppRoute.DASHBOARD_GROUPS: navigate('/groups'); break;
-            case AppRoute.IMPORT: navigate('/import'); break;
-            case AppRoute.CATEGORIES: navigate('/categories'); break;
-            case AppRoute.SETTINGS: navigate('/settings'); break;
-            case AppRoute.LOGIN: navigate('/login'); break;
-            case AppRoute.ONBOARDING: navigate('/onboarding'); break;
-            case AppRoute.AI_HISTORY: navigate('/history-ai'); break;
-            case AppRoute.GROUP_DETAILS:
-                if (selectedGroupId) navigate('/groups/' + selectedGroupId);
-                else navigate('/groups');
-                break;
+        if (route === AppRoute.GROUP_DETAILS) {
+            if (selectedGroupId) navigate(AppRoute.DASHBOARD_GROUPS + '/' + selectedGroupId);
+            else navigate(AppRoute.DASHBOARD_GROUPS);
+        } else {
+            navigate(route);
         }
     };
 
     const handleLogOut = async () => {
         try {
             await signOut();
-            navigate('/login');
+            navigate(AppRoute.LOGIN);
         } catch (err) {
             console.error("Error signing out:", err);
-            navigate('/login');
+            navigate(AppRoute.LOGIN);
         }
     };
 
     const handleGroupSelect = (groupId: string) => {
         setSelectedGroupId(groupId);
-        navigate('/groups/' + groupId);
+        navigate(AppRoute.DASHBOARD_GROUPS + '/' + groupId);
     };
 
-    const isAuthRoute = location.pathname === '/login' || location.pathname === '/onboarding';
+    const isAuthRoute = location.pathname === AppRoute.LOGIN || location.pathname === AppRoute.ONBOARDING;
 
     if (isAuthRoute) {
         return (
             <Routes>
-                <Route path="/login" element={<Login onLogin={() => navigate('/')} onRegister={() => navigate('/onboarding')} />} />
-                <Route path="/onboarding" element={<Onboarding onComplete={() => navigate('/')} onLogin={() => navigate('/login')} />} />
+                <Route path={AppRoute.LOGIN} element={<Login onLogin={() => navigate(AppRoute.DASHBOARD_PERSONAL)} onRegister={() => navigate(AppRoute.ONBOARDING)} />} />
+                <Route path={AppRoute.ONBOARDING} element={<Onboarding onComplete={() => navigate(AppRoute.DASHBOARD_PERSONAL)} onLogin={() => navigate(AppRoute.LOGIN)} />} />
             </Routes>
         );
     }
@@ -196,7 +185,7 @@ const App: React.FC = () => {
 
             <div className="flex-1 flex flex-col min-w-0 z-10 bg-background/50">
                 <Header
-                    title={getRouteTitle(currentRoute)}
+                    title={getRouteTitle(location.pathname)}
                     route={currentRoute}
                     currentTheme={theme}
                     onThemeChange={setTheme}
@@ -206,18 +195,18 @@ const App: React.FC = () => {
                 <main className="flex-1 overflow-y-auto relative scroll-smooth pb-[calc(88px+env(safe-area-inset-bottom)+1rem)] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
-                            <Route path="/" element={<PersonalFinance />} />
-                            <Route path="/health" element={<EconomicHealth />} />
-                            <Route path="/groups" element={<Groups onGroupSelect={handleGroupSelect} />} />
-                            <Route path="/groups/:groupId" element={<GroupDetails groupId={selectedGroupId} onBack={() => navigate('/groups')} />} />
-                            <Route path="/categories" element={<Categories />} />
-                            <Route path="/categories/:scope/:categoryId" element={<CategoryDetail />} />
-                            <Route path="/import" element={<ImportExpenses />} />
-                            <Route path="/history-ai" element={<AIHistory />} />
-                            <Route path="/settings" element={<Settings />} />
+                            <Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />
+                            <Route path={AppRoute.DASHBOARD_HEALTH} element={<EconomicHealth />} />
+                            <Route path={AppRoute.DASHBOARD_GROUPS} element={<Groups onGroupSelect={handleGroupSelect} />} />
+                            <Route path={AppRoute.GROUP_DETAILS} element={<GroupDetails groupId={selectedGroupId} onBack={() => navigate(AppRoute.DASHBOARD_GROUPS)} />} />
+                            <Route path={AppRoute.CATEGORIES} element={<Categories />} />
+                            <Route path={`${AppRoute.CATEGORIES}/:scope/:categoryId`} element={<CategoryDetail />} />
+                            <Route path={AppRoute.IMPORT} element={<ImportExpenses />} />
+                            <Route path={AppRoute.AI_HISTORY} element={<AIHistory />} />
+                            <Route path={AppRoute.SETTINGS} element={<Settings />} />
                         </Route>
                         <Route path="/join/:inviteCode" element={<JoinGroup />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
+                        <Route path="*" element={<Navigate to={AppRoute.DASHBOARD_PERSONAL} replace />} />
                     </Routes>
                 </main>
 
@@ -227,19 +216,5 @@ const App: React.FC = () => {
         </div>
     );
 };
-
-function getRouteTitle(route: AppRoute): string {
-    switch (route) {
-        case AppRoute.DASHBOARD_PERSONAL: return 'Finanzas personales';
-        case AppRoute.DASHBOARD_HEALTH: return 'Salud económica';
-        case AppRoute.DASHBOARD_GROUPS: return 'Mis grupos';
-        case AppRoute.GROUP_DETAILS: return 'Detalle del grupo';
-        case AppRoute.IMPORT: return 'Importar gastos IA';
-        case AppRoute.SETTINGS: return 'Configuración';
-        case AppRoute.CATEGORIES: return 'Categorías';
-        case AppRoute.AI_HISTORY: return 'Historial AI';
-        default: return 'Splita';
-    }
-}
 
 export default App;
