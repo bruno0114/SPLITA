@@ -76,16 +76,16 @@ export interface Group {
 }
 
 export enum AppRoute {
-  ONBOARDING = 'onboarding',
-  LOGIN = 'login',
-  DASHBOARD_PERSONAL = 'dashboard_personal',
-  DASHBOARD_HEALTH = 'dashboard_health',
-  DASHBOARD_GROUPS = 'dashboard_groups',
-  GROUP_DETAILS = 'group_details',
-  IMPORT = 'import',
-  SETTINGS = 'settings',
-  CATEGORIES = 'categories',
-  AI_HISTORY = 'ai_history'
+  ONBOARDING = '/bienvenida',
+  LOGIN = '/ingresar',
+  DASHBOARD_PERSONAL = '/',
+  DASHBOARD_HEALTH = '/salud',
+  DASHBOARD_GROUPS = '/grupos',
+  GROUP_DETAILS = '/grupos/:groupId',
+  IMPORT = '/importar',
+  SETTINGS = '/configuracion',
+  CATEGORIES = '/categorias',
+  AI_HISTORY = '/historial-ia'
 }
 
 export type Theme = 'light' | 'dark' | 'system';
