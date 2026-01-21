@@ -1,6 +1,4 @@
-
 import React, { useState, useRef } from 'react';
-import { MOCK_TRANSACTIONS } from '@/lib/constants';
 import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Transaction } from '@/types/index';

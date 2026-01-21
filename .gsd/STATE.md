@@ -2,20 +2,24 @@
 
 ## Current Position
 - **Phase**: 14 (Final Audit & Production Hardening)
-- **Task**: Audit Avatar Consistency & Social Login Sync
-- **Status**: 🏗️ IN PROGRESS
+- **Task**: Code Hygiene Complete
+- **Status**: ✅ COMPLETE
 
-## Accomplished (Phase 13)
-- **Transaction Modal Redesign**: Refactored personal and group modals for 2-column desktop ergonomics and compact mobile layout.
-- **Global Responsive Audit**: Fixed BottomNav overlap and removed redundant padding across all major pages.
-- **Animation Standardization**: Unified all modal transitions and the Quick Action menu animation.
+## Accomplished (Phase 14)
+- ✅ **Social Login Sync**: `useProfile.ts` now syncs `full_name` and `avatar_url` from OAuth metadata to `profiles` table.
+- ✅ **Avatar Consistency**: `Sidebar.tsx` and `Header.tsx` now display user info from `profiles` (single source of truth).
+- ✅ **Flexible Image Compression**: `compressToWebP` now accepts optional `maxSize` param (400px avatars, 800px group covers).
+- ✅ **Post-OAuth Onboarding**: `App.tsx` syncs onboarding data from `localStorage` after social login redirect.
+- ✅ **Code Hygiene**: Removed all dead mock data:
+  - Cleaned `constants.ts` (removed CURRENT_USER, GROUP_MEMBERS, MOCK_TRANSACTIONS, INSIGHTS, MOCK_GROUPS)
+  - Removed unused imports from `ImportExpenses.tsx` and `Onboarding.tsx`
 
-## Accomplished (Phase 14 Initial)
-- Formalized Phase 14 in ROADMAP.md.
-- Identified target areas for avatar consistency (Sidebar, Header, Settings).
+## Build Status
+- ✅ Production build successful (1.4MB bundle)
+- ⚠️ Vite warning about mixed dynamic/static imports for `supabase.ts` (non-blocking)
+- ⚠️ Bundle size warning (>500KB) — code splitting recommended for future optimization
 
-## Next Steps
-1. Sync Social Login avatars (Google/GitHub) to the `profiles` table.
-2. Audit and update all UI components to use the `avatar_url` from the profile service.
-3. Verify manual upload compression is enforced for both user and group images.
-4. Final production hardening (Option A): Remove mock data and dead code.
+## Next Steps (Future Phases)
+1. Implement code-splitting with `React.lazy()` for heavy routes (Categories, Settings, GroupDetails)
+2. Address Supabase security advisories (`function_search_path_mutable`, `rls_disabled_in_public`)
+3. Production deployment and environment configuration

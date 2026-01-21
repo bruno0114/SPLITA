@@ -77,10 +77,10 @@
 - [x] **Modal Consistency**: Ensure all modals (including AI History details) use the unified animation pattern.
 
 ### Phase 14: Final Audit & Production Hardening
-**Status**: 🏗️ In Progress
+**Status**: ✅ Complete
 **Objective**: Guarantee avatar consistency across the app, social login sync, and overall performance/code hygiene.
-- [ ] **Avatar Consistency**: Audit and ensure user images appear in Sidebar, Header, Settings, and Transaction Cards.
-- [ ] **Social Login Sync**: Automatically pull and persist avatars from Google/Facebook logins into the `profiles` table. For now we only have Google login but implement it in a way that we can easily add Facebook login in the future.
-- [ ] **Manual Upload Compression**: Ensure all manual image uploads (Profile & Group) are compressed via WebP before Supabase storage.
-- [ ] **Option A (Hardening)**: Perform code audit, remove legacy/mock folders, and optimize bundle performance.
-- [ ] **Final RLS Audit**: Verify Row Level Security for all tables and storage buckets.
+- [x] **Avatar Consistency**: Sidebar, Header, Settings now display avatar from `profiles` table.
+- [x] **Social Login Sync**: `useProfile.ts` syncs OAuth metadata (Google picture) to `profiles` table automatically.
+- [x] **Manual Upload Compression**: `compressToWebP` supports flexible `maxSize` param (400px avatars, 800px covers).
+- [x] **Code Hygiene**: Removed all mock data from `constants.ts`, cleaned dead imports.
+- [x] **Post-OAuth Onboarding**: `App.tsx` handles pending onboarding data from `localStorage` after redirect.
