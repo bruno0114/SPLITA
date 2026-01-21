@@ -254,7 +254,7 @@ const StepAddPeople = ({ onNext, onBack, progress, initialValue }: { onNext: (da
       setMembers(members.filter(m => m !== email));
    };
 
-   const shareText = "¡Unite a mi grupo en Splita! Acá tenés el link: finanzas.brunoaguilar.com.ar/join/abc123";
+   const shareText = "¡Unite a mi grupo en Splita! Acá tenés el link: finanzas.brunoaguilar.com.ar/unirse/abc123";
 
    const handleWhatsappShare = () => {
       window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
@@ -323,7 +323,7 @@ const StepAddPeople = ({ onNext, onBack, progress, initialValue }: { onNext: (da
 
             <div className="flex gap-2 relative z-10">
                <div className="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400 truncate font-mono">
-                  finanzas.brunoaguilar.com.ar/join/abc123
+                  finanzas.brunoaguilar.com.ar/unirse/abc123
                </div>
                <button className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-white w-12 rounded-xl flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
                   <Copy className="w-5 h-5" />

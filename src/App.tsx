@@ -95,7 +95,8 @@ const App: React.FC = () => {
     const getRouteTitle = (pathname: string): string => {
         // Handle dynamic routes first
         if (pathname.startsWith('/grupos/') && pathname !== '/grupos') return 'Detalle del grupo';
-        if (pathname.startsWith('/categories/') && pathname !== '/categories') return 'Detalle de categoría';
+        if (pathname.startsWith('/categorias/') && pathname !== '/categorias') return 'Detalle de categoría';
+        if (pathname.startsWith('/unirse/')) return 'Unirse al grupo';
 
         switch (pathname) {
             case AppRoute.DASHBOARD_PERSONAL: return 'Finanzas personales';
@@ -205,7 +206,7 @@ const App: React.FC = () => {
                             <Route path={AppRoute.AI_HISTORY} element={<AIHistory />} />
                             <Route path={AppRoute.SETTINGS} element={<Settings />} />
                         </Route>
-                        <Route path="/join/:inviteCode" element={<JoinGroup />} />
+                        <Route path="/unirse/:inviteCode" element={<JoinGroup />} />
                         <Route path="*" element={<Navigate to={AppRoute.DASHBOARD_PERSONAL} replace />} />
                     </Routes>
                 </main>
