@@ -259,12 +259,17 @@ const ImportExpenses: React.FC = () => {
 
   const handleConfirmImport = async () => {
     setError(null);
+    console.log('[AI Import] Starting import process...');
+    console.log('[AI Import] Selected group ID:', selectedGroupId);
+
     if (!selectedGroupId) {
       setError("Por favor seleccioná un destino (Personal o Grupo) para estos gastos.");
       return;
     }
 
     const selectedIds = Object.keys(txSettings).filter(id => txSettings[id].selected);
+    console.log('[AI Import] Selected transaction IDs:', selectedIds);
+
     if (selectedIds.length === 0) {
       setError("No seleccionaste ningún gasto para importar.");
       return;
@@ -272,61 +277,107 @@ const ImportExpenses: React.FC = () => {
 
     setStep('saving');
     let successCount = 0;
+    const errors: string[] = [];
 
     try {
       // Helper to ensure category exists
       const ensureCategory = async (catName: string) => {
         const normalized = catName.trim();
+        console.log('[AI Import] Checking category:', normalized);
         const exists = categories.find(c => c.name.toLowerCase() === normalized.toLowerCase());
         if (!exists) {
           try {
+            console.log('[AI Import] Creating new category:', normalized);
             await addCategory({
               name: normalized,
               icon: 'LayoutGrid',
               color: 'text-indigo-500',
               bg_color: 'bg-indigo-500/10'
             });
+            console.log('[AI Import] Category created successfully');
           } catch (e) {
-            console.warn("Could not auto-create category:", normalized);
+            console.warn("[AI Import] Could not auto-create category:", normalized, e);
           }
+        } else {
+          console.log('[AI Import] Category already exists:', normalized);
         }
         return normalized;
       };
 
       if (selectedGroupId === 'personal') {
+        console.log('[AI Import] Importing to PERSONAL account');
         for (const id of selectedIds) {
           const tx = scannedTransactions.find(t => t.id === id);
           const s = txSettings[id];
-          if (!tx || !s) continue;
+          if (!tx || !s) {
+            console.warn('[AI Import] Skipping - transaction or settings not found:', id);
+            continue;
+          }
+
+          console.log(`[AI Import] Processing transaction ${id}:`, {
+            merchant: tx.merchant,
+            amount: s.originalAmount,
+            currency: s.currency,
+            exchangeRate: s.exchangeRate,
+            category: tx.category,
+            date: tx.raw_date
+          });
 
           const categoryName = await ensureCategory(tx.category);
 
-          const { error } = await addPersonalTransaction({
+          const payload = {
             title: tx.merchant,
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: categoryName,
-            type: 'expense',
+            type: 'expense' as const,
             date: tx.raw_date || new Date().toISOString(),
             original_amount: s.originalAmount,
             original_currency: s.currency,
             exchange_rate: s.currency === 'USD' ? s.exchangeRate : undefined,
             is_recurring: s.isRecurring,
             installments: s.installments
-          });
-          if (!error) successCount++;
+          };
+
+          console.log('[AI Import] Calling addPersonalTransaction with payload:', payload);
+          const { error } = await addPersonalTransaction(payload);
+
+          if (error) {
+            console.error(`[AI Import] ERROR saving transaction ${id}:`, error);
+            errors.push(`${tx.merchant}: ${error}`);
+          } else {
+            console.log(`[AI Import] ✓ Transaction ${id} saved successfully`);
+            successCount++;
+          }
         }
       } else {
+        console.log('[AI Import] Importing to GROUP:', selectedGroupId);
         const selectedGroup = groups.find(g => g.id === selectedGroupId);
         if (!selectedGroup) throw new Error("Grupo no encontrado");
+
+        console.log('[AI Import] Group details:', {
+          id: selectedGroup.id,
+          name: selectedGroup.name,
+          memberCount: selectedGroup.members.length
+        });
 
         for (const id of selectedIds) {
           const tx = scannedTransactions.find(t => t.id === id);
           const s = txSettings[id];
-          if (!tx || !s) continue;
+          if (!tx || !s) {
+            console.warn('[AI Import] Skipping - transaction or settings not found:', id);
+            continue;
+          }
+
+          console.log(`[AI Import] Processing group transaction ${id}:`, {
+            merchant: tx.merchant,
+            amount: s.originalAmount,
+            currency: s.currency,
+            category: tx.category
+          });
 
           const categoryName = await ensureCategory(tx.category);
 
-          const { error } = await addTransaction({
+          const payload = {
             amount: s.originalAmount * (s.currency === 'USD' ? s.exchangeRate : 1),
             category: categoryName,
             title: tx.merchant,
@@ -337,24 +388,46 @@ const ImportExpenses: React.FC = () => {
             exchange_rate: s.currency === 'USD' ? s.exchangeRate : undefined,
             is_recurring: s.isRecurring,
             installments: s.installments
-          });
-          if (!error) successCount++;
+          };
+
+          console.log('[AI Import] Calling addTransaction with payload:', payload);
+          const { error } = await addTransaction(payload);
+
+          if (error) {
+            console.error(`[AI Import] ERROR saving group transaction ${id}:`, error);
+            errors.push(`${tx.merchant}: ${error}`);
+          } else {
+            console.log(`[AI Import] ✓ Group transaction ${id} saved successfully`);
+            successCount++;
+          }
         }
       }
 
-      setSuccess(`¡Éxito! Se importaron ${successCount} gastos correctamente.`);
-      setTimeout(() => {
-        if (selectedGroupId === 'personal') {
-          navigate(AppRoute.DASHBOARD_PERSONAL);
-        } else {
-          navigate(`/grupos/${selectedGroupId}`);
-        }
-      }, 2000);
+      console.log('[AI Import] Import complete. Success count:', successCount, 'Errors:', errors.length);
+
+      if (errors.length > 0) {
+        setError(`Se importaron ${successCount} de ${selectedIds.length} gastos. Errores: ${errors.slice(0, 3).join(', ')}${errors.length > 3 ? '...' : ''}`);
+        setStep('review');
+      } else if (successCount === 0) {
+        setError('No se pudo importar ningún gasto. Revisá la consola para más detalles.');
+        setStep('review');
+      } else {
+        setSuccess(`¡Éxito! Se importaron ${successCount} gastos correctamente.`);
+        setTimeout(() => {
+          if (selectedGroupId === 'personal') {
+            navigate(AppRoute.DASHBOARD_PERSONAL);
+          } else {
+            navigate(`/grupos/${selectedGroupId}`);
+          }
+        }, 2000);
+      }
     } catch (err: any) {
+      console.error('[AI Import] FATAL ERROR:', err);
       setError("Error al importar: " + err.message);
       setStep('review');
     }
   };
+
 
 
   // --- Views ---
