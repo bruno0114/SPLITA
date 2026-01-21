@@ -84,3 +84,12 @@
 - [x] **Manual Upload Compression**: `compressToWebP` supports flexible `maxSize` param (400px avatars, 800px covers).
 - [x] **Code Hygiene**: Removed all mock data from `constants.ts`, cleaned dead imports.
 - [x] **Post-OAuth Onboarding**: `App.tsx` handles pending onboarding data from `localStorage` after redirect.
+
+### Phase 15: UX Hardening, Onboarding Flow & Responsive Redesign
+**Status**: 🚧 In Progress
+**Objective**: Comprehensive mobile-first overhaul, fixing layout overlaps, smart routing logic, and modernizing Groups/Dashboard UI for small screens.
+- [ ] **Smart Routing**: Implement `has_visited` logic to distinguish New (Onboarding) vs Returning (Login) users.
+- [ ] **Mobile Layout Fixes**: `min-h-[100dvh]` for auth screens, fix BottomNav overlapping modals (`z-index`, padding).
+- [ ] **Groups Mobile Redesign**: Convert table rows to "Card" stack for vertical readability on mobile.
+- [ ] **Categories Mobile Access**: Ensure categories are accessible and visible on small screens.
+- [ ] **Dashboard UX**: Enhance filter tabs (client-side switch) and fix Calendar/Floating Action Button overlaps.
