@@ -44,7 +44,9 @@ const JoinGroup: React.FC = () => {
     const handleJoin = async () => {
         if (!user) {
             // Redirect to login but save the current path to return after
-            navigate(`${AppRoute.LOGIN}?redirectTo=/unirse/${inviteCode}`);
+            const target = location.pathname + location.search + location.hash;
+            localStorage.setItem('splita_redirect_path', target);
+            navigate(AppRoute.LOGIN);
             return;
         }
 
