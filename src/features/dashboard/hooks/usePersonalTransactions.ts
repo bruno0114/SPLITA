@@ -20,6 +20,7 @@ export interface TransactionFilters {
 export const usePersonalTransactions = (initialFilters?: TransactionFilters) => {
     const { user } = useAuth();
     const [transactions, setTransactions] = useState<PersonalTransaction[]>([]);
+    const [fullTransactions, setFullTransactions] = useState<PersonalTransaction[]>([]);
     const [summary, setSummary] = useState<PersonalFinanceSummary>({
         balance: 0,
         totalIncome: 0,
@@ -37,11 +38,17 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
     const calculateSummary = (txs: PersonalTransaction[]): PersonalFinanceSummary => {
         const totalIncome = txs
             .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => {
+                const amt = Number(t.amount);
+                return sum + (isNaN(amt) ? 0 : amt);
+            }, 0);
 
         const totalExpenses = txs
             .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => {
+                const amt = Number(t.amount);
+                return sum + (isNaN(amt) ? 0 : amt);
+            }, 0);
 
         return {
             totalIncome,
@@ -52,6 +59,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
 
     const fetchTransactions = useCallback(async (isLoadMore = false) => {
         if (!user?.id) {
+            console.log('[usePersonalTransactions] No user session, clearing data.');
             setTransactions([]);
             setSummary({ balance: 0, totalIncome: 0, totalExpenses: 0 });
             setLoading(false);
@@ -60,15 +68,19 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
             return;
         }
 
+        console.log(`[usePersonalTransactions] Fetching for User ID: ${user.id} (LoadMore: ${isLoadMore})`);
+
         if (isLoadMore) setLoadingMore(true);
         else setLoading(true);
 
         setError(null);
         try {
+            console.log('[usePersonalTransactions] Fetching with filters:', filters);
+
+            // 1. Fetch paged personal transactions
             const from = isLoadMore ? offsetRef.current : 0;
             const to = from + PAGE_SIZE - 1;
 
-            // 1. Fetch personal transactions with filters
             let pQuery = supabase
                 .from('personal_transactions')
                 .select('*')
@@ -85,83 +97,112 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
 
             if (pError) throw pError;
 
-            // 2. Fetch group transaction splits for this user
-            // We apply date filters to splits too
-            let sQuery = supabase
-                .from('transaction_splits')
-                .select(`
-                    amount_owed,
-                    category,
-                    transaction:transactions (
-                        id,
-                        title,
-                        category,
-                        date,
-                        group:groups ( name )
-                    )
-                `)
+            // 1.1 Fetch ALL filtered personal data for global summary and charts
+            let pFullQuery = supabase
+                .from('personal_transactions')
+                .select('*')
                 .eq('user_id', user.id);
 
-            const { data: groupSplits, error: sError } = await sQuery;
+            if (filters.startDate) pFullQuery = pFullQuery.gte('date', filters.startDate);
+            if (filters.endDate) pFullQuery = pFullQuery.lte('date', `${filters.endDate}T23:59:59.999Z`);
+            if (filters.categories && filters.categories.length > 0) pFullQuery = pFullQuery.in('category', filters.categories);
+            if (filters.types && filters.types.length > 0) pFullQuery = pFullQuery.in('type', filters.types);
 
-            if (sError) throw sError;
+            const { data: allPersonalData, error: pFullError } = await pFullQuery;
+            if (pFullError) throw pFullError;
 
-            // 3. Map group splits to common format and filter by date/category
-            const mappedGroupTx = (groupSplits || [])
-                .filter(s => s.transaction)
-                .map((s: any) => ({
-                    id: `split-${s.transaction.id}`,
-                    user_id: user.id,
-                    title: s.transaction.title,
-                    amount: Number(s.amount_owed),
-                    category: s.category || s.transaction.category, // Use split category if available
-                    type: 'expense',
-                    date: s.transaction.date,
-                    payment_method: s.transaction.group?.name || 'Grupo',
-                    is_group: true
-                }))
-                .filter((tx: any) => {
-                    if (filters.startDate && tx.date < filters.startDate) return false;
-                    // Comparison with endDate date-string only
-                    if (filters.endDate) {
-                        const endDateTime = `${filters.endDate}T23:59:59.999Z`;
-                        if (tx.date > endDateTime) return false;
-                    }
-                    if (filters.categories && filters.categories.length > 0 && !filters.categories.includes(tx.category)) return false;
-                    if (filters.types && filters.types.length > 0 && !filters.types.includes(tx.type)) return false;
-                    return true;
-                });
+            // 2. Fetch group transaction splits for this user (separated to avoid blocking personal data)
+            let mappedGroupTx: any[] = [];
+            try {
+                const { data: groupSplits, error: sError } = await supabase
+                    .from('transaction_splits')
+                    .select(`
+                        id,
+                        amount_owed,
+                        category,
+                        type,
+                        transaction:transactions (
+                            id,
+                            title,
+                            category,
+                            date,
+                            type,
+                            group:groups ( name )
+                        )
+                    `)
+                    .eq('user_id', user.id);
 
-            // 4. Merge and sort
-            // Note: Since personalData is paginated but mappedGroupTx is not (currently), 
-            // the infinite scroll behavior might be slightly inconsistent for group splits.
-            // In a real production app, we would paginate a unified view or unify the logs.
-            // For now, we merge and the user sees their recent items.
-
-            const merged = [...(personalData || []), ...mappedGroupTx].sort((a, b) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-
-            if (isLoadMore) {
-                setTransactions(prev => [...prev, ...merged]);
-                offsetRef.current = from + personalData.length;
-            } else {
-                setTransactions(merged as any[]);
-                offsetRef.current = personalData.length;
-                setSummary(calculateSummary(merged as any[]));
+                if (sError) {
+                    console.warn('[usePersonalTransactions] Group splits query failed (Check RLS/Relationships):', sError);
+                } else if (groupSplits) {
+                    // 3. Map group splits to common format and filter
+                    mappedGroupTx = groupSplits
+                        .filter(s => s?.transaction)
+                        .map((s: any) => ({
+                            id: `split-${s.transaction.id}`,
+                            user_id: user.id,
+                            title: s.transaction.title,
+                            amount: Number(s.amount_owed || 0),
+                            category: s.category || s.transaction.category || 'Otros',
+                            type: (s.type || s.transaction.type || 'expense') as 'income' | 'expense',
+                            date: s.transaction.date,
+                            payment_method: s.transaction.group?.name || 'Grupo',
+                            is_group: true
+                        }))
+                        .filter((tx: any) => {
+                            if (filters.startDate && tx.date < filters.startDate) return false;
+                            if (filters.endDate) {
+                                const endDateTime = `${filters.endDate}T23:59:59.999Z`;
+                                if (tx.date > endDateTime) return false;
+                            }
+                            if (filters.categories && filters.categories.length > 0 && !filters.categories.includes(tx.category)) return false;
+                            if (filters.types && filters.types.length > 0 && !filters.types.includes(tx.type)) return false;
+                            return true;
+                        });
+                }
+            } catch (splitErr) {
+                console.error('[usePersonalTransactions] Error fetching/mapping splits:', splitErr);
             }
 
-            // Check if we might have more
-            setHasMore(personalData.length === PAGE_SIZE);
+            // 4. Calculate Global Results
+            const allItems = [...(allPersonalData || []), ...mappedGroupTx];
+            const globalSummary = calculateSummary(allItems as any[]);
+
+            console.log(`[usePersonalTransactions] User ID: ${user.id}`);
+            console.log(`[usePersonalTransactions] Query Result - Personal: ${allPersonalData?.length || 0}, Groups: ${mappedGroupTx.length}`);
+            if (allItems.length > 0) {
+                console.log('[usePersonalTransactions] First items:', allItems.slice(0, 2));
+            }
+            console.log('[usePersonalTransactions] Calculated balance:', globalSummary.balance);
+
+            setFullTransactions(allItems as any[]);
+            setSummary(globalSummary);
+
+            // 5. Update the paged list with deduplication
+            if (isLoadMore) {
+                setTransactions(prev => {
+                    const next = [...prev, ...(personalData || [])];
+                    const unique = Array.from(new Map(next.map(item => [item.id, item])).values());
+                    return unique.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                });
+                offsetRef.current = from + (personalData?.length || 0);
+            } else {
+                const initialMerged = [...(personalData || []), ...mappedGroupTx];
+                const unique = Array.from(new Map(initialMerged.map(item => [item.id, item])).values());
+                setTransactions(unique.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                offsetRef.current = personalData?.length || 0;
+            }
+
+            setHasMore(personalData?.length === PAGE_SIZE);
 
         } catch (err: any) {
-            console.error('Error fetching transactions:', err);
+            console.error('[usePersonalTransactions] Fetch Error:', err);
             setError(err.message);
         } finally {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [user?.id, filters]); // Removed 'page' to avoid loop, we manage it inside based on isLoadMore
+    }, [user?.id, filters]);
 
     const addTransaction = async (data: {
         title: string;
@@ -199,11 +240,11 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                 .single();
 
             if (error) {
-                console.error('[usePersonalTransactions] Insert error:', error);
-                throw error;
+                console.error('[usePersonalTransactions] Insert error (Supabase):', error);
+                return { error: error.message || 'Error desconocido de base de datos' };
             }
 
-            console.log('[usePersonalTransactions] Transaction added:', newTx);
+            console.log('[usePersonalTransactions] Transaction added successfully:', newTx);
 
             if (!options?.skipRefresh) {
                 await fetchTransactions();
@@ -365,6 +406,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
 
     return {
         transactions,
+        fullTransactions,
         summary,
         loading,
         loadingMore,

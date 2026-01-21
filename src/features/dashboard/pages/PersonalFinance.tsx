@@ -19,6 +19,7 @@ import { useToast } from '@/context/ToastContext';
 const PersonalFinance: React.FC = () => {
   const {
     transactions,
+    fullTransactions,
     summary,
     loading,
     loadingMore,
@@ -30,7 +31,8 @@ const PersonalFinance: React.FC = () => {
     updateTransaction,
     deleteTransaction,
     deleteTransactions,
-    refreshTransactions
+    refreshTransactions,
+    error
   } = usePersonalTransactions();
 
   const [showModal, setShowModal] = useState(false);
@@ -158,10 +160,28 @@ const PersonalFinance: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (error) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col h-[70vh] items-center justify-center p-6 text-center space-y-4">
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+          <p className="text-red-500 font-bold mb-2">Error al cargar movimientos</p>
+          <p className="text-slate-500 text-sm max-w-md">{error}</p>
+        </div>
+        <button
+          onClick={() => refreshTransactions()}
+          className="bg-primary text-white px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  if (loading && transactions.length === 0) {
+    return (
+      <div className="flex flex-col h-[70vh] w-full items-center justify-center bg-background gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Actualizando resumen...</p>
       </div>
     );
   }
@@ -241,7 +261,7 @@ const PersonalFinance: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
         <div className="lg:col-span-2">
           <ExpenditureEvolutionChart
-            transactions={transactions}
+            transactions={fullTransactions}
             onUpgrade={() => setShowPremiumModal(true)}
           />
         </div>
