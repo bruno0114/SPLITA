@@ -30,7 +30,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
       try {
          const { error } = await signInWithPassword({ email, password });
          if (error) throw error;
-         // onLogin handled by effect
+         setLoading(false); // Enable effect to trigger
       } catch (err: any) {
          setError(err.message || 'Error al iniciar sesión');
          setLoading(false);
