@@ -132,45 +132,46 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const getGroupByInviteCode = async (code: string) => {
         try {
+            // Use Secure RPC (Security Definer)
             const { data, error } = await supabase
-                .from('groups')
-                .select(`
-                    *,
-                    members:group_members (
-                        profiles (
-                            id,
-                            full_name,
-                            avatar_url
-                        )
-                    )
-                `)
-                .eq('invite_code', code)
+                .rpc('get_group_details_by_code', { p_code: code })
                 .single();
 
             if (error) throw error;
-            return { data, error: null };
+
+            const groupData = data as { id: string; name: string; image_url: string; member_count: number };
+
+            // Transform RPC result to match expected shape for UI preview
+            // Note: RPC returns { id, name, image_url, member_count }
+            const transformedData = {
+                id: data.id,
+                name: data.name,
+                image_url: data.image_url,
+                invite_code: code, // Pass back the code so UI has it
+                members: Array(data.member_count).fill({ profiles: { id: 'preview', avatar_url: '' } }) // Dummy members for valid length
+            };
+
+            return { data: transformedData, error: null };
         } catch (err: any) {
+            console.error('[GroupsContext] getGroupByInviteCode error:', err);
             return { data: null, error: err.message };
         }
     };
 
-    const joinGroup = async (groupId: string) => {
+    const joinGroup = async (inviteCode: string) => {
         if (!user) return { error: 'No authenticated user' };
 
         try {
+            // Use Secure RPC
             const { error } = await supabase
-                .from('group_members')
-                .insert({
-                    group_id: groupId,
-                    user_id: user.id,
-                    role: 'member'
-                });
+                .rpc('join_group_by_code', { p_code: inviteCode });
 
             if (error) throw error;
 
-            await fetchGroups();
+            await fetchGroups(); // Refresh data immediately
             return { error: undefined };
         } catch (err: any) {
+            console.error('[GroupsContext] joinGroup error:', err);
             return { error: err.message };
         }
     };

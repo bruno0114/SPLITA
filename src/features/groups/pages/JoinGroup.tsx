@@ -48,10 +48,11 @@ const JoinGroup: React.FC = () => {
             return;
         }
 
-        if (!group) return;
+        if (!group || !inviteCode) return;
 
         setJoining(true);
-        const { error } = await joinGroup(group.id);
+        // Updated: Pass inviteCode directly to secure RPC wrapper
+        const { error } = await joinGroup(inviteCode);
         setJoining(false);
 
         if (error) {
@@ -60,7 +61,7 @@ const JoinGroup: React.FC = () => {
             setIsJoined(true);
             setTimeout(() => {
                 navigate(`/grupos/${group.id}`);
-            }, 1500);
+            }, 1000);
         }
     };
 

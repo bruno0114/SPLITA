@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AppRoute, Theme } from '@/types/index';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
@@ -19,6 +19,12 @@ import AIHistory from '@/features/expenses/pages/AIHistory';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAuthContext } from '@/features/auth/context/AuthContext';
+
+// Helper component for legacy redirect
+const RedirectToJoin: React.FC = () => {
+    const { inviteCode } = useParams<{ inviteCode: string }>();
+    return <Navigate to={`/unirse/${inviteCode}`} replace />;
+};
 
 const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>(() => {
@@ -207,6 +213,8 @@ const App: React.FC = () => {
                             <Route path={AppRoute.SETTINGS} element={<Settings />} />
                         </Route>
                         <Route path="/unirse/:inviteCode" element={<JoinGroup />} />
+                        {/* Backward compatibility for legacy links */}
+                        <Route path="/join/:inviteCode" element={<RedirectToJoin />} />
                         <Route path="*" element={<Navigate to={AppRoute.DASHBOARD_PERSONAL} replace />} />
                     </Routes>
                 </main>

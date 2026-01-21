@@ -11,7 +11,7 @@ interface InviteModalProps {
 
 const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, groupName, inviteCode }) => {
     const [copied, setCopied] = useState(false);
-    const inviteUrl = `${window.location.origin}/join/${inviteCode}`;
+    const inviteUrl = `${window.location.origin}/unirse/${inviteCode}`;
 
     if (!isOpen) return null;
 
