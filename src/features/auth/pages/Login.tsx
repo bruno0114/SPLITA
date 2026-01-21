@@ -18,6 +18,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
 
    React.useEffect(() => {
       if (user && !loading && !authLoading) {
+         console.log("[AUTH] Login.tsx effect triggering onLogin");
          onLogin(); // Or navigate('/');
       }
    }, [user, loading, authLoading, onLogin]);

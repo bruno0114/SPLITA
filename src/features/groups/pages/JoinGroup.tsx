@@ -45,6 +45,7 @@ const JoinGroup: React.FC = () => {
         if (!user) {
             // Redirect to login but save the current path to return after
             const target = location.pathname + location.search + location.hash;
+            console.log("[INVITE] save redirect", target, inviteCode);
             localStorage.setItem('splita_redirect_path', target);
             navigate(AppRoute.LOGIN);
             return;

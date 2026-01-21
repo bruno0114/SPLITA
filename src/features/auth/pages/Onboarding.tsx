@@ -29,6 +29,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
       if (step < totalSteps) {
          setStep(step + 1);
       } else {
+         console.log("[AUTH] Onboarding step complete, calling onComplete");
          onComplete();
       }
    };
@@ -48,6 +49,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
 
    const handleLoginClick = () => {
       localStorage.setItem('has_visited', 'true');
+      localStorage.setItem('has_visited', 'true');
+      console.log("[AUTH] Onboarding handleLoginClick calling onLogin");
       onLogin();
    };
 
