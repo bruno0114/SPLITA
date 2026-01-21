@@ -1,334 +1,139 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-01-20
+**Analysis Date:** 2026-01-21
 
 ## Test Framework
 
 **Runner:**
-- Not configured
-- No test framework detected in `package.json`
-- No test configuration files found (jest.config.*, vitest.config.*, etc.)
+- Not configured - No test framework detected in `package.json`
+- No vitest, jest, mocha, or testing library dependencies
 
 **Assertion Library:**
-- Not configured
+- None installed
 
 **Run Commands:**
-```bash
-# No test scripts defined in package.json
-# Current scripts:
-npm run dev       # Start development server
-npm run build     # Build for production
-npm run preview   # Preview production build
-```
+- Testing commands not available in current setup
+- `package.json` contains only: `dev`, `build`, `preview` scripts
 
 ## Test File Organization
 
 **Location:**
-- No test files found in the codebase
-- Pattern: Not established
+- No test files found in codebase
+- 0 `.test.*` or `.spec.*` files across entire `src/` directory
+- Testing infrastructure not present
 
 **Naming:**
-- Not established (no test files exist)
+- Not applicable - no test files
 
 **Structure:**
-- Not established
+- Not applicable - no test files
 
 ## Test Structure
 
 **Suite Organization:**
-- Not applicable - no tests exist
+- Not applicable - testing not implemented
 
-**Recommended Pattern for this codebase (based on structure):**
-```typescript
-// Example: src/features/groups/hooks/__tests__/useGroups.test.ts
-import { renderHook, act, waitFor } from '@testing-library/react-hooks';
-import { useGroups } from '../useGroups';
-
-describe('useGroups', () => {
-  describe('fetchGroups', () => {
-    it('should return empty array when user is not authenticated', async () => {
-      // ...
-    });
-
-    it('should fetch groups for authenticated user', async () => {
-      // ...
-    });
-  });
-
-  describe('createGroup', () => {
-    it('should create a group and refresh the list', async () => {
-      // ...
-    });
-  });
-});
-```
+**Patterns:**
+- Not applicable - testing not implemented
 
 ## Mocking
 
 **Framework:**
-- Not configured
+- Not applicable - no testing infrastructure
 
-**Recommended Mocking Approach:**
-```typescript
-// Mock Supabase client
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    auth: {
-      getSession: jest.fn(),
-      onAuthStateChange: jest.fn(),
-      signOut: jest.fn(),
-    },
-  },
-}));
-
-// Mock useAuth hook
-jest.mock('@/features/auth/hooks/useAuth', () => ({
-  useAuth: jest.fn().mockReturnValue({
-    user: { id: 'test-user-id' },
-    loading: false,
-  }),
-}));
-```
+**Patterns:**
+- Not applicable - testing not implemented
 
 **What to Mock:**
-- Supabase client (`@/lib/supabase`)
-- Auth context/hooks
-- Toast context for notification assertions
-- External API calls (Gemini AI service)
-- Browser APIs (localStorage, FileReader, Canvas for image utils)
+- Not applicable - testing not implemented
 
 **What NOT to Mock:**
-- React hooks (useState, useEffect, useMemo)
-- Pure utility functions (`formatCurrency`, `getCategoryConfig`)
-- Type definitions
+- Not applicable - testing not implemented
 
 ## Fixtures and Factories
 
 **Test Data:**
-- Mock data exists in `src/lib/constants.ts` (can be used as fixtures)
-```typescript
-// src/lib/constants.ts
-export const CURRENT_USER: User = {
-  id: 'u1',
-  name: 'Vos',
-  avatar: '...',
-};
-
-export const GROUP_MEMBERS: User[] = [...];
-export const MOCK_TRANSACTIONS: Transaction[] = [...];
-export const MOCK_GROUPS: Group[] = [...];
-```
-
-**Recommended Test Factory Pattern:**
-```typescript
-// src/__tests__/factories/user.ts
-export const createMockUser = (overrides: Partial<User> = {}): User => ({
-  id: 'test-user-id',
-  name: 'Test User',
-  avatar: 'https://example.com/avatar.png',
-  email: 'test@example.com',
-  ...overrides,
-});
-
-// src/__tests__/factories/group.ts
-export const createMockGroup = (overrides: Partial<Group> = {}): Group => ({
-  id: 'test-group-id',
-  name: 'Test Group',
-  type: 'other',
-  members: [createMockUser()],
-  userBalance: 0,
-  currency: 'ARS',
-  lastActivity: 'Hace 1 hora',
-  createdBy: 'test-user-id',
-  ...overrides,
-});
-```
+- Not applicable - no test fixtures created
+- Sample data exists in services (e.g., fallback model lists in `src/services/ai.ts`)
 
 **Location:**
-- Fixtures currently in `src/lib/constants.ts`
-- Recommended: `src/__tests__/fixtures/` or `src/__tests__/factories/`
+- Not applicable - no dedicated test data directory
 
 ## Coverage
 
-**Requirements:**
-- None enforced (no test configuration)
+**Requirements:** Not enforced
 
 **View Coverage:**
-```bash
-# Not configured
-# Recommended setup with Vitest:
-npm run test:coverage
-```
+- No coverage tools installed
 
 ## Test Types
 
 **Unit Tests:**
 - Not implemented
-- Recommended scope:
-  - Custom hooks (`useGroups`, `useTransactions`, `usePersonalTransactions`, `useCategoryStats`)
-  - Utility functions (`compressToWebP`, `getCategoryConfig`, `formatCurrency`)
-  - AI service functions (`validateGeminiKey`, `getGeminiClient`)
+- Best candidates for future unit testing:
+  - `src/lib/expert-math.ts` - Pure functions for debt simplification and projections
+  - `src/services/ai.ts` - Model selection and validation logic
+  - `src/lib/constants.ts` - Static values and calculations
+  - Custom hooks: `useTransactions`, `usePersonalTransactions`, `useCategories`
 
 **Integration Tests:**
 - Not implemented
-- Recommended scope:
-  - Page components with data fetching
-  - Form submissions (CreateGroupModal, TransactionModal)
-  - Auth flow (login, logout, protected routes)
+- Future candidates would test Supabase interactions (authentication, data fetching, mutations)
 
 **E2E Tests:**
 - Not implemented
-- Framework recommendation: Playwright or Cypress
-- Recommended scope:
-  - Complete user flows (onboarding, create group, add transaction)
-  - Auth flows with Supabase
 
 ## Common Patterns
 
-**Async Testing (Recommended):**
-```typescript
-// For hooks that fetch data
-import { renderHook, waitFor } from '@testing-library/react';
+**Async Testing:**
+- Not applicable - no test framework
 
-it('should fetch transactions', async () => {
-  const { result } = renderHook(() => usePersonalTransactions());
+**Error Testing:**
+- Not applicable - no test framework
 
-  await waitFor(() => {
-    expect(result.current.loading).toBe(false);
-  });
+## Manual Testing Observations
 
-  expect(result.current.transactions).toHaveLength(expectedLength);
-});
-```
+**Current Error Handling:**
+- Errors logged to console with service prefixes
+- State-based error tracking in custom hooks (`error` state)
+- User-facing errors handled via toast notifications (`useToast()`)
+- API errors from Supabase destructured and caught: `const { data, error } = await supabase...`
 
-**Error Testing (Recommended):**
-```typescript
-it('should handle API error', async () => {
-  // Mock Supabase to return error
-  (supabase.from as jest.Mock).mockImplementation(() => ({
-    select: jest.fn().mockResolvedValue({
-      data: null,
-      error: { message: 'Database error' },
-    }),
-  }));
+**Validation in Code:**
+- Input validation in custom hooks (e.g., checking `!groupId || !user` before fetching)
+- Supabase RLS policies provide database-level validation
+- Form validation in modal components (`TransactionModal.tsx`, `CategoryManagerModal.tsx`)
 
-  const { result } = renderHook(() => useGroups());
+**Debugging Capabilities:**
+- Console logging throughout services and hooks with prefixed messages
+- No debug mode or verbose logging flag
+- localStorage inspection for session/state debugging
 
-  await waitFor(() => {
-    expect(result.current.error).toBe('Database error');
-  });
-});
-```
+## Future Testing Strategy
 
-**Component Testing (Recommended):**
-```typescript
-import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import Groups from '../pages/Groups';
+**Priority Areas:**
+1. **Pure utility functions** (`src/lib/expert-math.ts`, `src/lib/dolar-api.ts`)
+   - High value, easy to test, no dependencies
+   - Current state: Critical debt simplification logic untested
 
-const renderWithProviders = (component: React.ReactNode) => {
-  return render(
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          {component}
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  );
-};
+2. **Custom hooks** (`src/features/*/hooks/*.ts`)
+   - Medium value, requires testing library setup
+   - Current risk: Hook logic bugs difficult to catch without automated tests
 
-it('should display create group button', () => {
-  renderWithProviders(<Groups />);
-  expect(screen.getByText('Nuevo grupo')).toBeInTheDocument();
-});
-```
+3. **API/Service layer** (`src/services/ai.ts`, Supabase interactions)
+   - High value, medium complexity
+   - Current state: AI service heavily relied upon, no validation coverage
 
-## Recommended Test Setup
+4. **Components** (lower priority)
+   - Render testing less critical for this app
+   - Focus first on logic layer, then component integration
 
-**Install Dependencies:**
-```bash
-npm install -D vitest @testing-library/react @testing-library/react-hooks @testing-library/jest-dom jsdom
-```
-
-**Create Vitest Config:**
-```typescript
-// vitest.config.ts
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/__tests__/setup.ts'],
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-});
-```
-
-**Create Test Setup:**
-```typescript
-// src/__tests__/setup.ts
-import '@testing-library/jest-dom';
-import { vi } from 'vitest';
-
-// Mock Supabase
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(),
-    auth: {
-      getSession: vi.fn(),
-      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-      signOut: vi.fn(),
-    },
-  },
-}));
-```
-
-**Add Scripts to package.json:**
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
-  }
-}
-```
-
-## Priority Testing Areas
-
-**High Priority (Critical Business Logic):**
-1. `src/features/groups/hooks/useGroups.ts` - Group CRUD operations
-2. `src/features/dashboard/hooks/usePersonalTransactions.ts` - Transaction management
-3. `src/features/auth/hooks/useAuth.ts` - Authentication flow
-4. `src/services/ai.ts` - AI expense extraction
-
-**Medium Priority:**
-1. `src/features/expenses/hooks/useTransactions.ts` - Group transactions
-2. `src/features/analytics/hooks/useCategoryStats.ts` - Analytics calculations
-3. `src/lib/image-utils.ts` - Image compression
-4. `src/lib/constants.ts` - Category configuration logic
-
-**Low Priority (UI Components):**
-1. Page components (snapshot/interaction tests)
-2. Layout components (Sidebar, Header, BottomNav)
-3. Modal components
+**Recommended Setup:**
+- Framework: Vitest (Vite-native, fast, React compatible)
+- Testing Library: @testing-library/react for component tests
+- Mocking: MSW for API mocking, Vitest mocks for module mocking
+- Coverage target: 60%+ for critical paths (business logic first, UI second)
 
 ---
 
-*Testing analysis: 2026-01-20*
+*Testing analysis: 2026-01-21*

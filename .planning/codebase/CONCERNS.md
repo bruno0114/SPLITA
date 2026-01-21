@@ -1,195 +1,261 @@
 # Codebase Concerns
 
-**Analysis Date:** 2025-01-20
+**Analysis Date:** 2026-01-21
 
 ## Tech Debt
 
-**Pervasive `any` Type Usage:**
-- Issue: Over 50 instances of `any` type assertions throughout the codebase, bypassing TypeScript's type safety
-- Files:
-  - `src/services/ai.ts` (lines 114, 172, 216, 243)
-  - `src/features/groups/pages/GroupDetails.tsx` (lines 88, 103, 361, 414, 451, 617-619, 627)
-  - `src/features/groups/hooks/useGroups.ts` (lines 57, 67, 76, 125, 151, 172, 193, 219)
-  - `src/features/expenses/hooks/useTransactions.ts` (lines 44, 55, 68, 127, 185, 210)
-  - `src/features/analytics/pages/Categories.tsx` (line 25)
-  - `src/features/analytics/pages/CategoryDetail.tsx` (lines 112, 116)
-  - `src/features/auth/pages/Onboarding.tsx` (lines 161, 206, 237, 350, 378, 467)
-  - `src/features/auth/hooks/useAuth.ts` (lines 20, 27, 35)
-- Impact: Runtime errors go undetected at compile time; refactoring becomes error-prone
-- Fix approach: Define proper interfaces for Supabase responses and API data; use generics for hooks
+**Component Size and Complexity:**
+- Issue: Single components contain excessive logic and state management, exceeding 800+ lines
+- Files: `src/features/groups/pages/GroupDetails.tsx` (1098 lines), `src/features/expenses/pages/ImportExpenses.tsx` (896 lines), `src/features/auth/pages/Onboarding.tsx` (581 lines)
+- Impact: Difficult to test, maintain, and reason about. High cognitive load. Increased likelihood of bugs during refactoring.
+- Fix approach: Extract sub-components and custom hooks. Break down ImportExpenses into separate steps with dedicated components. Move state management to custom hooks.
 
-**Dual Transaction Type Systems:**
-- Issue: Two incompatible transaction interfaces exist - `Transaction` (groups) and `PersonalTransaction` (personal)
-- Files:
-  - `src/types/index.ts` (Transaction interface)
-  - `src/features/dashboard/hooks/usePersonalTransactions.ts` (PersonalTransaction interface)
-- Impact: Analytics page (`src/features/analytics/pages/Categories.tsx`) requires `as any[]` cast; inconsistent field names (`merchant` vs `title`)
-- Fix approach: Unify into single polymorphic Transaction type with discriminated union or shared base interface
+**Type Safety Issues:**
+- Issue: Loose typing with `any` types used in critical places
+- Files: `src/features/groups/pages/GroupDetails.tsx:39` (editingTransaction: any), `src/features/groups/pages/GroupDetails.tsx:504` (GroupSettingsModalProps group: any), `src/features/expenses/pages/AIHistory.tsx:13` (selectedSession: any), `src/features/dashboard/hooks/usePersonalTransactions.ts:275` (updateData: any), `src/features/settings/hooks/useProfile.ts:48` (updates: any)
+- Impact: Loss of type checking benefits. Potential runtime errors. Increased maintenance burden when modifying data structures.
+- Fix approach: Define explicit interfaces for all component props and hook parameters. Replace `any` with proper types from `src/types/index.ts`.
 
-**Large Monolithic Components:**
-- Issue: Several page components exceed 400+ lines with embedded sub-components
-- Files:
-  - `src/features/groups/pages/GroupDetails.tsx` (727 lines, contains 3 components)
-  - `src/features/auth/pages/Onboarding.tsx` (570 lines, contains 7 step components)
-  - `src/features/expenses/pages/ImportExpenses.tsx` (417 lines)
-  - `src/features/dashboard/pages/PersonalFinance.tsx` (353 lines)
-- Impact: Difficult to test in isolation; poor code navigation; higher cognitive load
-- Fix approach: Extract modal components (GroupSettingsModal, GroupTransactionModal) to separate files; extract onboarding steps to individual components
+**Unprotected localStorage Usage:**
+- Issue: JSON.parse without try-catch when reading from localStorage
+- Files: `src/App.tsx:46` (localStorage.getItem('pending_onboarding') -> JSON.parse without validation)
+- Impact: Corrupted or manually-edited localStorage can crash the app with uncaught exceptions.
+- Fix approach: Wrap all JSON.parse in try-catch blocks. Validate data shape after parsing. Add fallback defaults.
 
-**Console Logging in Production Code:**
-- Issue: 35+ console.log/error/warn statements throughout production code
-- Files:
-  - `src/services/ai.ts` (lines 43, 67, 69, 80, 107, 115, 173, 244)
-  - `src/features/groups/hooks/useGroups.ts` (lines 77, 100, 104, 116, 120, 126)
-  - `src/features/dashboard/hooks/usePersonalTransactions.ts` (lines 73, 106, 110, 115, 133, 137, 141, 157, 161, 165)
-  - `src/features/auth/pages/Onboarding.tsx` (lines 426, 443, 455, 461)
-- Impact: Cluttered browser console; potential information leakage; no structured logging
-- Fix approach: Implement proper logging service with log levels; strip console statements in production builds
+**Console Logs Left in Production Code:**
+- Issue: Excessive console.log, console.warn, console.error statements throughout the codebase
+- Files: Over 40 locations including `src/features/expenses/pages/ImportExpenses.tsx`, `src/services/ai.ts`, `src/context/GroupsContext.tsx`
+- Impact: Noise in production logs. Potential information disclosure. Makes debugging harder to filter real issues.
+- Fix approach: Remove all non-essential console statements. Use structured logging with environment checks (only in dev/staging).
+
+**Debug Panel Left in Production:**
+- Issue: Dev-only debug panel visible in ImportExpenses component with raw error data
+- Files: `src/features/expenses/pages/ImportExpenses.tsx:839-892` (DEBUG PANEL marked "SOLO DEV")
+- Impact: Exposes internal error details and system information to end users. Security risk.
+- Fix approach: Conditionally render debug panel only in development environment (`import.meta.env.DEV`). Remove before production.
 
 ## Known Bugs
 
-**Search Input Non-Functional:**
-- Symptoms: Search input in GroupDetails.tsx has no onChange handler or filtering logic
-- Files: `src/features/groups/pages/GroupDetails.tsx` (lines 238-239)
-- Trigger: Type in "Buscar gastos..." input field
-- Workaround: None - feature appears implemented but is not wired up
+**Hardcoded Exchange Rate Default:**
+- Symptoms: When importing expenses with USD currency, default exchange rate of 1000 is used if not explicitly fetched
+- Files: `src/features/expenses/pages/ImportExpenses.tsx:234`
+- Trigger: User imports USD transactions and clicks "Confirmar importación" without clicking "Sincronizar T.C. Blue"
+- Workaround: Click "Sincronizar T.C. Blue" button to fetch current rates before importing
 
-**Category Progress Bar Color Hack:**
-- Symptoms: Progress bar color extraction uses fragile string manipulation
-- Files: `src/features/analytics/pages/Categories.tsx` (lines 125-132)
-- Trigger: Categories with certain color classes may render incorrectly
-- Workaround: Currently uses inline style fallback
+**Navigation Route Inconsistency:**
+- Symptoms: Some parts of the code use hardcoded route strings while others use AppRoute enum
+- Files: `src/features/expenses/pages/ImportExpenses.tsx:466` (hardcoded `/grupos/${selectedGroupId}` instead of AppRoute constant)
+- Trigger: Refactor may have missed this location
+- Workaround: Manual inspection shows routes work but not standardized
+
+**Missing Fallback for Group Member Images:**
+- Symptoms: Group member avatars may display broken images if avatar_url is null
+- Files: `src/features/groups/pages/GroupDetails.tsx` handles null but some UI components don't guard against it
+- Impact: UI shows broken image icons for users without avatars
 
 ## Security Considerations
 
-**API Keys in Client-Side Code:**
-- Risk: Gemini API keys stored in user profile and passed to client-side AI service
-- Files:
-  - `src/services/ai.ts` (line 22 - falls back to env var)
-  - `src/features/settings/hooks/useProfile.ts` (stores gemini_api_key)
-  - `src/features/settings/components/AISettings.tsx` (displays/edits key)
-- Current mitigation: Keys stored in Supabase profiles table (RLS protected); env var fallback
-- Recommendations: Consider server-side proxy for AI calls to hide API keys entirely; validate key server-side before storing
+**API Key Exposure in Browser Environment:**
+- Risk: User Gemini API keys stored in browser localStorage and transmitted with requests
+- Files: `src/features/settings/hooks/useProfile.ts`, `src/services/ai.ts:23` (using userKey directly)
+- Current mitigation: Keys are optional, system can fall back to env var. User is shown warnings about API keys.
+- Recommendations:
+  - Implement server-side proxy for AI requests instead of client-side API key usage
+  - Add encryption for stored API keys in localStorage
+  - Implement request signing to prevent key theft
+  - Add rate limiting to prevent key abuse
 
-**Supabase Anon Key in Frontend:**
-- Risk: Public anon key exposed in client bundle (expected for Supabase but requires proper RLS)
-- Files: `src/lib/supabase.ts` (lines 4-5)
-- Current mitigation: Supabase RLS policies (assumed to be in place)
-- Recommendations: Audit RLS policies for all tables; ensure no sensitive data accessible without auth
+**Supabase Credentials in Environment:**
+- Risk: VITE_SUPABASE_ANON_KEY is public but exposed in build. Anon key has limited permissions via RLS.
+- Files: `src/lib/supabase.ts:1-2` (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+- Current mitigation: RLS policies should enforce user isolation. Anon key has limited scope.
+- Recommendations:
+  - Verify RLS policies are correctly enforced (recent commits suggest RLS implementation)
+  - Monitor for unauthorized data access patterns
+  - Document expected RLS behavior for each table
 
-**Invite Code Security:**
-- Risk: Invite codes generated client-side with weak randomness
-- Files: `src/features/groups/hooks/useGroups.ts` (line 226)
-- Current mitigation: Codes are 8-char alphanumeric uppercase
-- Recommendations: Generate invite codes server-side (Supabase function); add expiration; limit uses
+**Insufficient Error Boundary:**
+- Risk: Unhandled promise rejections and uncaught errors can crash the app without user feedback
+- Files: Multiple async operations lack centralized error handling
+- Impact: Users see blank screens instead of error messages
+- Recommendations: Implement React Error Boundary component, add global error handler for unhandled promises
+
+**Unvalidated Data from AI Service:**
+- Risk: Data extracted by Gemini API is not validated before inserting into database
+- Files: `src/features/expenses/pages/ImportExpenses.tsx:376-415` (scannedTransactions directly used)
+- Impact: Malformed or malicious data could corrupt database or cause calculation errors
+- Recommendations: Add schema validation for AI output using Zod or similar library before inserting
 
 ## Performance Bottlenecks
 
-**Unnecessary Re-fetching:**
-- Problem: Full data refetch after every mutation (add/update/delete)
-- Files:
-  - `src/features/groups/hooks/useGroups.ts` (fetchGroups called after every mutation)
-  - `src/features/expenses/hooks/useTransactions.ts` (fetchTransactions called after every mutation)
-  - `src/features/dashboard/hooks/usePersonalTransactions.ts` (same pattern)
-- Cause: No optimistic updates or cache management
-- Improvement path: Implement optimistic updates with rollback; use React Query or SWR for caching
+**N+1 Query Issue in Groups Fetch:**
+- Problem: Fetches all group members and their profiles for each group, could scale poorly with large groups
+- Files: `src/context/GroupsContext.tsx:54-67` (nested profile selection in group_members)
+- Cause: Fetches full member data on every groups refresh. No pagination or limiting.
+- Improvement path: Implement lazy loading for member lists. Fetch member count initially, load details on demand. Consider caching strategy.
 
-**Balance Calculation in Render:**
-- Problem: Complex balance calculations run on every render via useMemo
-- Files: `src/features/groups/pages/GroupDetails.tsx` (lines 35-75)
-- Cause: useMemo dependencies include entire transactions array
-- Improvement path: Calculate balances server-side or cache results; debounce recalculation
+**Unoptimized Re-renders in ImportExpenses:**
+- Problem: Large transaction list re-renders on every txSettings change
+- Files: `src/features/expenses/pages/ImportExpenses.tsx:228-243` (scannedTransactions effect causes re-render)
+- Cause: No memoization of transaction card components or handler functions
+- Improvement path: Memoize transaction cards with React.memo. Use useCallback for all handlers. Consider virtualization for long lists.
+
+**Repeated API Calls on Component Mount:**
+- Problem: fetchTransactions called without dependency cleanup, could trigger multiple times
+- Files: `src/features/dashboard/hooks/usePersonalTransactions.ts:60-150` (fetchTransactions callback)
+- Cause: useCallback dependencies may not fully isolate side effects
+- Improvement path: Add explicit dependency tracking. Use useEffect cleanup to cancel in-flight requests.
+
+**No Pagination on Historical Data:**
+- Problem: Loads all transactions into memory. PersonalFinance pagination uses 20-item pages but loads all for calculations
+- Files: `src/features/dashboard/hooks/usePersonalTransactions.ts:36` (PAGE_SIZE = 20)
+- Impact: Memory bloat for users with thousands of transactions
+- Improvement path: Implement cursor-based pagination. Calculate totals on server-side aggregations.
+
+**Image Compression Blocking Main Thread:**
+- Problem: WebP compression done synchronously in file handler
+- Files: `src/features/groups/pages/GroupDetails.tsx:588` (compressToWebP called during file upload)
+- Impact: UI freezes during large image uploads
+- Improvement path: Move image compression to Web Worker. Show progress indicator.
 
 ## Fragile Areas
 
+**ImportExpenses Component State Management:**
+- Files: `src/features/expenses/pages/ImportExpenses.tsx`
+- Why fragile: Multiple interdependent state objects (step, files, scannedTransactions, txSettings, selectedGroupId). Complex effect dependencies. Manual state synchronization between views.
+- Safe modification: Add comprehensive unit tests before refactoring. Extract state to custom hook (useImportState). Use state machine pattern for step transitions.
+- Test coverage: No unit tests exist for this component. Critical business logic (expense import) is untested.
+
+**Group Balance Calculations:**
+- Files: `src/features/groups/pages/GroupDetails.tsx:47-150` (balances useMemo)
+- Why fragile: Complex debt simplification logic using external library. Missing edge case handling for null/undefined values.
+- Safe modification: Add unit tests for balance calculation. Add guards against null splits. Test with various split scenarios.
+- Test coverage: No tests for balance calculation logic.
+
 **Transaction Split Logic:**
-- Files:
-  - `src/features/expenses/hooks/useTransactions.ts` (lines 103-116, 169-181)
-  - `src/features/groups/pages/GroupDetails.tsx` (lines 46-64)
-- Why fragile: Split deletion and re-insertion on update is not atomic; balance calculation assumes equal splits
-- Safe modification: Always test with multi-member groups; verify balance calculations match after edits
-- Test coverage: None - no test files exist in project
+- Files: `src/features/expenses/hooks/useTransactions.ts:115-140` (split insertion), `src/features/dashboard/hooks/usePersonalTransactions.ts:251-310` (split updates)
+- Why fragile: Multiple code paths for handling splits (customSplits vs splitBetween vs single user). String-based IDs for split identification ('split-' prefix).
+- Safe modification: Consolidate split logic into single location. Use enum or type for ID prefixes. Add comprehensive tests.
+- Test coverage: No unit tests for split logic.
 
-**Onboarding Data Flow:**
-- Files: `src/features/auth/pages/Onboarding.tsx` (lines 385-466)
-- Why fragile: Complex multi-step form with async Supabase operations; errors in later steps don't rollback earlier ones
-- Safe modification: Test complete flow end-to-end; handle partial failures gracefully
-- Test coverage: None
-
-**Analytics Type Coercion:**
-- Files:
-  - `src/features/analytics/pages/Categories.tsx` (line 25)
-  - `src/features/analytics/pages/CategoryDetail.tsx` (lines 112, 116)
-- Why fragile: Uses `as any[]` to bridge incompatible transaction types
-- Safe modification: First unify transaction types, then update analytics
-- Test coverage: None
+**AI Service Model Selection:**
+- Files: `src/services/ai.ts:53-88` (getEffectiveModel)
+- Why fragile: Fallback list of models is hardcoded. Smoke test may fail intermittently due to rate limits. Cache not cleared on errors.
+- Safe modification: Make model list configurable. Add exponential backoff for smoke tests. Implement cache invalidation strategy.
+- Test coverage: No tests for model selection logic.
 
 ## Scaling Limits
 
 **In-Memory Model Cache:**
-- Current capacity: Unbounded Map storing model names per API key
-- Limit: Memory growth with many unique API keys
-- Files: `src/services/ai.ts` (line 15)
-- Scaling path: Add TTL; limit cache size; consider localStorage for persistence
+- Current capacity: Single API key cached per session
+- Limit: No cleanup of cache. Model stays cached until page reload. Multiple API key switching not handled efficiently.
+- Scaling path: Implement LRU cache for multiple keys. Add cache TTL. Clear old entries.
 
-**No Pagination:**
-- Current capacity: All transactions loaded at once
-- Limit: Performance degrades with 100+ transactions per group
-- Files:
-  - `src/features/expenses/hooks/useTransactions.ts` (no limit in query)
-  - `src/features/dashboard/hooks/usePersonalTransactions.ts` (no limit in query)
-- Scaling path: Implement cursor-based pagination; add virtual scrolling for lists
+**Transaction Processing Throughput:**
+- Current capacity: Sequential processing with 100ms delays between inserts
+- Limit: Can only process ~10 transactions per second. Batch import of 100+ receipts takes minutes.
+- Scaling path: Implement batch inserts instead of sequential. Use Promise.all with concurrency control. Add background job queue.
+
+**Group Member Listing:**
+- Current capacity: All members fetched in single query
+- Limit: Groups with 1000+ members would create large API response
+- Scaling path: Implement pagination for member lists. Add search/filter before fetching. Cache member list.
 
 ## Dependencies at Risk
 
-**React 19 (Bleeding Edge):**
-- Risk: React 19.2.3 is extremely new; ecosystem compatibility concerns
-- Files: `package.json` (line 14)
-- Impact: Some third-party libraries may not be compatible
-- Migration plan: Consider pinning to React 18.x for stability if issues arise
+**@google/genai Package:**
+- Risk: Beta SDK version (^1.37.0). API may change. SDK improvements critical for expense import feature.
+- Impact: Breaking changes would disable AI import feature entirely
+- Migration plan: Monitor Gemini API releases. Implement abstraction layer in `src/services/ai.ts` to isolate SDK usage.
 
-**Minimal Type Coverage:**
-- Risk: Only `@types/react-router-dom` installed; no other type packages
-- Files: `package.json` (devDependencies)
-- Impact: Missing types for some dependencies
-- Migration plan: Add `@types/react` if issues arise with React 19
+**recharts Library:**
+- Risk: Used for financial charts but not heavily integrated. Custom chart logic exists alongside library.
+- Impact: If removed, would need to replace chart components
+- Migration plan: Consolidate charting strategy - either full recharts or full custom. Current mixed approach is confusing.
+
+**Supabase Auth Dependency:**
+- Risk: Auth state managed directly by Supabase library. Session invalidation not handled gracefully.
+- Impact: Silent auth failures when token expires. No automatic token refresh.
+- Migration plan: Implement token refresh logic. Add explicit auth state machine. Test session expiration scenarios.
 
 ## Missing Critical Features
 
-**No Test Infrastructure:**
-- Problem: Zero test files exist in the project
-- Files: `package.json` (no test script or test dependencies)
-- Blocks: Confident refactoring; regression prevention; CI/CD pipelines
-
-**No Error Boundaries:**
-- Problem: Uncaught errors will crash entire app
-- Files: `src/App.tsx` (no ErrorBoundary wrapper)
-- Blocks: Graceful error handling; production stability
+**No Error Recovery Mechanism:**
+- Problem: Failed transaction imports leave database in inconsistent state. No rollback or retry logic.
+- Blocks: Users cannot safely import large batches of transactions. No audit trail of failed imports.
+- Impact: Data integrity risks. User frustration with failed operations.
 
 **No Offline Support:**
-- Problem: App requires constant network connectivity
-- Blocks: Mobile use cases; poor connectivity scenarios
+- Problem: All operations require network connection. No local caching or sync queue.
+- Blocks: App unusable on poor connections. Data loss if network drops during operations.
+- Impact: Poor UX in real-world conditions (spotty connectivity).
 
-**Missing Password Reset Flow:**
-- Problem: Login page has no "forgot password" functionality
-- Files: `src/features/auth/pages/Login.tsx` (no reset link/flow)
-- Blocks: Users who forget passwords
+**Missing Input Validation:**
+- Problem: Category names, transaction titles, amounts not validated before DB insert
+- Blocks: No protection against invalid data from AI or user input
+- Impact: Malformed data in database. Potential calculation errors.
+
+**No Audit Logging:**
+- Problem: No record of who made what changes when
+- Blocks: Cannot trace data modifications. Difficult to debug issues.
+- Impact: Compliance and debugging issues.
+
+**No Data Export/Import:**
+- Problem: No way for users to backup or migrate data
+- Blocks: Data lock-in. Users trapped if they want to switch services.
+- Impact: User retention issues.
 
 ## Test Coverage Gaps
 
-**Entire Application Untested:**
-- What's not tested: All features - authentication, groups, transactions, analytics, settings
-- Files: No test files exist (searched for `*.test.*` and `*.spec.*`)
-- Risk: Any refactoring or bug fix could introduce regressions unnoticed
-- Priority: High - critical for maintainability
+**Zero Unit Tests:**
+- What's not tested: Entire application has no test files. All business logic untested.
+- Files: No test files found in codebase
+- Risk: Critical logic (balance calculations, expense import, split logic) can break silently
+- Priority: HIGH - Essential for reliability
 
-**Specific High-Risk Untested Areas:**
-1. Balance calculations (`src/features/groups/pages/GroupDetails.tsx` lines 35-75)
-2. Transaction split logic (`src/features/expenses/hooks/useTransactions.ts`)
-3. AI extraction parsing (`src/services/ai.ts`)
-4. Onboarding multi-step form (`src/features/auth/pages/Onboarding.tsx`)
-5. Group invite/join flow (`src/features/groups/hooks/useGroups.ts`, `src/features/groups/pages/JoinGroup.tsx`)
+**No Component Tests:**
+- What's not tested: React components, especially forms and modals
+- Files: Complex components like `src/features/groups/pages/GroupDetails.tsx`, `src/features/expenses/pages/ImportExpenses.tsx`, `src/features/auth/pages/Onboarding.tsx`
+- Risk: UI regressions go unnoticed
+- Priority: HIGH
+
+**No Integration Tests:**
+- What's not tested: End-to-end flows (create group → add expense → settle debts)
+- Risk: Complex user journeys break without detection
+- Priority: MEDIUM
+
+**No API/Hook Tests:**
+- What's not tested: Supabase interactions, context hooks, custom hooks
+- Files: `src/features/expenses/hooks/useTransactions.ts`, `src/context/GroupsContext.tsx`, `src/features/dashboard/hooks/usePersonalTransactions.ts`
+- Risk: Data fetching logic has silent failures
+- Priority: MEDIUM
+
+**No AI Service Tests:**
+- What's not tested: Gemini integration, error handling, model selection fallbacks
+- Files: `src/services/ai.ts`
+- Risk: AI import feature brittleness unknown
+- Priority: MEDIUM
+
+## Architectural Concerns
+
+**Mixed Responsibility in Contexts:**
+- Problem: GroupsContext does both data fetching and business logic (CRUD operations)
+- Files: `src/context/GroupsContext.tsx`
+- Impact: Testing difficult. Logic not reusable outside React context.
+- Fix: Create separate service layer for group operations.
+
+**Weak Component Separation:**
+- Problem: Feature components contain too much inline logic instead of using service/hook abstractions
+- Files: `src/features/groups/pages/GroupDetails.tsx`, `src/features/expenses/pages/ImportExpenses.tsx`
+- Impact: Code reuse impossible. Testing painful.
+- Fix: Extract business logic to custom hooks and services.
+
+**Inconsistent Error Handling:**
+- Problem: Some places use try-catch with logging, others swallow errors silently
+- Files: Throughout codebase
+- Impact: Bugs hidden from developers. Poor user error messaging.
+- Fix: Implement consistent error handling pattern with structured logging.
 
 ---
 
-*Concerns audit: 2025-01-20*
+*Concerns audit: 2026-01-21*

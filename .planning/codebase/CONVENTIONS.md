@@ -1,310 +1,155 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-20
+**Analysis Date:** 2026-01-21
 
 ## Naming Patterns
 
 **Files:**
-- React components: PascalCase.tsx (e.g., `PersonalFinance.tsx`, `GroupDetails.tsx`)
-- Hooks: camelCase with `use` prefix (e.g., `useAuth.ts`, `useGroups.ts`, `useTransactions.ts`)
-- Context files: PascalCase with `Context` suffix (e.g., `AuthContext.tsx`, `ToastContext.tsx`)
-- Utility files: kebab-case (e.g., `image-utils.ts`, `constants.ts`)
-- Service files: camelCase (e.g., `ai.ts`, `supabase.ts`)
-- Type definition files: `index.ts` in `types/` directory
+- React components: `PascalCase.tsx` (e.g., `TransactionCard.tsx`, `PersonalFinance.tsx`)
+- Custom hooks: `camelCase.ts` prefixed with `use` (e.g., `useTransactions.ts`, `usePersonalTransactions.ts`)
+- Services/utilities: `camelCase.ts` (e.g., `personality.ts`, `ai.ts`, `dolar-api.ts`)
+- Type/interface files: `index.ts` (centralized in `src/types/index.ts`)
+- Context providers: `PascalCase.tsx` (e.g., `AuthContext.tsx`, `GroupsContext.tsx`)
 
 **Functions:**
-- React components: PascalCase function declarations
-  ```typescript
-  const PersonalFinance: React.FC = () => { ... }
-  ```
-- Hooks: camelCase with `use` prefix
-  ```typescript
-  export const useAuth = () => { ... }
-  export const useGroups = () => { ... }
-  ```
-- Helper functions: camelCase
-  ```typescript
-  const formatCurrency = (val: number) => ...
-  const getAppRoute = (pathname: string): AppRoute => ...
-  ```
-- Event handlers: camelCase with `handle` prefix
-  ```typescript
-  const handleSave = async () => { ... }
-  const handleDelete = async (id: string) => { ... }
-  const handleNavigate = (route: AppRoute) => { ... }
-  ```
+- Exported functions use camelCase (e.g., `useAuth`, `useTransactions`, `getArgentineInsight`)
+- Event handlers prefixed with `handle` (e.g., `handleEdit`, `handleDeleteClick`, `handleConfirmDelete`, `handleNavigate`)
+- Getter/finder functions use `get` prefix (e.g., `getRouteTitle`, `getBalanceChange`, `getArgentineInsight`)
+- Async functions return Promises (e.g., `signInWithGoogle`, `fetchTransactions`)
 
 **Variables:**
-- State variables: camelCase
-  ```typescript
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  ```
-- Constants: UPPER_SNAKE_CASE for config objects
-  ```typescript
-  export const CATEGORY_CONFIG: Record<string, ...> = { ... }
-  export const MOCK_TRANSACTIONS: Transaction[] = [ ... ]
-  ```
+- State variables use camelCase (e.g., `isSidebarCollapsed`, `isFilterOpen`, `selectedGroupId`, `deleteConfirm`)
+- Boolean flags prefixed with `is`, `has`, `can`, `should` (e.g., `isSelected`, `hasMore`, `canDelete`, `shouldRefresh`)
+- Temporary/loop variables use single letter or descriptive camelCase (e.g., `i`, `j`, `debtor`, `creditor`)
+- Context values suffixed with `Context` (e.g., `AuthContext`, `GroupsContext`)
 
-**Types/Interfaces:**
-- Interfaces: PascalCase with descriptive names
-  ```typescript
-  interface HeaderProps { ... }
-  interface GroupsProps { ... }
-  interface PersonalTransaction { ... }
-  ```
-- Enums: PascalCase with UPPER_SNAKE_CASE values
-  ```typescript
-  export enum AppRoute {
-    ONBOARDING = 'onboarding',
-    LOGIN = 'login',
-    DASHBOARD_PERSONAL = 'dashboard_personal',
-  }
-  ```
-- Type aliases: PascalCase
-  ```typescript
-  export type Theme = 'light' | 'dark' | 'system';
-  export type Currency = 'ARS' | 'USD';
-  export type ToastType = 'success' | 'error' | 'info' | 'loading';
-  ```
+**Types:**
+- Interfaces use PascalCase (e.g., `User`, `Transaction`, `PersonalTransaction`, `Category`, `Group`)
+- Union/discriminated types use UPPERCASE or PascalCase (e.g., `Theme`, `Currency`, `AIErrorCode`)
+- Enum names use PascalCase (e.g., `AppRoute`)
+- Interface properties use camelCase (e.g., `user_id`, `full_name`, `avatar_url` for DB fields; `userId`, `fullName` for JS objects)
 
 ## Code Style
 
 **Formatting:**
-- No explicit Prettier or ESLint configuration detected in project root
-- Indentation: 4 spaces (observed in most files)
-- Semicolons: Used consistently
-- Quotes: Single quotes for strings
-- Trailing commas: Used in multi-line arrays/objects
+- No explicit formatter configured (no .prettierrc)
+- Indentation: 4 spaces observed in most files (React components)
+- Line length: No strict limit enforced
+- Quotes: Single quotes used consistently in imports and strings
+- Semicolons: Used at end of statements
 
-**TypeScript:**
-- Strict mode not enabled (no `strict: true` in tsconfig)
-- Target: ES2022
-- Module: ESNext
-- JSX: react-jsx
-- Path aliases: `@/*` maps to `./src/*`
+**Linting:**
+- No explicit linting configuration found (no .eslintrc)
+- TypeScript strict mode enabled via `tsconfig.json`
+- Import organization loosely observed but not enforced
 
 ## Import Organization
 
 **Order:**
-1. React and React-related imports
-   ```typescript
-   import React, { useState, useEffect, useCallback } from 'react';
-   ```
-2. Third-party libraries (react-router-dom, lucide-react, supabase)
-   ```typescript
-   import { Routes, Route, Navigate } from 'react-router-dom';
-   import { Plus, ArrowDown, Loader2 } from 'lucide-react';
-   ```
-3. Internal absolute imports using `@/` alias
-   ```typescript
-   import { AppRoute, Theme, Currency } from '@/types/index';
-   import { supabase } from '@/lib/supabase';
-   import { useAuth } from '@/features/auth/hooks/useAuth';
-   ```
-4. Relative imports (when within same feature)
-   ```typescript
-   import { usePersonalTransactions } from '../hooks/usePersonalTransactions';
-   ```
+1. React and third-party libraries (`react`, `react-dom`, `react-router-dom`, `framer-motion`)
+2. SDK imports (`@google/genai`, `@supabase/supabase-js`)
+3. UI libraries (`lucide-react`)
+4. Local path aliases (`@/types`, `@/lib`, `@/features`, `@/components`, `@/context`, `@/services`)
+5. Relative imports (same directory)
 
 **Path Aliases:**
-- `@/*` -> `./src/*` (configured in `tsconfig.json` and `vite.config.ts`)
+- `@/*` resolves to `./src/*` (configured in `tsconfig.json`)
+- All imports use absolute paths with `@/` prefix rather than relative paths
+- Example: `import { useAuth } from '@/features/auth/hooks/useAuth'`
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks with error state management in hooks
+- Try-catch blocks used for async operations and API calls
+- Errors destructured from Supabase responses: `const { data, error } = await supabase...`
+- Throws or returns error objects in custom hooks
+- Examples from codebase (`src/features/expenses/hooks/useTransactions.ts`):
   ```typescript
   try {
-    const { data, error } = await supabase.from('...').select('...');
-    if (error) throw error;
-    // success handling
+      const { data, error } = await supabase.from('transactions').select(...)
+      if (error) throw error;
+      // Process data
   } catch (err: any) {
-    console.error('[useGroups] Error:', err);
-    setError(err.message);
+      console.error('Error fetching transactions:', err);
+      setError(err.message);
   } finally {
-    setLoading(false);
+      setLoading(false);
   }
   ```
-
-- Return objects with error property from async operations
-  ```typescript
-  const createGroup = async (name: string, type: string) => {
-    if (!user) return { error: 'No authenticated user' };
-    try {
-      // ... operation
-      return { data: groupData, error: null };
-    } catch (err: any) {
-      return { data: null, error: err.message };
-    }
-  };
-  ```
-
-- Toast notifications for user feedback
-  ```typescript
-  showToast('Grupo creado con exito', 'success');
-  showToast(err.message || 'Error al crear el grupo', 'error');
-  ```
-
-- Supabase error pattern: check for error property in response
-  ```typescript
-  const { data, error } = await supabase.auth.signInWithPassword({ ... });
-  if (error) throw error;
-  ```
+- State-based error tracking: `error` state in hooks (e.g., `[error, setError]`)
+- Toast notifications for user-facing errors via `useToast()` hook
+- Console logging for debugging, not production errors
 
 ## Logging
 
-**Framework:** Console (native browser console)
+**Framework:** `console` (no dedicated logger)
 
 **Patterns:**
-- Prefix logs with component/hook name in brackets
+- `console.log()` for informational messages, often with service prefixes
+- `console.warn()` for potential issues (e.g., fallback behaviors)
+- `console.error()` for actual errors and failures
+- Service-based prefixes: `[AI Service]`, `[DolarAPI]`, `[useCategories]`, `[GroupsContext]`
+- Example from `src/services/ai.ts`:
   ```typescript
-  console.log('[useGroups] Group created:', groupData);
-  console.error('[useGroups] Create group error:', groupError);
-  console.warn('[AI Service] Smoke test failed for ${modelName}:', error);
+  console.log("[AI Service] Available models:", availableModels);
+  console.warn("[AI Service] Could not list models, using fallback list.", error);
+  console.error("[AI Service] Error analyzing health:", error);
   ```
-- Use appropriate console methods:
-  - `console.log()` for success/info
-  - `console.error()` for errors
-  - `console.warn()` for warnings
+- Minimal logging in components, more in services and hooks
 
 ## Comments
 
 **When to Comment:**
-- Complex business logic explanations
-  ```typescript
-  // Optimistically remove from local state FIRST
-  setGroups(prev => prev.filter(g => g.id !== id));
-  ```
-- TODO/placeholder markers
-  ```typescript
-  // Pivot calculation to be implemented later
-  userBalance: 0,
-  ```
-- Configuration explanations
-  ```typescript
-  // Use string concatenation for className to avoid template literal issues in tool writing
-  ```
+- Algorithm explanations (e.g., in `src/lib/expert-math.ts` explaining debt simplification)
+- Complex logic or non-obvious decisions
+- TODO/FIXME markers sparingly (minimal use in codebase)
+- Section dividers for component layout blocks (e.g., `/* Mobile Menu Trigger */`)
 
 **JSDoc/TSDoc:**
-- Used for AI service functions with multi-line documentation
+- Used selectively in services and utility functions
+- Function descriptions at module level (e.g., `src/services/ai.ts`, `src/lib/expert-math.ts`)
+- Parameter and return type documentation minimal
+- Example from `src/lib/expert-math.ts`:
   ```typescript
   /**
-   * Service to extract expenses from images/PDFs using Gemini.
-   * Uses dynamic model selection to avoid 404 errors.
+   * Simplifies debts between a group of people.
+   * Reduces the total number of transactions needed to settle.
    */
-  export const extractExpensesFromImages = async (...) => { ... }
+  export const simplifyDebts = (balances: Record<string, number>, members: Member[]) => { ... }
   ```
 
 ## Function Design
 
 **Size:**
-- Keep functions focused on single responsibility
-- Extract sub-components within the same file for related UI (e.g., `GroupCard`, `CreateGroupModal`, `TransactionCard`)
+- Functions range from 10-50 lines typically
+- Larger files (400-1000 lines) are React pages, not single functions
+- Utility functions kept compact (20-30 lines)
+- Hooks may be longer due to state management and effects
 
 **Parameters:**
-- Use object destructuring for props
-  ```typescript
-  const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, ... }) => {
-  ```
-- Use data objects for multi-parameter operations
-  ```typescript
-  const addTransaction = async (data: {
-    title: string;
-    amount: number;
-    category?: string;
-    type: 'income' | 'expense';
-  }) => { ... }
-  ```
+- Destructured props in React components: `const Component: React.FC<Props> = ({ prop1, prop2 }) => { ... }`
+- Options objects for optional parameters (e.g., `{ skipRefresh?: boolean }` in `addTransaction`)
+- Single responsibility principle: functions accept related parameters only
 
 **Return Values:**
-- Hooks return objects with state and actions
-  ```typescript
-  return {
-    groups,
-    loading,
-    error,
-    createGroup,
-    updateGroup,
-    deleteGroup,
-    refreshGroups: fetchGroups
-  };
-  ```
-- Async operations return `{ data, error }` pattern
-  ```typescript
-  return { data: groupData, error: null };
-  return { data: null, error: err.message };
-  ```
+- Hooks return objects with state and methods: `{ transactions, loading, error, addTransaction, deleteTransaction }`
+- Async functions return typed responses: `{ data, error }`
+- React components return JSX
+- Utility functions return computed values (numbers, arrays, objects)
 
 ## Module Design
 
 **Exports:**
-- Named exports for hooks, utilities, and types
-  ```typescript
-  export const useAuth = () => { ... }
-  export const supabase = createClient(...);
-  export interface User { ... }
-  ```
-- Default exports for page components
-  ```typescript
-  export default PersonalFinance;
-  export default Groups;
-  export default Header;
-  ```
+- Named exports preferred for functions and types
+- Default exports rare (only for React components as default when used alone)
+- Example: `export const useAuth = () => { ... }` not `export default useAuth`
+- Barrel files: Not heavily used; single-responsibility modules
 
 **Barrel Files:**
-- Types barrel: `src/types/index.ts` exports all shared types
-- No barrel files for features (import directly from specific files)
-
-## Component Patterns
-
-**Functional Components with TypeScript:**
-```typescript
-const ComponentName: React.FC<Props> = ({ prop1, prop2 }) => {
-  // hooks
-  const [state, setState] = useState<Type>(initialValue);
-
-  // handlers
-  const handleAction = async () => { ... };
-
-  // render
-  return ( ... );
-};
-```
-
-**State Management:**
-- Local state with `useState` for UI state
-- Context for global state (Auth, Toast)
-- Custom hooks for data fetching and business logic
-
-**Conditional Rendering:**
-```typescript
-if (loading) {
-  return <Loader2 className="animate-spin" />;
-}
-
-{condition && <Component />}
-
-{condition ? <ComponentA /> : <ComponentB />}
-```
-
-## Styling Conventions
-
-**Tailwind CSS:**
-- Use utility classes directly in JSX
-- Use template literals for conditional classes
-  ```typescript
-  className={`base-classes ${condition ? 'active-classes' : 'inactive-classes'}`}
-  ```
-- Custom CSS variables for theming (e.g., `bg-background`, `bg-surface`, `text-primary`)
-- Glass morphism pattern: `glass-panel` class with backdrop blur
-
-**Icon Usage:**
-- Lucide React icons throughout
-- Consistent sizing: `w-4 h-4`, `w-5 h-5`, `w-6 h-6`
-- Color with Tailwind text utilities
+- Central type barrel: `src/types/index.ts` exports all type definitions
+- Services imported individually: `import { validateGeminiKey } from '@/services/ai'`
+- Components imported directly: `import TransactionCard from '@/features/expenses/components/TransactionCard'`
 
 ---
 
-*Convention analysis: 2026-01-20*
+*Convention analysis: 2026-01-21*
