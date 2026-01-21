@@ -100,9 +100,9 @@
 - [x] Mobile-optimized cards for Groups/Transactions
 - [x] Modal & Navigation z-index fixes
 
-### Phase 18: Group Join Links
+### Phase 18: Group Join Links (Completed)
 - **Goal**: Make `/join/:code` functional for secure group entry.
-- **Key Tasks**:
+- **Status**: ✅ Executed & Verified
   - Verify/Add `invite_code` to `groups`.
   - Implement secure `join_group_by_code` RPC.
   - Wire frontend route to RPC with auth checks.
