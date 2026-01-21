@@ -47,15 +47,15 @@ export const useTransactions = (groupId?: string | null) => {
                 merchant: t.title, // Mapping title to merchant for now
                 category: t.category,
                 amount: t.amount,
-                payer: {
+                payer: t.payer ? {
                     id: t.payer.id,
                     name: t.payer.full_name || 'Desconocido',
-                    avatar: t.payer.avatar_url,
-                },
-                splitWith: t.splits.map((s: any) => ({
+                    avatar: t.payer.avatar_url || '',
+                } : { id: t.payer_id, name: 'Desconocido', avatar: '' },
+                splitWith: (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
                     id: s.user.id,
-                    name: s.user.full_name,
-                    avatar: s.user.avatar_url
+                    name: s.user.full_name || 'Miembro',
+                    avatar: s.user.avatar_url || ''
                 })),
                 icon: 'Receipt', // Default
                 iconColor: 'text-blue-400',
@@ -75,17 +75,17 @@ export const useTransactions = (groupId?: string | null) => {
 
     const addTransaction = async (data: {
         amount: number;
+        category?: string;
         title: string;
-        category: string;
-        date: string;
-        splitBetween: string[]; // User IDs
-        customSplits?: { userId: string; amount: number }[];
+        date?: string;
+        splitBetween?: string[];
+        customSplits?: Record<string, number>;
         original_amount?: number;
         original_currency?: string;
         exchange_rate?: number;
         is_recurring?: boolean;
         installments?: string | null;
-    }) => {
+    }, options?: { skipRefresh?: boolean }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
         try {
@@ -98,8 +98,8 @@ export const useTransactions = (groupId?: string | null) => {
                     created_by: user.id,
                     amount: data.amount,
                     title: data.title,
-                    category: data.category,
-                    date: data.date,
+                    category: data.category || 'Varios',
+                    date: data.date || new Date().toISOString(),
                     original_amount: data.original_amount,
                     original_currency: data.original_currency,
                     exchange_rate: data.exchange_rate,
@@ -114,14 +114,14 @@ export const useTransactions = (groupId?: string | null) => {
             // 2. Insert Splits
             let splitInserts = [];
 
-            if (data.customSplits && data.customSplits.length > 0) {
-                splitInserts = data.customSplits.map(s => ({
+            if (data.customSplits && Object.keys(data.customSplits).length > 0) {
+                splitInserts = Object.entries(data.customSplits).map(([uid, amt]) => ({
                     transaction_id: txData.id,
-                    user_id: s.userId,
-                    amount_owed: s.amount,
-                    paid: s.userId === user.id
+                    user_id: uid,
+                    amount_owed: amt,
+                    paid: uid === user.id
                 }));
-            } else {
+            } else if (data.splitBetween && data.splitBetween.length > 0) {
                 const splitAmount = data.amount / data.splitBetween.length;
                 splitInserts = data.splitBetween.map(uid => ({
                     transaction_id: txData.id,
@@ -129,6 +129,14 @@ export const useTransactions = (groupId?: string | null) => {
                     amount_owed: splitAmount,
                     paid: uid === user.id
                 }));
+            } else {
+                // Single user fallback (personal transaction inside a group context)
+                splitInserts = [{
+                    transaction_id: txData.id,
+                    user_id: user.id,
+                    amount_owed: data.amount,
+                    paid: true
+                }];
             }
 
             const { error: splitError } = await supabase
@@ -137,7 +145,10 @@ export const useTransactions = (groupId?: string | null) => {
 
             if (splitError) throw splitError;
 
-            await fetchTransactions();
+            if (!options?.skipRefresh) {
+                await fetchTransactions();
+            }
+
             return { data: txData, error: null };
 
         } catch (err: any) {
@@ -241,6 +252,31 @@ export const useTransactions = (groupId?: string | null) => {
         }
     };
 
+    const deleteTransactions = async (ids: string[]) => {
+        if (!user || !groupId) return { error: 'Missing user or group' };
+        if (ids.length === 0) return { error: null };
+
+        try {
+            await supabase
+                .from('transaction_splits')
+                .delete()
+                .in('transaction_id', ids);
+
+            const { error } = await supabase
+                .from('transactions')
+                .delete()
+                .in('id', ids);
+
+            if (error) throw error;
+
+            await fetchTransactions();
+            return { error: null };
+        } catch (err: any) {
+            console.error('[useTransactions] Delete error:', err);
+            return { error: err.message };
+        }
+    };
+
     const updateSplitCategory = async (transactionId: string, category: string) => {
         if (!user) return { error: 'No authenticated user' };
 
@@ -269,6 +305,7 @@ export const useTransactions = (groupId?: string | null) => {
         updateTransaction,
         updateSplitCategory,
         deleteTransaction,
+        deleteTransactions,
         refreshTransactions: fetchTransactions
     };
 };

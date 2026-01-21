@@ -16,6 +16,8 @@ import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 import PremiumDatePicker from '@/components/ui/PremiumDatePicker';
+import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
+import { useToast } from '@/context/ToastContext';
 import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
 import { Transaction, PersonalTransaction, AppRoute } from '@/types/index';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +43,13 @@ const CategoryDetail: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingTx, setEditingTx] = useState<any>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        isOpen: boolean;
+        id: string | 'MASS_DELETE' | null;
+        isGroup?: boolean;
+        groupName?: string;
+    }>({ isOpen: false, id: null });
+    const { showToast } = useToast();
 
     const activeTransactions = scope === 'personal' ? personalTx : groupTx;
 
@@ -122,14 +131,33 @@ const CategoryDetail: React.FC = () => {
         setShowModal(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('¿Estás seguro de que querés eliminar este movimiento?')) return;
+    const handleDeleteClick = (tx: any) => {
+        setDeleteConfirm({
+            isOpen: true,
+            id: tx.id,
+            isGroup: tx.is_group || !isActiveScopePersonal,
+            groupName: tx.merchant || tx.title || 'gasto compartido'
+        });
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm.id) return;
+
+        let error;
         if (isActiveScopePersonal) {
-            await personalFuncs.deleteTransaction(id);
+            const res = await personalFuncs.deleteTransaction(deleteConfirm.id);
+            error = res.error;
         } else {
-            await groupFuncs.deleteTransaction(id);
+            const res = await groupFuncs.deleteTransaction(deleteConfirm.id);
+            error = res.error;
         }
+
+        if (error) {
+            showToast('Error al eliminar', 'error');
+        } else {
+            showToast('Movimiento eliminado', 'success');
+        }
+        setDeleteConfirm({ isOpen: false, id: null });
     };
 
     const handleSave = async (data: any) => {
@@ -158,6 +186,10 @@ const CategoryDetail: React.FC = () => {
     };
 
     const handleMassDelete = async () => {
+        setDeleteConfirm({ isOpen: true, id: 'MASS_DELETE' });
+    };
+
+    const executeMassDelete = async () => {
         const table = isActiveScopePersonal ? 'personal_transactions' : 'transactions';
         const { error } = await supabase
             .from(table)
@@ -165,9 +197,13 @@ const CategoryDetail: React.FC = () => {
             .in('id', selectedIds);
 
         if (!error) {
+            showToast(`${selectedIds.length} movimientos eliminados`, 'success');
             setSelectedIds([]);
             isActiveScopePersonal ? personalFuncs.refreshTransactions() : groupFuncs.refreshTransactions();
+        } else {
+            showToast('Error al eliminar movimientos', 'error');
         }
+        setDeleteConfirm({ isOpen: false, id: null });
     };
 
     const handleMassMove = async (newCategoryId: string) => {
@@ -180,6 +216,9 @@ const CategoryDetail: React.FC = () => {
         if (!error) {
             setSelectedIds([]);
             isActiveScopePersonal ? personalFuncs.refreshTransactions() : groupFuncs.refreshTransactions();
+            showToast(`${selectedIds.length} movimientos re-asignados`, 'success');
+        } else {
+            showToast('Error al re-asignar movimientos', 'error');
         }
     };
 
@@ -318,11 +357,11 @@ const CategoryDetail: React.FC = () => {
                                     key={tx.id}
                                     transaction={tx}
                                     onEdit={() => handleEdit(tx)}
-                                    onDelete={() => handleDelete(tx.id)}
+                                    onDelete={() => handleDeleteClick(tx)}
                                     onSelect={handleSelect}
                                     onChangeCategory={() => setSelectedIds([tx.id])}
                                     isSelected={selectedIds.includes(tx.id)}
-                                    contextName={isActiveScopePersonal ? 'Personal' : (groups.find(g => g.id === scope)?.name || 'Grupo')}
+                                    contextName={(tx as any).is_group ? `Split de ${(tx as any).payment_method}` : (isActiveScopePersonal ? 'Personal' : (groups.find(g => g.id === scope)?.name || 'Grupo'))}
                                 />
                             ))}
                         </div>
@@ -377,6 +416,34 @@ const CategoryDetail: React.FC = () => {
                 onClear={() => setSelectedIds([])}
                 onDelete={handleMassDelete}
                 onMove={handleMassMove}
+            />
+
+            <PremiumConfirmModal
+                isOpen={deleteConfirm.isOpen}
+                title={deleteConfirm.id === 'MASS_DELETE' ? 'Eliminar movimientos' : (deleteConfirm.isGroup ? 'Eliminar movimiento compartido' : 'Eliminar movimiento')}
+                message={
+                    deleteConfirm.id === 'MASS_DELETE'
+                        ? (() => {
+                            if (selectedIds.length === 1) {
+                                const tx = activeTransactions.find(t => t.id === selectedIds[0]);
+                                if (tx) {
+                                    const isGroup = (tx as any).is_group || !isActiveScopePersonal;
+                                    const name = (tx as any).merchant || (tx as any).title || 'gasto compartido';
+                                    return isGroup
+                                        ? `¿Estás seguro de que querés eliminar este movimiento compartido de "${name}"? Se borrará de tu historial. Esta acción no se puede deshacer.`
+                                        : '¿Estás seguro de que querés eliminar este movimiento? Esta acción no se puede deshacer.';
+                                }
+                            }
+                            return `¿Estás seguro de que querés eliminar estos ${selectedIds.length} movimientos? Esta acción no se puede deshacer.${!isActiveScopePersonal ? ' Afectará los balances del grupo.' : ''}`;
+                        })()
+                        : (deleteConfirm.isGroup
+                            ? `¿Estás seguro de que querés eliminar este movimiento compartido de "${deleteConfirm.groupName}"? Se borrará de tu historial. Esta acción no se puede deshacer.`
+                            : '¿Estás seguro de que querés eliminar este movimiento? Esta acción no se puede deshacer.'
+                        )
+                }
+                confirmLabel="Eliminar"
+                onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
+                onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
             />
         </div>
     );

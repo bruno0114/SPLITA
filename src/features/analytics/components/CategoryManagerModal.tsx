@@ -9,6 +9,8 @@ import {
 import { useCategories } from '../hooks/useCategories';
 import { Category } from '@/types/index';
 import { motion, AnimatePresence } from 'framer-motion';
+import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
+import { useToast } from '@/context/ToastContext';
 
 interface Props {
     isOpen: boolean;
@@ -53,6 +55,8 @@ const CategoryManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const { categories, addCategory, updateCategory, deleteCategory, loading } = useCategories();
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+    const { showToast } = useToast();
 
     // Form State
     const [name, setName] = useState('');
@@ -75,12 +79,14 @@ const CategoryManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
         try {
             if (editingId) {
                 await updateCategory(editingId, { name, icon, color, bg_color: bgColor });
+                showToast('Categoría actualizada', 'success');
             } else {
                 await addCategory({ name, icon, color, bg_color: bgColor });
+                showToast('Categoría creada', 'success');
             }
             resetForm();
-        } catch (err) {
-            alert("Error al guardar la categoría");
+        } catch (err: any) {
+            showToast(err.message || 'Error al guardar la categoría', 'error');
         }
     };
 
@@ -227,7 +233,7 @@ const CategoryManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => { if (confirm('¿Seguro?')) deleteCategory(cat.id); }}
+                                                    onClick={() => setDeleteConfirm({ isOpen: true, id: cat.id })}
                                                     className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -241,6 +247,21 @@ const CategoryManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     </div>
                 </div>
             </motion.div>
+
+            <PremiumConfirmModal
+                isOpen={deleteConfirm.isOpen}
+                title="Eliminar categoría"
+                message="¿Estás seguro de que querés eliminar esta categoría? Esto podría afectar la visualización de tus gastos pasados."
+                confirmLabel="Eliminar"
+                onConfirm={async () => {
+                    if (deleteConfirm.id) {
+                        await deleteCategory(deleteConfirm.id);
+                        showToast('Categoría eliminada', 'success');
+                        setDeleteConfirm({ isOpen: false, id: null });
+                    }
+                }}
+                onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+            />
         </div>
     );
 };

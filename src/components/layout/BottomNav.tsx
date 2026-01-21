@@ -91,44 +91,44 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
       </AnimatePresence>
 
       {/* Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-border z-50 pb-safe-area-inset-bottom h-[88px] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex items-end justify-between px-2 h-full pb-4">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-border z-50 pb-safe-area-inset-bottom h-[72px] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex items-center justify-between px-2 h-full">
 
           <div className="flex-1 flex justify-around">
             <NavButton
               active={currentRoute === AppRoute.DASHBOARD_PERSONAL}
-              icon={<Wallet className="w-6 h-6" />}
+              icon={<Wallet className="w-5 h-5" />}
               label="Finanzas"
               onClick={() => handleAction(AppRoute.DASHBOARD_PERSONAL)}
             />
             <NavButton
               active={currentRoute === AppRoute.DASHBOARD_GROUPS || currentRoute === AppRoute.GROUP_DETAILS}
-              icon={<Users className="w-6 h-6" />}
+              icon={<Users className="w-5 h-5" />}
               label="Grupos"
               onClick={() => handleAction(AppRoute.DASHBOARD_GROUPS)}
             />
           </div>
 
-          {/* Central Action Button */}
-          <div className="relative -top-8 px-2">
+          {/* Central Action Button - Tightened */}
+          <div className="relative -top-5 px-1">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`size-16 rounded-full bg-blue-gradient text-white flex items-center justify-center shadow-[0_8px_25px_rgba(0,122,255,0.4)] transition-transform duration-200 active:scale-95 ${isMenuOpen ? 'rotate-45' : ''}`}
+              className={`size-14 rounded-full bg-blue-gradient text-white flex items-center justify-center shadow-[0_8px_25px_rgba(0,122,255,0.4)] transition-transform duration-200 active:scale-95 ${isMenuOpen ? 'rotate-45' : ''}`}
             >
-              <Plus className="w-8 h-8" strokeWidth={2.5} />
+              <Plus className="w-7 h-7" strokeWidth={2.5} />
             </button>
           </div>
 
           <div className="flex-1 flex justify-around">
             <NavButton
               active={currentRoute === AppRoute.DASHBOARD_HEALTH}
-              icon={<LineChart className="w-6 h-6" />}
+              icon={<LineChart className="w-5 h-5" />}
               label="Salud"
               onClick={() => handleAction(AppRoute.DASHBOARD_HEALTH)}
             />
             <NavButton
               active={currentRoute === AppRoute.IMPORT}
-              icon={<Sparkles className="w-6 h-6" />}
+              icon={<Sparkles className="w-5 h-5" />}
               label="Importar IA"
               onClick={() => handleAction(AppRoute.IMPORT)}
             />

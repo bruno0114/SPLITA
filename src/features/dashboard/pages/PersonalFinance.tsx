@@ -13,6 +13,8 @@ import ExpenditureEvolutionChart from '../components/ExpenditureEvolutionChart';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import SubscriptionModal from '../components/SubscriptionModal';
+import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
+import { useToast } from '@/context/ToastContext';
 
 const PersonalFinance: React.FC = () => {
   const {
@@ -27,6 +29,7 @@ const PersonalFinance: React.FC = () => {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    deleteTransactions,
     refreshTransactions
   } = usePersonalTransactions();
 
@@ -36,6 +39,13 @@ const PersonalFinance: React.FC = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [activeType, setActiveType] = useState<string>('all');
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string | 'MASS_DELETE' | null;
+    isGroup?: boolean;
+    groupName?: string;
+  }>({ isOpen: false, id: null });
+  const { showToast } = useToast();
 
   const filteredTransactions = transactions.filter(tx => {
     if (activeType === 'all') return true;
@@ -75,9 +85,24 @@ const PersonalFinance: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de que querés eliminar este movimiento?')) {
-      await deleteTransaction(id);
+  const handleDeleteClick = (tx: PersonalTransaction) => {
+    setDeleteConfirm({
+      isOpen: true,
+      id: tx.id,
+      isGroup: tx.is_group,
+      groupName: tx.payment_method // Split transactions store group name here in Personal view
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirm.id) {
+      const { error } = await deleteTransaction(deleteConfirm.id);
+      if (error) {
+        showToast('Error al eliminar el movimiento', 'error');
+      } else {
+        showToast('Movimiento eliminado', 'success');
+      }
+      setDeleteConfirm({ isOpen: false, id: null });
     }
   };
 
@@ -101,15 +126,21 @@ const PersonalFinance: React.FC = () => {
   };
 
   const handleMassDelete = async () => {
-    const { error } = await supabase
-      .from('personal_transactions')
-      .delete()
-      .in('id', selectedIds);
+    if (selectedIds.length > 0) {
+      setDeleteConfirm({ isOpen: true, id: 'MASS_DELETE' });
+    }
+  };
+
+  const executeMassDelete = async () => {
+    const { error } = await deleteTransactions(selectedIds);
 
     if (!error) {
+      showToast(`${selectedIds.length} movimientos eliminados`, 'success');
       setSelectedIds([]);
-      refreshTransactions();
+    } else {
+      showToast('Error al eliminar movimientos', 'error');
     }
+    setDeleteConfirm({ isOpen: false, id: null });
   };
 
   const handleMassMove = async (newCategoryId: string) => {
@@ -121,6 +152,9 @@ const PersonalFinance: React.FC = () => {
     if (!error) {
       setSelectedIds([]);
       refreshTransactions();
+      showToast(`${selectedIds.length} movimientos re-asignados`, 'success');
+    } else {
+      showToast('Error al re-asignar movimientos', 'error');
     }
   };
 
@@ -237,12 +271,14 @@ const PersonalFinance: React.FC = () => {
                 multi={false}
               />
 
+              {/* 
               <PremiumDatePicker
                 startDate={filters.startDate || ''}
                 endDate={filters.endDate || ''}
-                onStartDateChange={(val) => setFilters({ ...filters, startDate: val })}
-                onEndDateChange={(val) => setFilters({ ...filters, endDate: val })}
+                onStartDateChange={(val) => setFilters(prev => ({ ...prev, startDate: val }))}
+                onEndDateChange={(val) => setFilters(prev => ({ ...prev, endDate: val }))}
               />
+              */}
             </div>
 
             <div className="flex items-center gap-4">
@@ -310,7 +346,7 @@ const PersonalFinance: React.FC = () => {
                   <TransactionCard
                     transaction={tx}
                     onEdit={() => handleEdit(tx)}
-                    onDelete={() => handleDelete(tx.id)}
+                    onDelete={() => handleDeleteClick(tx)}
                     onSelect={handleSelect}
                     isSelected={selectedIds.includes(tx.id)}
                     contextName={tx.is_group ? `Split de ${tx.payment_method}` : 'Personal'}
@@ -378,6 +414,39 @@ const PersonalFinance: React.FC = () => {
           <SubscriptionModal onClose={() => setShowPremiumModal(false)} />
         )}
       </AnimatePresence>
+
+      <PremiumConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title={deleteConfirm.id === 'MASS_DELETE' ? 'Eliminar movimientos' : (deleteConfirm.isGroup ? 'Eliminar movimiento compartido' : 'Eliminar movimiento')}
+        message={
+          deleteConfirm.id === 'MASS_DELETE'
+            ? (() => {
+              const selectedTxs = transactions.filter(t => selectedIds.includes(t.id));
+              const groupNames = Array.from(new Set(selectedTxs.filter(t => t.is_group).map(t => t.payment_method)));
+              const groupCount = selectedTxs.filter(t => t.is_group).length;
+
+              if (selectedIds.length === 1) {
+                const tx = selectedTxs[0];
+                return tx.is_group
+                  ? `⚠️ ¿Estás seguro de que querés eliminar este movimiento compartido de "${tx.payment_method}"? Se borrará de tu historial del grupo. Esta acción no se puede deshacer.`
+                  : '⚠️ ¿Estás seguro de que querés eliminar este movimiento? Esta acción no se puede deshacer.';
+              }
+
+              let msg = `⚠️ ¿Estás seguro de que querés eliminar estos ${selectedIds.length} movimientos?`;
+              if (groupCount > 0) {
+                msg += `\n\n⚠️ Atención: ${groupCount} movimientos pertenecen a grupos compartidos (${groupNames.join(', ')}). Al eliminarlos, también se borrarán del historial del grupo para vos.`;
+              }
+              return msg + "\n\nEsta acción no se puede deshacer.";
+            })()
+            : (deleteConfirm.isGroup
+              ? `⚠️ ¿Estás seguro de que querés eliminar este movimiento compartido de "${deleteConfirm.groupName}"? Se borrará de tu historial del grupo. Esta acción no se puede deshacer.`
+              : '⚠️ ¿Estás seguro de que querés eliminar este movimiento? Esta acción no se puede deshacer.'
+            )
+        }
+        confirmLabel="Eliminar"
+        onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+      />
     </div>
   );
 };

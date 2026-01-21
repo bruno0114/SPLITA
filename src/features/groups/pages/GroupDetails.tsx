@@ -14,6 +14,8 @@ import { simplifyDebts as expertSimplifyDebts } from '@/lib/expert-math';
 import { Transaction, AppRoute } from '@/types/index';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
+import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
+import { useToast } from '@/context/ToastContext';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -27,7 +29,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const { user } = useAuth();
 
    const { groups } = useGroups();
-   const { transactions, loading: loadingTx, addTransaction, updateTransaction, deleteTransaction, refreshTransactions } = useTransactions(groupId);
+   const { transactions, loading: loadingTx, addTransaction, updateTransaction, deleteTransaction, deleteTransactions, refreshTransactions } = useTransactions(groupId);
 
    const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
    const [showModal, setShowModal] = useState(false);
@@ -36,6 +38,8 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const [inviteCopied, setInviteCopied] = useState(false);
    const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+   const { showToast } = useToast();
 
    const group = groups.find(g => g.id === groupId);
 
@@ -79,6 +83,11 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
       userBalance = memberBalances[user.id] || 0;
 
+      // Special case: If user is alone in the group, show total spent as negative situation
+      if (group.members.length === 1 && group.members[0].id === user.id) {
+         userBalance = -userSpent;
+      }
+
       return { userBalance, totalSpent, userSpent, memberBalances };
    }, [transactions, group, user]);
 
@@ -98,9 +107,31 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       setShowModal(true);
    };
 
-   const handleDelete = async (id: string) => {
-      if (window.confirm('¿Estás seguro de que querés eliminar este gasto?')) {
-         await deleteTransaction(id);
+   const handleDeleteClick = (id: string) => {
+      setDeleteConfirm({ isOpen: true, id });
+   };
+
+   const executeMassDelete = async () => {
+      const { error } = await deleteTransactions(selectedIds);
+
+      if (!error) {
+         setSelectedIds([]);
+         showToast(`${selectedIds.length} movimientos eliminados`, 'success');
+      } else {
+         showToast('Error al eliminar movimientos', 'error');
+      }
+      setDeleteConfirm({ isOpen: false, id: null });
+   };
+
+   const handleConfirmDelete = async () => {
+      if (deleteConfirm.id) {
+         const { error } = await deleteTransaction(deleteConfirm.id);
+         if (error) {
+            showToast('Error al eliminar el gasto', 'error');
+         } else {
+            showToast('Gasto eliminado', 'success');
+         }
+         setDeleteConfirm({ isOpen: false, id: null });
       }
    };
 
@@ -109,11 +140,19 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    };
 
    const handleSave = async (data: any) => {
+      let result;
       if (editingTransaction) {
-         return await updateTransaction(editingTransaction.id, data);
+         result = await updateTransaction(editingTransaction.id, data);
       } else {
-         return await addTransaction(data);
+         result = await addTransaction(data);
       }
+
+      if (!result.error) {
+         showToast(editingTransaction ? 'Gasto actualizado' : 'Gasto guardado con éxito', 'success');
+      } else {
+         showToast('Error al guardar el gasto: ' + result.error, 'error');
+      }
+      return result;
    };
 
    const handleCloseModal = () => {
@@ -128,14 +167,8 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    };
 
    const handleMassDelete = async () => {
-      const { error } = await supabase
-         .from('transactions')
-         .delete()
-         .in('id', selectedIds);
-
-      if (!error) {
-         setSelectedIds([]);
-         refreshTransactions();
+      if (selectedIds.length > 0) {
+         setDeleteConfirm({ isOpen: true, id: 'MASS_DELETE' });
       }
    };
 
@@ -148,6 +181,9 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       if (!error) {
          setSelectedIds([]);
          refreshTransactions();
+         showToast(`${selectedIds.length} movimientos re-asignados`, 'success');
+      } else {
+         showToast('Error al re-asignar movimientos', 'error');
       }
    };
 
@@ -239,10 +275,12 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                      <p className="text-xl font-black text-slate-900 dark:text-white">$ {balances.userSpent.toLocaleString('es-AR')}</p>
                   </div>
                   <div className="glass-panel p-4 rounded-2xl relative overflow-hidden">
-                     <div className={`absolute right-0 top-0 bottom-0 w-1 ${balances.userBalance >= 0 ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+                     <div className={`absolute right-0 top-0 bottom-0 w-1 ${balances.userBalance > 0 ? 'bg-emerald-500' : balances.userBalance < 0 ? 'bg-rose-500' : 'bg-slate-300'}`}></div>
                      <p className="text-xs uppercase font-bold text-slate-500 mb-1">Tu situación</p>
-                     <p className={`text-xl font-black ${balances.userBalance >= 0 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                        {balances.userBalance >= 0 ? `+ $${balances.userBalance.toLocaleString('es-AR')}` : `- $${Math.abs(balances.userBalance).toLocaleString('es-AR')}`}
+                     <p className={`text-xl font-black ${balances.userBalance > 0 ? 'text-emerald-500' : balances.userBalance < 0 ? 'text-rose-500' : 'text-slate-500'}`}>
+                        {balances.userBalance > 0 ? `+ $${balances.userBalance.toLocaleString('es-AR')}` :
+                           balances.userBalance < 0 ? `- $${Math.abs(balances.userBalance).toLocaleString('es-AR')}` :
+                              `$ 0`}
                      </p>
                   </div>
                   <div className="glass-panel p-4 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-surface/50 transition-colors">
@@ -311,7 +349,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                                     key={tx.id}
                                     transaction={tx}
                                     onEdit={() => handleEdit(tx)}
-                                    onDelete={() => handleDelete(tx.id)}
+                                    onDelete={() => handleDeleteClick(tx.id)}
                                     onSelect={handleSelect}
                                     onChangeCategory={() => setSelectedIds([tx.id])}
                                     isSelected={selectedIds.includes(tx.id)}
@@ -439,6 +477,24 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             onClear={() => setSelectedIds([])}
             onDelete={handleMassDelete}
             onMove={handleMassMove}
+         />
+
+         <PremiumConfirmModal
+            isOpen={deleteConfirm.isOpen}
+            title={deleteConfirm.id === 'MASS_DELETE' ? 'Eliminar movimientos' : 'Eliminar gasto'}
+            message={
+               deleteConfirm.id === 'MASS_DELETE'
+                  ? (() => {
+                     if (selectedIds.length === 1) {
+                        return "¿Estás seguro de que querés eliminar este gasto? Esta acción no se puede deshacer y afectará los balances del grupo.";
+                     }
+                     return `¿Estás seguro de que querés eliminar estos ${selectedIds.length} gastos? Esta acción no se puede deshacer y afectará los balances de todos los miembros del grupo.`;
+                  })()
+                  : "¿Estás seguro de que querés eliminar este gasto? Esta acción no se puede deshacer y afectará los balances del grupo."
+            }
+            confirmLabel="Eliminar"
+            onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
+            onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
          />
       </div>
    );
@@ -738,6 +794,7 @@ interface GroupTransactionModalProps {
 }
 
 const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, onSave, members, initialData }) => {
+   const { showToast } = useToast();
    const [title, setTitle] = useState(initialData?.merchant || ''); // Note: merchant is mapped from title in useTransactions
    const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
    const [category, setCategory] = useState(initialData?.category || 'General');
@@ -796,7 +853,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
          // Validate 100%
          const totalPct = splitBetween.reduce((acc, id) => acc + (parseFloat(customValues[id]) || 0), 0);
          if (Math.abs(totalPct - 100) > 0.1) {
-            alert('El total debe ser 100%');
+            showToast('El total debe ser 100%', 'error');
             return;
          }
          finalSplits = splitBetween.map(id => ({
@@ -807,7 +864,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
          // Amount mode
          const totalCalc = splitBetween.reduce((acc, id) => acc + (parseFloat(customValues[id]) || 0), 0);
          if (Math.abs(totalCalc - totalAmount) > 0.1) {
-            alert('La suma de los montos debe ser igual al total');
+            showToast('La suma de los montos debe ser igual al total', 'error');
             return;
          }
          finalSplits = splitBetween.map(id => ({
@@ -817,13 +874,20 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
       }
 
       setSaving(true);
+
+      // Convert Array<{userId, amount}> to Record<userId, amount> for the hook
+      const splitsRecord: Record<string, number> = {};
+      finalSplits.forEach(s => {
+         splitsRecord[s.userId] = s.amount;
+      });
+
       const { error } = await onSave({
          title,
          amount: totalAmount,
          category,
          date: initialData?.date || new Date().toISOString(),
-         splitBetween, // IDs for backward compatibility
-         customSplits: finalSplits, // Precise calculations
+         splitBetween,
+         customSplits: splitsRecord,
          is_recurring: isRecurring,
          installments: currentInstallment && totalInstallments ? `${currentInstallment}/${totalInstallments}` : null
       });
@@ -984,7 +1048,7 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                            <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
                         </div>
                         <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                           <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'left-4.5' : 'left-0.5'}`} />
+                           <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                         </div>
                      </button>
                   </div>

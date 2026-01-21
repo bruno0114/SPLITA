@@ -243,7 +243,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                                     <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
                                 </div>
                                 <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                                    <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'left-4.5' : 'left-0.5'}`} />
+                                    <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                                 </div>
                             </button>
                         </div>

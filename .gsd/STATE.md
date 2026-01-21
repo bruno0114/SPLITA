@@ -3,8 +3,8 @@
 ## Current Position
 - **Milestone**: v1.1 (Interactions & Localization)
 - **Phase**: 16 (Verified)
-- **Status**: Active - Applying bugfixes for AI Import
-- **Next**: Phase 17 (Page Transitions)
+- **Status**: Active (resumed Wed Jan 21 15:44:26 -03 2026)
+- **Next**: Option A Deletion Logic (Personal -> Group)
 
 ## Last Session Summary
 Completed Phase 16 (Router Localization). 

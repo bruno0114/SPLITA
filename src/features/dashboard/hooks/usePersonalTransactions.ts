@@ -30,10 +30,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
     const [error, setError] = useState<string | null>(null);
     const offsetRef = useRef(0);
     const [hasMore, setHasMore] = useState(true);
-    const [filters, setFilters] = useState<TransactionFilters>(initialFilters || {
-        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0]
-    });
+    const [filters, setFilters] = useState<TransactionFilters>(initialFilters || {});
 
     const PAGE_SIZE = 20;
 
@@ -116,7 +113,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     id: `split-${s.transaction.id}`,
                     user_id: user.id,
                     title: s.transaction.title,
-                    amount: s.amount_owed,
+                    amount: Number(s.amount_owed),
                     category: s.category || s.transaction.category, // Use split category if available
                     type: 'expense',
                     date: s.transaction.date,
@@ -178,7 +175,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         exchange_rate?: number;
         is_recurring?: boolean;
         installments?: string | null;
-    }) => {
+    }, options?: { skipRefresh?: boolean }) => {
         if (!user) return { error: 'No authenticated user' };
 
         try {
@@ -207,8 +204,11 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
             }
 
             console.log('[usePersonalTransactions] Transaction added:', newTx);
-            // Refresh list - AWAIT to ensure UI updates
-            await fetchTransactions();
+
+            if (!options?.skipRefresh) {
+                await fetchTransactions();
+            }
+
             return { data: newTx, error: null };
         } catch (err: any) {
             console.error('[usePersonalTransactions] Error:', err);
@@ -281,15 +281,24 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         if (!user) return { error: 'No authenticated user' };
 
         try {
-            const { error } = await supabase
-                .from('personal_transactions')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', user.id);
+            // Check if it's a group split
+            if (id.startsWith('split-')) {
+                const realTxId = id.replace('split-', '');
+                const { error } = await supabase
+                    .from('transaction_splits')
+                    .delete()
+                    .eq('transaction_id', realTxId)
+                    .eq('user_id', user.id);
 
-            if (error) {
-                console.error('[usePersonalTransactions] Delete error:', error);
-                throw error;
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('personal_transactions')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', user.id);
+
+                if (error) throw error;
             }
 
             console.log('[usePersonalTransactions] Transaction deleted:', id);
@@ -301,9 +310,45 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         }
     };
 
+    const deleteTransactions = async (ids: string[]) => {
+        if (!user) return { error: 'No authenticated user' };
+
+        try {
+            const splitIds = ids.filter(id => id.startsWith('split-')).map(id => id.replace('split-', ''));
+            const personalIds = ids.filter(id => !id.startsWith('split-'));
+
+            if (personalIds.length > 0) {
+                const { error } = await supabase
+                    .from('personal_transactions')
+                    .delete()
+                    .in('id', personalIds)
+                    .eq('user_id', user.id);
+                if (error) throw error;
+            }
+
+            if (splitIds.length > 0) {
+                const { error } = await supabase
+                    .from('transaction_splits')
+                    .delete()
+                    .in('transaction_id', splitIds)
+                    .eq('user_id', user.id);
+                if (error) throw error;
+            }
+
+            await fetchTransactions();
+            return { error: null };
+        } catch (err: any) {
+            console.error('[usePersonalTransactions] Bulk Delete Error:', err);
+            return { error: err.message };
+        }
+    };
+
     useEffect(() => {
         fetchTransactions();
     }, [fetchTransactions]);
+
+    const loadMore = useCallback(() => fetchTransactions(true), [fetchTransactions]);
+    const refreshTransactions = useCallback(() => fetchTransactions(false), [fetchTransactions]);
 
     return {
         transactions,
@@ -317,7 +362,8 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         addTransaction,
         updateTransaction,
         deleteTransaction,
-        loadMore: () => fetchTransactions(true),
-        refreshTransactions: () => fetchTransactions(false)
+        deleteTransactions,
+        loadMore,
+        refreshTransactions
     };
 };
