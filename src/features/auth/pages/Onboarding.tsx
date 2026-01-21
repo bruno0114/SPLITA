@@ -41,8 +41,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
 
    const getProgress = () => (step / totalSteps) * 100;
 
+   const handleStart = () => {
+      localStorage.setItem('has_visited', 'true');
+      handleNext();
+   };
+
+   const handleLoginClick = () => {
+      localStorage.setItem('has_visited', 'true');
+      onLogin();
+   };
+
    return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-background text-slate-900 dark:text-white transition-colors">
+      <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-background text-slate-900 dark:text-white transition-colors">
          {/* Ambient Background */}
          <div className="fixed top-[-5%] left-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0">
             <div className="w-[500px] h-[500px] bg-blue-900 rounded-full blur-[120px]" />
@@ -63,15 +73,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
             </div>
             <div className="flex items-center gap-4">
                {step > 1 && <span className="text-slate-500 text-sm font-medium hidden sm:inline">Paso {step} de {totalSteps}</span>}
-               <button className="flex items-center justify-center rounded-xl h-10 px-3 gap-2 bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-colors text-sm">
-                  <span className="hidden sm:inline">Cerrar</span>
-                  <X className="w-4 h-4" />
-               </button>
             </div>
          </header>
 
          <main className="flex flex-1 flex-col items-center justify-center py-8 px-6 z-10">
-            {step === 1 && <StepWelcome onNext={handleNext} progress={getProgress()} onLogin={onLogin} />}
+            {step === 1 && <StepWelcome onNext={handleStart} progress={getProgress()} onLogin={handleLoginClick} />}
             {step === 2 && <StepUsageType onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.usageType} />}
             {step === 3 && <StepCreateGroup onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.groupName} />}
             {step === 4 && <StepAddPeople onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.groupMembers} />}

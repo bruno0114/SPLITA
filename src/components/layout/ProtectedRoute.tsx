@@ -15,6 +15,10 @@ export const ProtectedRoute = () => {
     }
 
     if (!user) {
+        const hasVisited = localStorage.getItem('has_visited');
+        if (!hasVisited) {
+            return <Navigate to="/onboarding" replace />;
+        }
         return <Navigate to="/login" replace />;
     }
 

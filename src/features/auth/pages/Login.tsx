@@ -38,7 +38,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
    };
 
    return (
-      <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-background text-slate-900 dark:text-white transition-colors p-6">
+      <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-background text-slate-900 dark:text-white transition-colors p-6">
          {/* Ambient Background */}
          <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0">
             <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
