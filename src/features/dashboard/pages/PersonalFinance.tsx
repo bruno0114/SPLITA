@@ -35,6 +35,12 @@ const PersonalFinance: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [activeType, setActiveType] = useState<string>('all');
+
+  const filteredTransactions = transactions.filter(tx => {
+    if (activeType === 'all') return true;
+    return tx.type === activeType;
+  });
 
   const observerRef = React.useRef<HTMLDivElement>(null);
 
@@ -223,10 +229,10 @@ const PersonalFinance: React.FC = () => {
                   { label: 'Gastos', value: 'expense', icon: ArrowUp },
                   { label: 'Ingresos', value: 'income', icon: ArrowDown },
                 ]}
-                value={filters.types?.length === 2 ? ['all'] : filters.types || ['all']}
+                value={[activeType]}
                 onChange={(vals) => {
-                  if (vals.includes('all')) setFilters({ ...filters, types: ['expense', 'income'] });
-                  else setFilters({ ...filters, types: vals as any });
+                  if (vals.length > 0) setActiveType(vals[0]);
+                  else setActiveType('all');
                 }}
                 multi={false}
               />
@@ -241,18 +247,18 @@ const PersonalFinance: React.FC = () => {
 
             <div className="flex items-center gap-4">
               {loading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
-              {transactions.length > 0 && (
+              {filteredTransactions.length > 0 && (
                 <button
                   onClick={() => {
-                    if (selectedIds.length === transactions.length) {
+                    if (selectedIds.length === filteredTransactions.length) {
                       setSelectedIds([]);
                     } else {
-                      setSelectedIds(transactions.map(tx => tx.id));
+                      setSelectedIds(filteredTransactions.map(tx => tx.id));
                     }
                   }}
                   className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20"
                 >
-                  {selectedIds.length === transactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                  {selectedIds.length === filteredTransactions.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
                 </button>
               )}
             </div>
@@ -266,7 +272,7 @@ const PersonalFinance: React.FC = () => {
           </div>
         </div>
 
-        {transactions.length === 0 && !loading ? (
+        {filteredTransactions.length === 0 && !loading ? (
           <div className="glass-panel rounded-[2rem] p-12 text-center relative overflow-hidden group">
             <div className="absolute inset-0 bg-blue-gradient opacity-[0.03] animate-pulse" />
             <div className="relative z-10">
@@ -287,7 +293,7 @@ const PersonalFinance: React.FC = () => {
         ) : (
           <div className="space-y-4 relative">
             <AnimatePresence mode="popLayout" initial={false}>
-              {transactions.map((tx) => (
+              {filteredTransactions.map((tx) => (
                 <motion.div
                   key={tx.id}
                   layout

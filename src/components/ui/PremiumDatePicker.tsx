@@ -168,7 +168,7 @@ const PremiumDatePicker: React.FC<PremiumDatePickerProps> = ({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute top-full left-0 mt-2 z-50 p-4 bg-surface border border-border rounded-2xl shadow-2xl min-w-[300px]"
+                        className="absolute top-full left-0 mt-2 z-[100] p-4 bg-surface border border-border rounded-2xl shadow-2xl min-w-[300px]"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">

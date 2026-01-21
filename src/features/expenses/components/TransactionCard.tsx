@@ -56,9 +56,9 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
     return (
         <div
             onClick={() => onSelect?.(transaction.id)}
-            className={`glass-panel p-4 rounded-2xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-all group cursor-pointer border-l-4 ${isSelected ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : isIncome ? 'border-l-emerald-500' : 'border-l-transparent'}`}
+            className={`glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-black/5 dark:hover:bg-white/10 transition-all group cursor-pointer border-l-4 ${isSelected ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : isIncome ? 'border-l-emerald-500' : 'border-l-transparent'}`}
         >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full md:w-auto">
                 {/* Multi-select Toggle */}
                 {onSelect && (
                     <div className={`transition-all duration-300 ${isSelected ? 'scale-110' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -73,30 +73,30 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                     </div>
                 )}
 
-                <div className={`size-12 rounded-xl flex items-center justify-center ${isIncome ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                <div className={`size-12 rounded-xl flex items-center justify-center shrink-0 ${isIncome ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
                     {isIncome ? <DollarSign className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <p className="font-bold text-sm text-slate-900 dark:text-white">{title}</p>
-                        {isRecurring && <Repeat className="w-3 h-3 text-blue-500 animate-pulse-slow" />}
+                        <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{title}</p>
+                        {isRecurring && <Repeat className="w-3 h-3 text-blue-500 animate-pulse-slow shrink-0" />}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0">
                             <Calendar className="w-3 h-3" />
                             <span>{formatDate(transaction.date)}</span>
                         </div>
                         <span className="text-slate-300 text-[10px]">•</span>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0">
                             {category}
                         </div>
 
                         {contextName && (
                             <>
                                 <span className="text-slate-300 text-[10px]">•</span>
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm border ${contextName.toLowerCase().includes('split') ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-white/5'}`}>
-                                    <ContextIcon className="w-2.5 h-2.5" />
-                                    {contextName}
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm border truncate max-w-[100px] ${contextName.toLowerCase().includes('split') ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-white/5'}`}>
+                                    <ContextIcon className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate">{contextName}</span>
                                 </div>
                             </>
                         )}
@@ -104,8 +104,8 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 md:gap-6">
-                <div className="text-right flex flex-col items-end">
+            <div className="flex items-center justify-between w-full md:w-auto gap-4 md:gap-6 pl-[4.5rem] md:pl-0">
+                <div className="text-left md:text-right flex flex-col md:items-end">
                     <p className={`font-black text-base md:text-lg flex items-center gap-1.5 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                         {isIncome ? '+' : '-'}{formatCurrency(amount)}
                         {installments && (
@@ -115,14 +115,14 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                         )}
                     </p>
                     {subtext && (
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[100px] md:max-w-none">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[150px] md:max-w-none">
                             {subtext}
                         </p>
                     )}
                 </div>
 
                 {showActions && (onEdit || onDelete || onChangeCategory) && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {onChangeCategory && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onChangeCategory(); }}

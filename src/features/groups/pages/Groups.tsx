@@ -294,9 +294,9 @@ const GroupCard: React.FC<{ group: Group, onClick?: () => void }> = ({ group, on
             {group.image && <img src={group.image} alt="" className="w-full h-full object-cover" />}
          </div>
 
-         <div className="flex items-center justify-between relative z-10">
+         <div className="flex flex-col md:flex-row md:items-center justify-between relative z-10 gap-4">
             <div className="flex items-center gap-5">
-               <div className="size-16 rounded-2xl bg-slate-800 flex items-center justify-center relative overflow-hidden shadow-lg">
+               <div className="size-16 rounded-2xl bg-slate-800 flex items-center justify-center relative overflow-hidden shadow-lg shrink-0">
                   {group.image ? (
                      <>
                         <div className="absolute inset-0 bg-black/30 z-10" />
@@ -326,21 +326,23 @@ const GroupCard: React.FC<{ group: Group, onClick?: () => void }> = ({ group, on
                </div>
             </div>
 
-            <div className="text-right flex flex-col items-end gap-1">
-               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1 pl-[5.25rem] md:pl-0">
+               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide md:text-right">
                   {group.userBalance === 0 ? 'Estás al día' : (group.userBalance > 0 ? 'Te deben' : 'Debés')}
                </span>
-               {group.userBalance !== 0 && (
-                  <span className={`text-xl font-black ${getStatusColor()}`}>
-                     $ {Math.abs(group.userBalance).toLocaleString('es-AR')}
-                  </span>
-               )}
-               {group.userBalance === 0 && (
-                  <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                     <Receipt className="w-3 h-3" />
-                     Saldado
-                  </div>
-               )}
+               <div className="flex items-center gap-2">
+                  {group.userBalance !== 0 && (
+                     <span className={`text-xl font-black ${getStatusColor()}`}>
+                        $ {Math.abs(group.userBalance).toLocaleString('es-AR')}
+                     </span>
+                  )}
+                  {group.userBalance === 0 && (
+                     <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                        <Receipt className="w-3 h-3" />
+                        Saldado
+                     </div>
+                  )}
+               </div>
             </div>
          </div>
       </div>
