@@ -443,7 +443,7 @@ const ImportExpenses: React.FC = () => {
 
         {/* Config Modal */}
         {showConfig && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-[#0F1623] rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-border">
               <div className="size-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
                 <BrainCircuit className="w-8 h-8" />

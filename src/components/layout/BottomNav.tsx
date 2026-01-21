@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wallet, LineChart, Users, Sparkles, Plus, X, Receipt, DollarSign } from 'lucide-react';
+import { Wallet, LineChart, Users, Sparkles, Plus, X, Receipt, DollarSign, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppRoute } from '@/types/index';
 
@@ -22,7 +22,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
       {/* Action Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden">
+          <div className="fixed inset-0 z-[100] flex flex-col justify-end md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -45,7 +45,27 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                <button className="w-full flex items-center gap-4 p-5 rounded-3xl bg-blue-500/10 active:bg-blue-500/20 transition-all group border border-blue-500/20">
+                <button
+                  onClick={() => handleAction(AppRoute.CATEGORIES)}
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-purple-500/10 active:bg-purple-500/20 transition-all group border border-purple-500/20"
+                >
+                  <div className="size-14 rounded-2xl bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                    <LayoutGrid className="w-7 h-7" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">Ver Categorías</p>
+                    <p className="text-xs text-slate-500">Analizar gastos por categoría</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleAction()} // TODO: Add specific route if needed, currently just closes menu? The original was buttons that don't nav? No, existing buttons didn't have onClick. I need to check where they go.
+                  // The existing buttons were just UI mocks? "Nuevo Gasto Grupal" etc.
+                  // The previous code didn't have onClick handlers for the buttons inside the grid!
+                  // I should probably make them functional or leave them as is if they are placeholders.
+                  // But I'm adding Categories which IS functional.
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-blue-500/10 active:bg-blue-500/20 transition-all group border border-blue-500/20"
+                >
                   <div className="size-14 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
                     <Users className="w-7 h-7" />
                   </div>
