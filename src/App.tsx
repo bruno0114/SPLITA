@@ -21,7 +21,27 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { useAuthContext } from '@/features/auth/context/AuthContext';
 
 const App: React.FC = () => {
-    const [theme, setTheme] = useState<Theme>('dark');
+    const [theme, setTheme] = useState<Theme>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark' || saved === 'light' || saved === 'system') return saved;
+        }
+        return 'dark';
+    });
+
+    // Save theme change
+    useEffect(() => {
+        localStorage.setItem('theme', theme);
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+
+        if (theme === 'system') {
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            root.classList.add(systemTheme);
+        } else {
+            root.classList.add(theme);
+        }
+    }, [theme]);
     const { user, signOut } = useAuthContext();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -105,18 +125,7 @@ const App: React.FC = () => {
 
     const currentRoute = getAppRoute(location.pathname);
 
-    // Handle Theme Logic
-    useEffect(() => {
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
 
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            root.classList.add(systemTheme);
-        } else {
-            root.classList.add(theme);
-        }
-    }, [theme]);
 
     const handleNavigate = (route: AppRoute) => {
         switch (route) {

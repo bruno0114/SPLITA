@@ -219,7 +219,7 @@ const PersonalFinance: React.FC = () => {
       {/* Transactions Section */}
       <section className="pb-24">
         {/* Filters Bar */}
-        <div className="glass-panel rounded-3xl p-6 mb-8 border-white/40 dark:border-white/10 bg-white/40 dark:bg-black/20">
+        <div className="glass-panel rounded-3xl p-6 mb-8 border-white/40 dark:border-white/10 bg-white/40 dark:bg-black/20 relative z-30">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-4">
               <PremiumToggleGroup

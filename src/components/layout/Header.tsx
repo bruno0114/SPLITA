@@ -175,7 +175,7 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
 
       {/* Creative Circular Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 z-50 md:hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]`}
+        className={`fixed inset-0 z-[100] md:hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]`}
         style={{
           pointerEvents: isMobileMenuOpen ? 'auto' : 'none',
           clipPath: isMobileMenuOpen
