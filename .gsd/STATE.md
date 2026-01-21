@@ -2,9 +2,9 @@
 
 ## Current Position
 - **Milestone**: v1.1 (Interactions & Localization)
-- **Phase**: 16 (Verified)
-- **Status**: Active (resumed Wed Jan 21 16:01:30 -03 2026)
-- **Next**: Final Confirmation of AI Import Totals
+- **Phase**: Debugging (Group Transaction Visibility)
+- **Status**: Active (resumed Wed Jan 21 17:27:00 -03 2026)
+- **Next**: Verify console logs for group splits
 
 ## Last Session Summary
 Completed Phase 16 (Router Localization). 

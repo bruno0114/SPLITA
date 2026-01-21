@@ -252,7 +252,7 @@ const PersonalFinance: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Movimientos</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{transactions.length}</p>
+            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">{summary.totalCount}</p>
           </div>
         </div>
       </div>

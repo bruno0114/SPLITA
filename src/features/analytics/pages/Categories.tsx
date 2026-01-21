@@ -25,7 +25,7 @@ const Categories: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Data Fetching
-    const { transactions: personalTx } = usePersonalTransactions();
+    const { fullTransactions: personalTx } = usePersonalTransactions();
     const { groups } = useGroups();
     const { transactions: groupTx } = useTransactions(scope !== 'personal' ? scope : null);
 

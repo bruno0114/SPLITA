@@ -8,6 +8,7 @@ export interface PersonalFinanceSummary {
     balance: number;
     totalIncome: number;
     totalExpenses: number;
+    totalCount: number;
 }
 
 export interface TransactionFilters {
@@ -24,7 +25,8 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
     const [summary, setSummary] = useState<PersonalFinanceSummary>({
         balance: 0,
         totalIncome: 0,
-        totalExpenses: 0
+        totalExpenses: 0,
+        totalCount: 0
     });
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -53,7 +55,8 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         return {
             totalIncome,
             totalExpenses,
-            balance: totalIncome - totalExpenses
+            balance: totalIncome - totalExpenses,
+            totalCount: txs.length
         };
     };
 
@@ -61,7 +64,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         if (!user?.id) {
             console.log('[usePersonalTransactions] No user session, clearing data.');
             setTransactions([]);
-            setSummary({ balance: 0, totalIncome: 0, totalExpenses: 0 });
+            setSummary({ balance: 0, totalIncome: 0, totalExpenses: 0, totalCount: 0 });
             setLoading(false);
             setLoadingMore(false);
             setError(null);
@@ -119,22 +122,24 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     .select(`
                         id,
                         amount_owed,
-                        category,
-                        type,
                         transaction:transactions (
                             id,
                             title,
                             category,
                             date,
-                            type,
+                            amount,
                             group:groups ( name )
                         )
                     `)
                     .eq('user_id', user.id);
 
                 if (sError) {
-                    console.warn('[usePersonalTransactions] Group splits query failed (Check RLS/Relationships):', sError);
+                    console.error('[usePersonalTransactions] Group splits query ERROR:', sError);
                 } else if (groupSplits) {
+                    console.log(`[usePersonalTransactions] GROUP DATA: Found ${groupSplits.length} splits in DB`);
+                    if (groupSplits.length > 0) {
+                        console.log('[usePersonalTransactions] First Raw Split:', JSON.stringify(groupSplits[0], null, 2));
+                    }
                     // 3. Map group splits to common format and filter
                     mappedGroupTx = groupSplits
                         .filter(s => s?.transaction)
@@ -143,22 +148,22 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                             user_id: user.id,
                             title: s.transaction.title,
                             amount: Number(s.amount_owed || 0),
-                            category: s.category || s.transaction.category || 'Otros',
-                            type: (s.type || s.transaction.type || 'expense') as 'income' | 'expense',
+                            category: s.transaction.category || 'Otros',
+                            type: (s.transaction.amount >= 0 ? 'expense' : 'income') as 'income' | 'expense',
                             date: s.transaction.date,
                             payment_method: s.transaction.group?.name || 'Grupo',
                             is_group: true
                         }))
                         .filter((tx: any) => {
-                            if (filters.startDate && tx.date < filters.startDate) return false;
-                            if (filters.endDate) {
-                                const endDateTime = `${filters.endDate}T23:59:59.999Z`;
-                                if (tx.date > endDateTime) return false;
-                            }
-                            if (filters.categories && filters.categories.length > 0 && !filters.categories.includes(tx.category)) return false;
-                            if (filters.types && filters.types.length > 0 && !filters.types.includes(tx.type)) return false;
-                            return true;
+                            const inDateRange = (!filters.startDate || tx.date >= filters.startDate) &&
+                                (!filters.endDate || tx.date <= `${filters.endDate}T23:59:59.999Z`);
+                            const inCategory = !filters.categories || filters.categories.length === 0 || filters.categories.includes(tx.category);
+                            const inType = !filters.types || filters.types.length === 0 || filters.types.includes(tx.type);
+
+                            return inDateRange && inCategory && inType;
                         });
+
+                    console.log(`[usePersonalTransactions] Mapped Group TXs after filters: ${mappedGroupTx.length}`);
                 }
             } catch (splitErr) {
                 console.error('[usePersonalTransactions] Error fetching/mapping splits:', splitErr);
