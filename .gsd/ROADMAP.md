@@ -1,15 +1,21 @@
 # ROADMAP.md
 
-> **Current Milestone**: Core UX, Groups Management & AI Evolution
-> **Goal**: Fix group blockers, implement invites, add spending analytics, and upgrade AI import with FX/Per-item control.
+> **Current Milestone**: v1.1 - Interactions & Localization
+> **Goal**: Polish the user experience with fluid page transitions and full Spanish URL localization.
 
 ## Must-Haves
-- [ ] **Group Recovery (P0)**: Functional group editing (settings, image) and working Invite/Join flow.
-- [ ] **Navigation (P1)**: Logout accessibility in header (independent of sidebar state).
-- [ ] **Categories (P1)**: Spend analytics by category with drilldown to transaction lists.
-- [ ] **AI Import v2 (P1)**: Per-item selection (toggles) and currency/FX detection with user confirmation.
+- [ ] **Spanish Routes**: `/grupos`, `/finanzas`, `/salud` instead of English slugs.
+- [ ] **Page Transitions**: Smooth entering/exiting animations between tabs.
 
 ## Phases
+
+### Phase 16: Router Localization (Spanish Slugs)
+**Status**: ⬜ Not Started
+**Objective**: Refactor `AppRoute` enum and all routing logic to use Spanish paths (SEO & UX).
+
+### Phase 17: Page Transitions (AnimatePresence)
+**Status**: ⬜ Not Started
+**Objective**: Implement `framer-motion` page transitions for a native app feel.
 
 ### Phase 1: Authentication & Onboarding Persistence
 **Status**: ⬜ Not Started
