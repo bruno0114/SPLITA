@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { UserPlus, ArrowRight, Loader2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AppRoute } from '@/types/index';
 
 const JoinGroup: React.FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
@@ -43,7 +44,7 @@ const JoinGroup: React.FC = () => {
     const handleJoin = async () => {
         if (!user) {
             // Redirect to login but save the current path to return after
-            navigate(`/login?redirectTo=/join/${inviteCode}`);
+            navigate(`${AppRoute.LOGIN}?redirectTo=/unirse/${inviteCode}`);
             return;
         }
 
@@ -58,7 +59,7 @@ const JoinGroup: React.FC = () => {
         } else {
             setIsJoined(true);
             setTimeout(() => {
-                navigate(`/groups/${group.id}`);
+                navigate(`/grupos/${group.id}`);
             }, 1500);
         }
     };
@@ -92,7 +93,7 @@ const JoinGroup: React.FC = () => {
                                 <AlertCircle className="w-8 h-8" />
                             </div>
                             <p className="text-slate-700 dark:text-slate-300 font-bold">{error}</p>
-                            <Link to="/groups" className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                            <Link to={AppRoute.DASHBOARD_GROUPS} className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
                                 Volver a mis grupos <ArrowRight className="w-4 h-4" />
                             </Link>
                         </div>
@@ -126,7 +127,7 @@ const JoinGroup: React.FC = () => {
                                         <p className="text-sm font-bold">Ya sos parte de este grupo.</p>
                                     </div>
                                     <button
-                                        onClick={() => navigate(`/groups/${group.id}`)}
+                                        onClick={() => navigate(`/grupos/${group.id}`)}
                                         className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition-all"
                                     >
                                         Ver Grupo <ArrowRight className="w-5 h-5" />

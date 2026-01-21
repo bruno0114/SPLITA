@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEconomicHealth } from '../hooks/useEconomicHealth';
 import SubscriptionModal from '../components/SubscriptionModal';
+import { AppRoute } from '@/types/index';
 
 const EconomicHealth: React.FC = () => {
    const { data, loading, refreshAdvice } = useEconomicHealth();
@@ -153,7 +154,7 @@ const EconomicHealth: React.FC = () => {
                               <p className="text-xs text-slate-500">Configurá tu propia API Key para obtener consejos financieros expertos basados en tus gastos.</p>
                            </div>
                            <button
-                              onClick={() => navigate('/settings')}
+                              onClick={() => navigate(AppRoute.SETTINGS)}
                               className="px-6 py-2 rounded-xl bg-blue-600/10 text-blue-600 text-xs font-bold hover:bg-blue-600/20 transition-all uppercase tracking-widest border border-blue-600/20"
                            >
                               Configurar ahora

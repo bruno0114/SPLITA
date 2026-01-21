@@ -457,7 +457,7 @@ const ImportExpenses: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate(AppRoute.SETTINGS)}
             className={`px-4 py-2 rounded-lg bg-surface border border-border text-sm font-semibold flex items-center gap-2 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 ${profile?.gemini_api_key ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/5' : 'text-slate-500'}`}
           >
             {profile?.gemini_api_key ? (
@@ -527,7 +527,7 @@ const ImportExpenses: React.FC = () => {
               </p>
               <div className="flex flex-col gap-3">
                 <Link
-                  to="/settings"
+                  to={AppRoute.SETTINGS}
                   className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-center hover:scale-[1.02] transition-transform"
                 >
                   Ir a Ajustes

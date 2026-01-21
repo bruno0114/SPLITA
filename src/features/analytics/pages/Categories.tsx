@@ -12,6 +12,7 @@ import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useCategoryStats } from '../hooks/useCategoryStats';
 import CategoryManagerModal from '@/features/analytics/components/CategoryManagerModal';
 import { Settings2 } from 'lucide-react';
+import { AppRoute } from '@/types/index';
 
 // Map string icon names to components
 const IconMap: Record<string, React.ElementType> = {
@@ -103,7 +104,7 @@ const Categories: React.FC = () => {
                     return (
                         <div
                             key={cat.id}
-                            onClick={() => navigate(`/categories/${scope}/${cat.id}`)}
+                            onClick={() => navigate(`/categorias/${scope}/${cat.id}`)}
                             className="glass-panel p-6 rounded-2xl group hover:border-primary/30 active:scale-[0.98] transition-all cursor-pointer"
                         >
                             <div className="flex justify-between items-start mb-4">

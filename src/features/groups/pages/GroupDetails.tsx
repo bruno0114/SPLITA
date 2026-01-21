@@ -11,7 +11,7 @@ import InviteModal from '@/features/groups/components/InviteModal';
 import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
 import { simplifyDebts as expertSimplifyDebts } from '@/lib/expert-math';
-import { Transaction } from '@/types/index';
+import { Transaction, AppRoute } from '@/types/index';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 
@@ -85,7 +85,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
    const handleBack = () => {
       if (onBack) onBack();
-      else navigate('/groups');
+      else navigate(AppRoute.DASHBOARD_GROUPS);
    };
 
    const handleAddTransaction = () => {
@@ -474,7 +474,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
          onClose();
          setTimeout(() => {
             if (onBack) onBack();
-            else navigate('/groups');
+            else navigate(AppRoute.DASHBOARD_GROUPS);
          }, 50);
       } catch (err: any) {
          setError(err.message);
@@ -510,7 +510,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
          onClose();
          setTimeout(() => {
             if (onBack) onBack();
-            else navigate('/groups');
+            else navigate(AppRoute.DASHBOARD_GROUPS);
          }, 50);
       } catch (err: any) {
          setError(err.message);

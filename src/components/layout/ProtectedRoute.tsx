@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { AppRoute } from '@/types/index';
 
 export const ProtectedRoute = () => {
     const { user, loading } = useAuth();
@@ -17,9 +18,9 @@ export const ProtectedRoute = () => {
     if (!user) {
         const hasVisited = localStorage.getItem('has_visited');
         if (!hasVisited) {
-            return <Navigate to="/onboarding" replace />;
+            return <Navigate to={AppRoute.ONBOARDING} replace />;
         }
-        return <Navigate to="/login" replace />;
+        return <Navigate to={AppRoute.LOGIN} replace />;
     }
 
     return <Outlet />;

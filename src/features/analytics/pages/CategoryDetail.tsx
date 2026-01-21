@@ -17,7 +17,7 @@ import TransactionModal from '@/features/expenses/components/TransactionModal';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 import PremiumDatePicker from '@/components/ui/PremiumDatePicker';
 import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
-import { Transaction, PersonalTransaction } from '@/types/index';
+import { Transaction, PersonalTransaction, AppRoute } from '@/types/index';
 import { supabase } from '@/lib/supabase';
 
 const ITEMS_PER_PAGE = 8;
@@ -189,7 +189,7 @@ const CategoryDetail: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/categories')}
+                        onClick={() => navigate(AppRoute.CATEGORIES)}
                         className="p-3 rounded-2xl bg-surface border border-border hover:border-primary/50 transition-all shadow-sm"
                     >
                         <ArrowLeft className="w-5 h-5 text-slate-900 dark:text-white" />
