@@ -94,9 +94,9 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                         {contextName && (
                             <>
                                 <span className="text-slate-300 text-[10px]">•</span>
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm border truncate max-w-[100px] ${contextName.toLowerCase().includes('split') ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-white/5'}`}>
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm border truncate max-w-[100px] ${contextName.toLowerCase().includes('split') ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-white/5'}`}>
                                     <ContextIcon className="w-2.5 h-2.5 shrink-0" />
-                                    <span className="truncate">{contextName}</span>
+                                    <span className="truncate">{contextName.replace('Split de ', '')}</span>
                                 </div>
                             </>
                         )}

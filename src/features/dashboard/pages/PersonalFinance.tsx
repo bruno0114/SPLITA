@@ -232,9 +232,9 @@ const PersonalFinance: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mis ingresos</p>
-            <p className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">
+            <div className="text-xl md:text-2xl font-bold mt-1 text-slate-900 dark:text-white">
               <AnimatedPrice amount={summary.totalIncome} />
-            </p>
+            </div>
           </div>
         </div>
         <div className="glass-panel p-5 md:p-6 rounded-2xl flex flex-row md:flex-col items-center md:items-start gap-4 group hover:bg-black/5 dark:hover:bg-white/[0.07] transition-all">

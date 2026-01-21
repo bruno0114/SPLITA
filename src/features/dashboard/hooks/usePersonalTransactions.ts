@@ -120,7 +120,6 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                 const { data: groupSplits, error: sError } = await supabase
                     .from('transaction_splits')
                     .select(`
-                        id,
                         amount_owed,
                         transaction:transactions (
                             id,
