@@ -10,7 +10,7 @@
 ## Phases
 
 ### Phase 16: Router Localization (Spanish Slugs)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Refactor `AppRoute` enum and all routing logic to use Spanish paths (SEO & UX).
 
 ### Phase 17: Page Transitions (AnimatePresence)
