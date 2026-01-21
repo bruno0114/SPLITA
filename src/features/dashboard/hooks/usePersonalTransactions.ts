@@ -284,11 +284,18 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
             // Check if it's a group split
             if (id.startsWith('split-')) {
                 const realTxId = id.replace('split-', '');
-                const { error } = await supabase
+
+                // First delete splits (manual cascade for safety/clarity)
+                await supabase
                     .from('transaction_splits')
                     .delete()
-                    .eq('transaction_id', realTxId)
-                    .eq('user_id', user.id);
+                    .eq('transaction_id', realTxId);
+
+                // Then delete the parent transaction (Option A: Total Deletion)
+                const { error } = await supabase
+                    .from('transactions')
+                    .delete()
+                    .eq('id', realTxId);
 
                 if (error) throw error;
             } else {
@@ -327,11 +334,17 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
             }
 
             if (splitIds.length > 0) {
-                const { error } = await supabase
+                // First delete splits (manual cascade for safety/clarity)
+                await supabase
                     .from('transaction_splits')
                     .delete()
-                    .in('transaction_id', splitIds)
-                    .eq('user_id', user.id);
+                    .in('transaction_id', splitIds);
+
+                // Option A: Total Deletion from parent transactions table
+                const { error } = await supabase
+                    .from('transactions')
+                    .delete()
+                    .in('id', splitIds);
                 if (error) throw error;
             }
 
