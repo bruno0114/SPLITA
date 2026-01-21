@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History } from 'lucide-react';
 import * as Icons from 'lucide-react';
-import { Transaction } from '@/types/index';
+import { Transaction, AppRoute } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
@@ -345,9 +345,9 @@ const ImportExpenses: React.FC = () => {
       setSuccess(`¡Éxito! Se importaron ${successCount} gastos correctamente.`);
       setTimeout(() => {
         if (selectedGroupId === 'personal') {
-          navigate('/dashboard');
+          navigate(AppRoute.DASHBOARD_PERSONAL);
         } else {
-          navigate(`/groups/${selectedGroupId}`);
+          navigate(`/grupos/${selectedGroupId}`);
         }
       }, 2000);
     } catch (err: any) {
@@ -533,8 +533,8 @@ const ImportExpenses: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Destination Selection */}
-          <div className="mb-8 p-6 bg-surface/50 backdrop-blur-xl border border-blue-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+          {/* Destination Selection - z-20 to stay above transaction table */}
+          <div className="mb-8 p-6 bg-surface/50 backdrop-blur-xl border border-blue-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm relative z-20">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
                 <Icons.LayoutDashboard className="w-5 h-5" />
@@ -563,8 +563,8 @@ const ImportExpenses: React.FC = () => {
           </div>
 
           <div className="bg-surface/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl mb-24 relative z-10">
-            {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 border-b border-border bg-slate-50/50 dark:bg-slate-800/20 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+            {/* Desktop Table Header - Hidden on mobile */}
+            <div className="hidden lg:grid grid-cols-12 gap-4 border-b border-border bg-slate-50/50 dark:bg-slate-800/20 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
               <div className="col-span-1"></div>
               <div className="col-span-2">Fecha</div>
               <div className="col-span-3">Comercio</div>
@@ -579,49 +579,99 @@ const ImportExpenses: React.FC = () => {
                 if (!s) return null;
 
                 return (
-                  <div key={tx.id} className={`grid grid-cols-12 gap-4 px-6 py-4 items-center transition-colors ${s.selected ? 'hover:bg-black/5 dark:hover:bg-white/5' : 'opacity-40 grayscale-sm'}`}>
-                    <div className="col-span-1 flex justify-center">
-                      <button
-                        onClick={() => toggleSelection(tx.id)}
-                        className={`size-6 rounded-lg border-2 flex items-center justify-center transition-all ${s.selected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-700'}`}
-                      >
-                        {s.selected && <Check className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <div className="col-span-2 text-sm font-medium">{tx.date}</div>
-                    <div className="col-span-3">
-                      <p className="font-bold text-slate-900 dark:text-white truncate">{tx.merchant}</p>
-                      {s.installments && <p className="text-[10px] font-bold text-blue-500 uppercase">Cuota {s.installments}</p>}
-                    </div>
-                    <div className="col-span-2">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {tx.category}
-                      </span>
-                    </div>
-                    <div className="col-span-1 flex justify-center">
-                      <button
-                        onClick={() => toggleRecurring(tx.id)}
-                        className={`p-2 rounded-lg transition-colors ${s.isRecurring ? 'bg-orange-500/20 text-orange-500' : 'text-slate-300'}`}
-                        title="Marcar como recurrente"
-                      >
-                        <History className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="col-span-3 text-right space-y-1">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        <AnimatedPrice amount={calculateConvertedAmount(tx.id)} showCode />
-                      </div>
-                      {s.currency === 'USD' && (
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 capitalize">T.C.</span>
-                          <input
-                            type="number"
-                            value={s.exchangeRate}
-                            onChange={(e) => updateRate(tx.id, e.target.value)}
-                            className="w-16 bg-white dark:bg-slate-800 border border-border rounded px-1.5 py-0.5 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
-                          />
+                  <div key={tx.id}>
+                    {/* Mobile Card View */}
+                    <div className={`lg:hidden p-4 transition-colors ${s.selected ? 'hover:bg-black/5 dark:hover:bg-white/5' : 'opacity-40'}`}>
+                      <div className="flex items-start gap-3">
+                        <button
+                          onClick={() => toggleSelection(tx.id)}
+                          className={`size-6 shrink-0 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all ${s.selected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-700'}`}
+                        >
+                          {s.selected && <Check className="w-4 h-4" />}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <p className="font-bold text-slate-900 dark:text-white truncate">{tx.merchant}</p>
+                            <div className="font-bold text-slate-900 dark:text-white shrink-0">
+                              <AnimatedPrice amount={calculateConvertedAmount(tx.id)} showCode />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-slate-500">{tx.date}</span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                              {tx.category}
+                            </span>
+                            {s.installments && <span className="text-[10px] font-bold text-blue-500 uppercase">Cuota {s.installments}</span>}
+                          </div>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              onClick={() => toggleRecurring(tx.id)}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${s.isRecurring ? 'bg-orange-500/20 text-orange-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+                            >
+                              <History className="w-3.5 h-3.5" />
+                              {s.isRecurring ? 'Recurrente' : 'Único'}
+                            </button>
+                            {s.currency === 'USD' && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-slate-400">T.C.</span>
+                                <input
+                                  type="number"
+                                  value={s.exchangeRate}
+                                  onChange={(e) => updateRate(tx.id, e.target.value)}
+                                  className="w-16 bg-white dark:bg-slate-800 border border-border rounded px-1.5 py-0.5 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Desktop Table Row */}
+                    <div className={`hidden lg:grid grid-cols-12 gap-4 px-6 py-4 items-center transition-colors ${s.selected ? 'hover:bg-black/5 dark:hover:bg-white/5' : 'opacity-40 grayscale-sm'}`}>
+                      <div className="col-span-1 flex justify-center">
+                        <button
+                          onClick={() => toggleSelection(tx.id)}
+                          className={`size-6 rounded-lg border-2 flex items-center justify-center transition-all ${s.selected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-700'}`}
+                        >
+                          {s.selected && <Check className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <div className="col-span-2 text-sm font-medium">{tx.date}</div>
+                      <div className="col-span-3">
+                        <p className="font-bold text-slate-900 dark:text-white truncate">{tx.merchant}</p>
+                        {s.installments && <p className="text-[10px] font-bold text-blue-500 uppercase">Cuota {s.installments}</p>}
+                      </div>
+                      <div className="col-span-2">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {tx.category}
+                        </span>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <button
+                          onClick={() => toggleRecurring(tx.id)}
+                          className={`p-2 rounded-lg transition-colors ${s.isRecurring ? 'bg-orange-500/20 text-orange-500' : 'text-slate-300'}`}
+                          title="Marcar como recurrente"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="col-span-3 text-right space-y-1">
+                        <div className="font-bold text-slate-900 dark:text-white">
+                          <AnimatedPrice amount={calculateConvertedAmount(tx.id)} showCode />
+                        </div>
+                        {s.currency === 'USD' && (
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 capitalize">T.C.</span>
+                            <input
+                              type="number"
+                              value={s.exchangeRate}
+                              onChange={(e) => updateRate(tx.id, e.target.value)}
+                              className="w-16 bg-white dark:bg-slate-800 border border-border rounded px-1.5 py-0.5 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
