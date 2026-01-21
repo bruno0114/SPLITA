@@ -102,7 +102,7 @@
 
 ### Phase 18: Group Join Links (Completed)
 - **Goal**: Make `/join/:code` functional for secure group entry.
-- **Status**: ✅ Executed & Verified
+- **Status**: ✅ Executed & Verified (18.1 & 18.2)
   - Verify/Add `invite_code` to `groups`.
   - Implement secure `join_group_by_code` RPC.
   - Wire frontend route to RPC with auth checks.
