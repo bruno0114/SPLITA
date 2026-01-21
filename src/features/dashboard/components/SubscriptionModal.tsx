@@ -55,7 +55,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onClose }) => {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="w-full max-w-2xl bg-surface rounded-[40px] overflow-hidden shadow-2xl border border-border relative"
+                className="w-full max-w-2xl bg-surface rounded-[40px] overflow-hidden shadow-2xl border border-border relative max-h-[85vh] overflow-y-auto"
             >
                 {/* Close Button */}
                 <button

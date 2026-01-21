@@ -17,7 +17,17 @@ const PremiumDatePicker: React.FC<PremiumDatePickerProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [viewDate, setViewDate] = useState(new Date());
+    const [internalStartDate, setInternalStartDate] = useState(startDate);
+    const [internalEndDate, setInternalEndDate] = useState(endDate);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Sync props to internal state when opening or when props change
+    useEffect(() => {
+        if (isOpen) {
+            setInternalStartDate(startDate);
+            setInternalEndDate(endDate);
+        }
+    }, [isOpen, startDate, endDate]);
 
     // Close on outside click
     useEffect(() => {
@@ -47,27 +57,27 @@ const PremiumDatePicker: React.FC<PremiumDatePickerProps> = ({
     };
 
     const isSelected = (dateStr: string) => {
-        return dateStr === startDate || dateStr === endDate;
+        return dateStr === internalStartDate || dateStr === internalEndDate;
     };
 
     const isInRange = (dateStr: string) => {
-        if (!startDate || !endDate) return false;
-        return dateStr > startDate && dateStr < endDate;
+        if (!internalStartDate || !internalEndDate) return false;
+        return dateStr > internalStartDate && dateStr < internalEndDate;
     };
 
     const handleDateClick = (day: number) => {
         const selectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
         const dateStr = selectedDate.toISOString().split('T')[0];
 
-        if (!startDate || (startDate && endDate)) {
-            onStartDateChange(dateStr);
-            onEndDateChange('');
+        if (!internalStartDate || (internalStartDate && internalEndDate)) {
+            setInternalStartDate(dateStr);
+            setInternalEndDate('');
         } else {
-            if (dateStr < startDate) {
-                onEndDateChange(startDate);
-                onStartDateChange(dateStr);
+            if (dateStr < internalStartDate) {
+                setInternalEndDate(internalStartDate);
+                setInternalStartDate(dateStr);
             } else {
-                onEndDateChange(dateStr);
+                setInternalEndDate(dateStr);
             }
         }
     };
@@ -138,6 +148,12 @@ const PremiumDatePicker: React.FC<PremiumDatePickerProps> = ({
         );
     };
 
+    const applySelection = () => {
+        if (internalStartDate) onStartDateChange(internalStartDate);
+        if (internalEndDate) onEndDateChange(internalEndDate);
+        setIsOpen(false);
+    };
+
     return (
         <div className="relative" ref={containerRef}>
             <button
@@ -197,7 +213,7 @@ const PremiumDatePicker: React.FC<PremiumDatePickerProps> = ({
                                 Hoy
                             </button>
                             <button
-                                onClick={() => setIsOpen(false)}
+                                onClick={applySelection}
                                 className="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-primary text-white shadow-lg shadow-primary/20"
                             >
                                 Listo
