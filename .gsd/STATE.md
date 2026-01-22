@@ -1,21 +1,12 @@
 # STATE.md
 
 ## Current Position
-- **Phase**: 18 (Group Join Links)
-- **Task**: Execution complete (18.2)
-- **Status**: Verified
-- **Next**: Awaiting Phase 19
+- **Phase**: 18.3 (Join Flow Polish & Debug)
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Last Session Summary
-Completed Phase 16 (Router Localization). 
-Applying bugfixes for AI Import (obsolete routes, z-index, mobile UX).
+Diagnosed Join Flow UI issues and flickering. Created Plan 18.3 to fix layout and redesign the join screen.
 
 ## Next Steps
-1. ✅ Fixed navigation routes post-import (was using old English paths)
-2. ✅ Fixed dropdown z-index issue
-3. ✅ Added mobile card layout for import review
-4. User should test import flow end-to-end
-
-## Build Status
-- Last build: ✅ Stable (2026-01-21)
-
+1. /execute 18 - Run Plan 18.3

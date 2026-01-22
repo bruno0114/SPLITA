@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { UserPlus, ArrowRight, Loader2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { UserPlus, ArrowRight, Loader2, Users, AlertCircle, CheckCircle2, LogIn } from 'lucide-react';
 import { AppRoute } from '@/types/index';
 
 const JoinGroup: React.FC = () => {
@@ -68,18 +68,45 @@ const JoinGroup: React.FC = () => {
         }
     };
 
+    const handleLoginRedirect = () => {
+        const target = location.pathname + location.search + location.hash;
+        localStorage.setItem('splita_redirect_path', target);
+        navigate(AppRoute.LOGIN);
+    };
+
+    const handleRegisterRedirect = () => {
+        const target = location.pathname + location.search + location.hash;
+        localStorage.setItem('splita_redirect_path', target);
+        navigate(AppRoute.ONBOARDING);
+    };
+
     if (authLoading || loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-                <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-                <p className="text-slate-500 font-medium">Cargando invitación...</p>
+            <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center relative overflow-hidden">
+                {/* Background Ambience */}
+                <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0">
+                    <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
+                </div>
+                <div className="fixed bottom-[-10%] left-[-5%] pointer-events-none opacity-5 dark:opacity-10 z-0">
+                    <div className="w-[500px] h-[500px] bg-blue-900 rounded-full blur-[120px]" />
+                </div>
+                <Loader2 className="w-10 h-10 animate-spin text-primary mb-4 z-10" />
+                <p className="text-slate-500 font-medium z-10">Cargando invitación...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-md">
+        <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            {/* Background Ambience - matching Login/Onboarding */}
+            <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0 transition-opacity duration-300">
+                <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
+            </div>
+            <div className="fixed bottom-[-10%] left-[-5%] pointer-events-none opacity-5 dark:opacity-10 z-0 transition-opacity duration-300">
+                <div className="w-[500px] h-[500px] bg-blue-900 rounded-full blur-[120px]" />
+            </div>
+
+            <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center justify-center size-16 rounded-3xl bg-blue-500/10 text-blue-600 mb-6 font-black text-2xl">
                         S
@@ -97,9 +124,18 @@ const JoinGroup: React.FC = () => {
                                 <AlertCircle className="w-8 h-8" />
                             </div>
                             <p className="text-slate-700 dark:text-slate-300 font-bold">{error}</p>
-                            <Link to={AppRoute.DASHBOARD_GROUPS} className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
-                                Volver a mis grupos <ArrowRight className="w-4 h-4" />
-                            </Link>
+                            {user ? (
+                                <Link to={AppRoute.DASHBOARD_GROUPS} className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                                    Volver a mis grupos <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            ) : (
+                                <button
+                                    onClick={handleLoginRedirect}
+                                    className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
+                                >
+                                    Iniciar sesión <ArrowRight className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
                     ) : group ? (
                         <div className="space-y-8 relative z-10">
@@ -137,7 +173,8 @@ const JoinGroup: React.FC = () => {
                                         Ver Grupo <ArrowRight className="w-5 h-5" />
                                     </button>
                                 </div>
-                            ) : (
+                            ) : user ? (
+                                // Authenticated: Show Join button
                                 <div className="space-y-6">
                                     <div className="p-4 bg-blue-500/5 rounded-2xl text-center">
                                         <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
@@ -159,12 +196,37 @@ const JoinGroup: React.FC = () => {
                                             </>
                                         )}
                                     </button>
-
-                                    {!user && (
-                                        <p className="text-center text-xs text-slate-500 font-bold uppercase tracking-widest">
-                                            Se requiere iniciar sesión
+                                </div>
+                            ) : (
+                                // Unauthenticated: Show Login/Register options
+                                <div className="space-y-6">
+                                    <div className="p-4 bg-blue-500/5 rounded-2xl text-center">
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                            Para unirte al grupo necesitás tener una cuenta en Splita.
                                         </p>
-                                    )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={handleLoginRedirect}
+                                            className="w-full py-4 rounded-2xl bg-blue-gradient text-white font-black flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                        >
+                                            <LogIn className="w-5 h-5" />
+                                            Iniciar sesión
+                                        </button>
+
+                                        <button
+                                            onClick={handleRegisterRedirect}
+                                            className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-black flex items-center justify-center gap-2 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                        >
+                                            <UserPlus className="w-5 h-5" />
+                                            Crear cuenta
+                                        </button>
+                                    </div>
+
+                                    <p className="text-center text-xs text-slate-500 font-medium">
+                                        Después de iniciar sesión, te unirás automáticamente al grupo.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -172,9 +234,15 @@ const JoinGroup: React.FC = () => {
                 </div>
 
                 <div className="mt-8 text-center">
-                    <Link to="/" className="text-sm text-slate-500 font-bold hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
-                        Cancelar y volver al inicio
-                    </Link>
+                    {user ? (
+                        <Link to={AppRoute.DASHBOARD_PERSONAL} className="text-sm text-slate-500 font-bold hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                            Cancelar y volver al inicio
+                        </Link>
+                    ) : (
+                        <Link to={AppRoute.LOGIN} className="text-sm text-slate-500 font-bold hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                            Cancelar
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
@@ -182,3 +250,4 @@ const JoinGroup: React.FC = () => {
 };
 
 export default JoinGroup;
+
