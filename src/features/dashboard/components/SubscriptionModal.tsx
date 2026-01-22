@@ -45,17 +45,19 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
+                key="backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={onClose}
-                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+                className="fixed inset-0 bg-black/40 backdrop-blur-md"
             />
             <motion.div
+                key="modal"
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="w-full max-w-2xl bg-surface rounded-[40px] overflow-hidden shadow-2xl border border-border relative max-h-[85vh] overflow-y-auto"
+                className="w-full max-w-2xl bg-surface rounded-[40px] overflow-hidden shadow-2xl border border-border relative z-10 max-h-[85vh] overflow-y-auto"
             >
                 {/* Close Button */}
                 <button

@@ -16,6 +16,7 @@ import TransactionCard from '@/features/expenses/components/TransactionCard';
 import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
 import { useToast } from '@/context/ToastContext';
+import Portal from '@/components/ui/Portal';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -113,14 +114,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    };
 
    const executeMassDelete = async () => {
-      const { error } = await deleteTransactions(selectedIds);
+      const { error, count } = await deleteTransactions(selectedIds);
 
-      if (!error) {
+      if (!error && count && count > 0) {
          setSelectedIds([]);
-         showToast(`${selectedIds.length} movimientos eliminados`, 'success');
+         showToast(`${count} movimientos eliminados`, 'success');
       } else {
-         if (error.includes('row-level security') || error.includes('policy')) {
+         if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
             // For mass delete, we don't necessarily know all payers, but we can show a general permission error
+            setPermissionError({ isOpen: true, payerName: 'sus creadores' });
+         } else if (!error && count === 0) {
+            // Case where no error but count is 0 (should already be PERMISSION_DENIED but for safety)
             setPermissionError({ isOpen: true, payerName: 'sus creadores' });
          } else {
             showToast('Error al eliminar movimientos', 'error');
@@ -132,10 +136,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const handleConfirmDelete = async () => {
       if (deleteConfirm.id) {
          const txToDelete = transactions.find(t => t.id === deleteConfirm.id);
-         const { error } = await deleteTransaction(deleteConfirm.id);
+         const { error, count } = await deleteTransaction(deleteConfirm.id);
 
-         if (error) {
-            if (error.includes('row-level security') || error.includes('policy')) {
+         if (!error && count && count > 0) {
+            showToast('Gasto eliminado', 'success');
+         } else {
+            if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
+               setPermissionError({
+                  isOpen: true,
+                  payerName: txToDelete?.payer.name || 'su creador'
+               });
+            } else if (!error && count === 0) {
                setPermissionError({
                   isOpen: true,
                   payerName: txToDelete?.payer.name || 'su creador'
@@ -143,8 +154,6 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             } else {
                showToast('Error al eliminar el gasto', 'error');
             }
-         } else {
-            showToast('Gasto eliminado', 'success');
          }
          setDeleteConfirm({ isOpen: false, id: null });
       }
@@ -453,39 +462,45 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
          </div>
 
          {/* Transaction Modal */}
-         <AnimatePresence>
-            {showModal && (
-               <GroupTransactionModal
-                  onClose={handleCloseModal}
-                  onSave={handleSave}
-                  members={group.members}
-                  initialData={editingTransaction}
-               />
-            )}
-         </AnimatePresence>
+         <Portal>
+            <AnimatePresence>
+               {showModal && (
+                  <GroupTransactionModal
+                     onClose={handleCloseModal}
+                     onSave={handleSave}
+                     members={group.members}
+                     initialData={editingTransaction}
+                  />
+               )}
+            </AnimatePresence>
+         </Portal>
 
          {/* Settings Modal */}
-         <AnimatePresence>
-            {showSettings && (
-               <GroupSettingsModal
-                  group={group}
-                  onClose={handleCloseSettings}
-                  onBack={onBack}
-               />
-            )}
-         </AnimatePresence>
+         <Portal>
+            <AnimatePresence>
+               {showSettings && (
+                  <GroupSettingsModal
+                     group={group}
+                     onClose={handleCloseSettings}
+                     onBack={onBack}
+                  />
+               )}
+            </AnimatePresence>
+         </Portal>
 
          {/* Invite Modal */}
-         <AnimatePresence>
-            {showInviteModal && (
-               <InviteModal
-                  isOpen={showInviteModal}
-                  onClose={() => setShowInviteModal(false)}
-                  groupName={group.name}
-                  inviteCode={group.inviteCode || ''}
-               />
-            )}
-         </AnimatePresence>
+         <Portal>
+            <AnimatePresence>
+               {showInviteModal && (
+                  <InviteModal
+                     isOpen={showInviteModal}
+                     onClose={() => setShowInviteModal(false)}
+                     groupName={group.name}
+                     inviteCode={group.inviteCode || ''}
+                  />
+               )}
+            </AnimatePresence>
+         </Portal>
 
          <BulkActionsBar
             selectedCount={selectedIds.length}
@@ -638,19 +653,21 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    };
 
    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
          <motion.div
+            key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            className="fixed inset-0 bg-black/40 backdrop-blur-md"
          />
          <motion.div
+            key="modal"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border relative z-50"
          >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
@@ -932,19 +949,21 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    };
 
    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
          <motion.div
+            key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            className="fixed inset-0 bg-black/40 backdrop-blur-md"
          />
          <motion.div
+            key="modal"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
+            className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border z-50"
          >
             <div className="flex justify-between items-center mb-5">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">

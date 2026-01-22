@@ -1,49 +1,33 @@
-# Debug Session: Join Group UI & Flickering
+# Debug Session: Group UX Issues (Delete & Overlay)
 
-## Symptom
-1. **Unauthenticated Access to Internal UI:** Users accessing the "Join Group" link (`/unirse/:code`) see the full authenticated application layout (Sidebar, Header, BottomNav) even if they are not logged in.
-2. **Flickering/Blinks:** "2 blinks" observed when logging in or redirecting during the join flow.
+## Symptom 1: Misleading Delete Success
+- **Expected:** Deleting a restricted item shows an error.
+- **Actual:** UI shows "Gasto eliminado" toast, but item persists.
+- **Evidence:** User screenshot (Step 434) shows the toast "Gasto eliminado" with the transaction "Test" (paid by Adolfo) still visible.
+- **Root Cause Hypothesis:** 
+  1. `count: exact` is not working as expected (returns undefined or 1 even if blocked?).
+  2. The hook is not throwing the error in a way that the UI catches it before the success toast.
+  3. `PersonalFinance.tsx` or `GroupDetails.tsx` have logic gaps.
 
-## Evidence
-- **App.tsx:** The `Sidebar`, `Header`, and `BottomNav` were rendered **unconditionally** for all routes except `Login` and `Onboarding` (`isAuthRoute`).
-- The `/unirse/:inviteCode` route was inside the private layout, causing unauthenticated users to see the full app chrome.
+## Symptom 3: Modal Overlap
+- **Expected:** Modals should be on the top-most layer.
+- **Actual:** "Ajustes del Grupo" modal is being overlapped by an overlay.
+- **Evidence:** User provided HTML shows `z-index: 2` on modal content.
+- **Root Cause Hypothesis:** `z-index` (100) is too low for some stacking contexts or global layout elements.
 
-## Root Cause
-**Confirmed:** The `/unirse/:inviteCode` route was placed inside the private layout section of `App.tsx`, causing the Sidebar/Header/BottomNav to render even for unauthenticated users accessing invite links.
+## Attempts & Resolution
 
-## Resolution
+### Symptom 1: Misleading Delete Success
+- **Finding**: Supabase `.delete({ count: 'exact' })` was working, but the UI was showing the success toast as long as no `error` was returned. In some RLS scenarios, Supabase might simply return `count: 0` without a hard error if the policy is "silent" or if the logic flow bypassed the explicit error check.
+- **Resolution**: Updated hooks to return `count`. Updated UI to check `if (!error && count > 0)`. If `count === 0`, it triggers the permission error modal.
+- **Status**: RESOLVED
 
-**Fix Applied:** Modified `App.tsx` to treat `/unirse/` and `/join/` paths as public routes.
+### Symptom 2: Modal Overlay Rendering
+- **Finding**: The `Portal` implementation was wrapping `AnimatePresence`, which caused components to unmount before exit animations could run. This created "popping" and visual artifacts. Also, the backdrop color `bg-black/60` was slightly heavy, contributing to the "opacity 1" (too dark/solid) feel.
+- **Resolution**: Refactored to `Portal > AnimatePresence > {show && <Modal />}`. Added unique `key` props to `motion.div`s. Adjusted backdrop to `bg-black/40` and ensured clean stacking with `z-10`.
+- **Status**: RESOLVED
 
-### Changes Made:
-1. **Renamed** `isAuthRoute` to `isPublicRoute` for clarity
-2. **Extended** the public route check to include:
-   - `/unirse/:inviteCode`
-   - `/join/:inviteCode`
-3. **Moved** the join routes to the public layout section (rendered without Sidebar/Header/BottomNav)
-4. **Removed** duplicate join routes from the private layout section
-
-### Code Change (App.tsx):
-```typescript
-// Before:
-const isAuthRoute = location.pathname === AppRoute.LOGIN || location.pathname === AppRoute.ONBOARDING;
-
-// After:
-const isPublicRoute = 
-    location.pathname === AppRoute.LOGIN || 
-    location.pathname === AppRoute.ONBOARDING ||
-    location.pathname.startsWith('/unirse/') ||
-    location.pathname.startsWith('/join/');
-```
-
-### Flicker Reduction:
-- Since the join page now renders in the public layout, there's no mount/unmount of the private chrome during auth transitions
-- The redirect logic remains unchanged but now operates within a consistent layout
-
-## Verification Checklist
-- [ ] Logged out: open `/unirse/:code` → no Sidebar/Header/BottomNav visible
-- [ ] Click join → go to login → complete login → return to `/unirse/:code` without flashing private layout
-- [ ] Legacy link `/join/:code` redirects to `/unirse/:code`
-- [ ] Protected routes (dashboard) still show Sidebar/Header/BottomNav when logged in
-
-## Status: FIXED ✓
+### Symptom 3: Modal Overlap
+- **Finding**: The `z-index` of the modals (100) was sometimes lower than other layout components (like the sidebar or bulk actions bar in certain contexts).
+- **Resolution**: Increased container `z-index` to `1000` and content `z-index` to `50` for all group-related modals in `GroupDetails.tsx` and `InviteModal.tsx`.
+- **Status**: RESOLVED

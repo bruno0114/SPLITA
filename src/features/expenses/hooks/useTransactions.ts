@@ -228,7 +228,7 @@ export const useTransactions = (groupId?: string | null) => {
     };
 
     const deleteTransaction = async (id: string) => {
-        if (!user || !groupId) return { error: 'Missing user or group' };
+        if (!user || !groupId) return { error: 'Missing user or group', count: 0 };
 
         try {
             // Splits should be deleted by cascade if configured, but manually for safety
@@ -237,24 +237,25 @@ export const useTransactions = (groupId?: string | null) => {
                 .delete()
                 .eq('transaction_id', id);
 
-            const { error } = await supabase
+            const { error, count } = await supabase
                 .from('transactions')
-                .delete()
+                .delete({ count: 'exact' })
                 .eq('id', id);
 
             if (error) throw error;
+            if (count === 0) throw new Error('PERMISSION_DENIED');
 
             await fetchTransactions();
-            return { error: null };
+            return { error: null, count: count || 0 };
         } catch (err: any) {
             console.error('[useTransactions] Delete error:', err);
-            return { error: err.message };
+            return { error: err.message, count: 0 };
         }
     };
 
     const deleteTransactions = async (ids: string[]) => {
-        if (!user || !groupId) return { error: 'Missing user or group' };
-        if (ids.length === 0) return { error: null };
+        if (!user || !groupId) return { error: 'Missing user or group', count: 0 };
+        if (ids.length === 0) return { error: null, count: 0 };
 
         try {
             await supabase
@@ -262,18 +263,19 @@ export const useTransactions = (groupId?: string | null) => {
                 .delete()
                 .in('transaction_id', ids);
 
-            const { error } = await supabase
+            const { error, count } = await supabase
                 .from('transactions')
-                .delete()
+                .delete({ count: 'exact' })
                 .in('id', ids);
 
             if (error) throw error;
+            if (count === 0) throw new Error('PERMISSION_DENIED');
 
             await fetchTransactions();
-            return { error: null };
+            return { error: null, count: count || 0 };
         } catch (err: any) {
             console.error('[useTransactions] Delete error:', err);
-            return { error: err.message };
+            return { error: err.message, count: 0 };
         }
     };
 
