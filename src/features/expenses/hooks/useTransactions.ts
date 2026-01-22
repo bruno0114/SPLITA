@@ -228,7 +228,7 @@ export const useTransactions = (groupId?: string | null) => {
     };
 
     const deleteTransaction = async (id: string) => {
-        if (!user || !groupId) return { error: 'Missing user or group', count: 0 };
+        if (!user || !groupId) return { error: 'Missing user or group' };
 
         try {
             // Splits should be deleted by cascade if configured, but manually for safety
@@ -246,16 +246,16 @@ export const useTransactions = (groupId?: string | null) => {
             if (count === 0) throw new Error('PERMISSION_DENIED');
 
             await fetchTransactions();
-            return { error: null, count: count || 0 };
+            return { error: null };
         } catch (err: any) {
             console.error('[useTransactions] Delete error:', err);
-            return { error: err.message, count: 0 };
+            return { error: err.message };
         }
     };
 
     const deleteTransactions = async (ids: string[]) => {
-        if (!user || !groupId) return { error: 'Missing user or group', count: 0 };
-        if (ids.length === 0) return { error: null, count: 0 };
+        if (!user || !groupId) return { error: 'Missing user or group' };
+        if (ids.length === 0) return { error: null };
 
         try {
             await supabase
@@ -272,10 +272,10 @@ export const useTransactions = (groupId?: string | null) => {
             if (count === 0) throw new Error('PERMISSION_DENIED');
 
             await fetchTransactions();
-            return { error: null, count: count || 0 };
+            return { error: null };
         } catch (err: any) {
             console.error('[useTransactions] Delete error:', err);
-            return { error: err.message, count: 0 };
+            return { error: err.message };
         }
     };
 

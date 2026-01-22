@@ -100,17 +100,10 @@ const PersonalFinance: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (deleteConfirm.id) {
       const txToDelete = fullTransactions.find(t => t.id === deleteConfirm.id);
-      const { error, count } = await deleteTransaction(deleteConfirm.id);
+      const { error } = await deleteTransaction(deleteConfirm.id);
 
-      if (!error && count && count > 0) {
-        showToast('Movimiento eliminado', 'success');
-      } else {
-        if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
-          setPermissionError({
-            isOpen: true,
-            memberName: txToDelete?.payer?.name || 'su creador'
-          });
-        } else if (!error && count === 0) {
+      if (error) {
+        if (error.includes('row-level security') || error.includes('policy') || error === 'PERMISSION_DENIED') {
           setPermissionError({
             isOpen: true,
             memberName: txToDelete?.payer?.name || 'su creador'
@@ -118,6 +111,8 @@ const PersonalFinance: React.FC = () => {
         } else {
           showToast('Error al eliminar el movimiento', 'error');
         }
+      } else {
+        showToast('Movimiento eliminado', 'success');
       }
       setDeleteConfirm({ isOpen: false, id: null });
     }
@@ -149,15 +144,13 @@ const PersonalFinance: React.FC = () => {
   };
 
   const executeMassDelete = async () => {
-    const { error, count } = await deleteTransactions(selectedIds);
+    const { error } = await deleteTransactions(selectedIds);
 
-    if (!error && count && count > 0) {
-      showToast(`${count} movimientos eliminados`, 'success');
+    if (!error) {
+      showToast(`${selectedIds.length} movimientos eliminados`, 'success');
       setSelectedIds([]);
     } else {
-      if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
-        setPermissionError({ isOpen: true, memberName: 'sus creadores' });
-      } else if (!error && count === 0) {
+      if (error.includes('row-level security') || error.includes('policy') || error === 'PERMISSION_DENIED') {
         setPermissionError({ isOpen: true, memberName: 'sus creadores' });
       } else {
         showToast('Error al eliminar movimientos', 'error');
@@ -432,17 +425,15 @@ const PersonalFinance: React.FC = () => {
       </section>
 
       {/* Transaction Modal */}
-      <Portal>
-        <AnimatePresence>
-          {showModal && (
-            <TransactionModal
-              onClose={handleCloseModal}
-              onSave={handleSave}
-              initialData={editingTransaction}
-            />
-          )}
-        </AnimatePresence>
-      </Portal>
+      <AnimatePresence>
+        {showModal && (
+          <TransactionModal
+            onClose={handleCloseModal}
+            onSave={handleSave}
+            initialData={editingTransaction}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Bulk Actions */}
       <BulkActionsBar
@@ -452,13 +443,11 @@ const PersonalFinance: React.FC = () => {
         onMove={handleMassMove}
       />
 
-      <Portal>
-        <AnimatePresence>
-          {showPremiumModal && (
-            <SubscriptionModal onClose={() => setShowPremiumModal(false)} />
-          )}
-        </AnimatePresence>
-      </Portal>
+      <AnimatePresence>
+        {showPremiumModal && (
+          <SubscriptionModal onClose={() => setShowPremiumModal(false)} />
+        )}
+      </AnimatePresence>
 
       <PremiumConfirmModal
         isOpen={deleteConfirm.isOpen}

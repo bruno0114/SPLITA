@@ -329,10 +329,9 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
     };
 
     const deleteTransaction = async (id: string) => {
-        if (!user) return { error: 'No authenticated user', count: 0 };
+        if (!user) return { error: 'No authenticated user' };
 
         try {
-            let totalDeleted = 0;
             // Check if it's a group split
             if (id.startsWith('split-')) {
                 const realTxId = id.replace('split-', '');
@@ -344,13 +343,12 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     .eq('transaction_id', realTxId);
 
                 // Then delete the parent transaction (Option A: Total Deletion)
-                const { error, count } = await supabase
+                const { error } = await supabase
                     .from('transactions')
-                    .delete({ count: 'exact' })
+                    .delete()
                     .eq('id', realTxId);
 
                 if (error) throw error;
-                totalDeleted = count || 0;
             } else {
                 const { error, count } = await supabase
                     .from('personal_transactions')
@@ -360,25 +358,23 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
 
                 if (error) throw error;
                 if (count === 0) throw new Error('PERMISSION_DENIED');
-                totalDeleted = count || 0;
             }
 
             console.log('[usePersonalTransactions] Transaction deleted:', id);
             await fetchTransactions();
-            return { error: null, count: totalDeleted };
+            return { error: null };
         } catch (err: any) {
             console.error('[usePersonalTransactions] Error:', err);
-            return { error: err.message, count: 0 };
+            return { error: err.message };
         }
     };
 
     const deleteTransactions = async (ids: string[]) => {
-        if (!user) return { error: 'No authenticated user', count: 0 };
+        if (!user) return { error: 'No authenticated user' };
 
         try {
             const splitIds = ids.filter(id => id.startsWith('split-')).map(id => id.replace('split-', ''));
             const personalIds = ids.filter(id => !id.startsWith('split-'));
-            let totalDeleted = 0;
 
             if (personalIds.length > 0) {
                 const { error, count } = await supabase
@@ -387,7 +383,6 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     .in('id', personalIds)
                     .eq('user_id', user.id);
                 if (error) throw error;
-                totalDeleted += (count || 0);
                 if (count === 0 && splitIds.length === 0) throw new Error('PERMISSION_DENIED');
             }
 
@@ -404,15 +399,14 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     .delete({ count: 'exact' })
                     .in('id', splitIds);
                 if (error) throw error;
-                totalDeleted += (count || 0);
-                if (count === 0 && personalIds.length === 0) throw new Error('PERMISSION_DENIED');
+                if (count === 0) throw new Error('PERMISSION_DENIED');
             }
 
             await fetchTransactions();
-            return { error: null, count: totalDeleted };
+            return { error: null };
         } catch (err: any) {
             console.error('[usePersonalTransactions] Bulk Delete Error:', err);
-            return { error: err.message, count: 0 };
+            return { error: err.message };
         }
     };
 

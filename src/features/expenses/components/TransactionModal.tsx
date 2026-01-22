@@ -85,19 +85,17 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
-                key="backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={onClose}
-                className="fixed inset-0 bg-black/40 backdrop-blur-md"
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
             />
             <motion.div
-                key="modal"
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border z-10"
+                className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
             >
                 <div className="flex justify-between items-center mb-5">
                     <div>

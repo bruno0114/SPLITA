@@ -114,17 +114,14 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    };
 
    const executeMassDelete = async () => {
-      const { error, count } = await deleteTransactions(selectedIds);
+      const { error } = await deleteTransactions(selectedIds);
 
-      if (!error && count && count > 0) {
+      if (!error) {
          setSelectedIds([]);
-         showToast(`${count} movimientos eliminados`, 'success');
+         showToast(`${selectedIds.length} movimientos eliminados`, 'success');
       } else {
-         if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
+         if (error.includes('row-level security') || error.includes('policy') || error === 'PERMISSION_DENIED') {
             // For mass delete, we don't necessarily know all payers, but we can show a general permission error
-            setPermissionError({ isOpen: true, payerName: 'sus creadores' });
-         } else if (!error && count === 0) {
-            // Case where no error but count is 0 (should already be PERMISSION_DENIED but for safety)
             setPermissionError({ isOpen: true, payerName: 'sus creadores' });
          } else {
             showToast('Error al eliminar movimientos', 'error');
@@ -136,17 +133,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const handleConfirmDelete = async () => {
       if (deleteConfirm.id) {
          const txToDelete = transactions.find(t => t.id === deleteConfirm.id);
-         const { error, count } = await deleteTransaction(deleteConfirm.id);
+         const { error } = await deleteTransaction(deleteConfirm.id);
 
-         if (!error && count && count > 0) {
-            showToast('Gasto eliminado', 'success');
-         } else {
-            if (error === 'PERMISSION_DENIED' || (error && (error.includes('row-level security') || error.includes('policy')))) {
-               setPermissionError({
-                  isOpen: true,
-                  payerName: txToDelete?.payer.name || 'su creador'
-               });
-            } else if (!error && count === 0) {
+         if (error) {
+            if (error.includes('row-level security') || error.includes('policy') || error === 'PERMISSION_DENIED') {
                setPermissionError({
                   isOpen: true,
                   payerName: txToDelete?.payer.name || 'su creador'
@@ -154,6 +144,8 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             } else {
                showToast('Error al eliminar el gasto', 'error');
             }
+         } else {
+            showToast('Gasto eliminado', 'success');
          }
          setDeleteConfirm({ isOpen: false, id: null });
       }
@@ -462,37 +454,45 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
          </div>
 
          {/* Transaction Modal */}
-         {showModal && (
-            <GroupTransactionModal
-               onClose={handleCloseModal}
-               onSave={handleSave}
-               members={group.members}
-               initialData={editingTransaction}
-            />
-         )}
+         <AnimatePresence>
+            {showModal && (
+               <Portal>
+                  <GroupTransactionModal
+                     onClose={handleCloseModal}
+                     onSave={handleSave}
+                     members={group.members}
+                     initialData={editingTransaction}
+                  />
+               </Portal>
+            )}
+         </AnimatePresence>
 
          {/* Settings Modal */}
-         {showSettings && (
-            <GroupSettingsModal
-               group={group}
-               onClose={handleCloseSettings}
-               onBack={onBack}
-            />
-         )}
+         <AnimatePresence>
+            {showSettings && (
+               <Portal>
+                  <GroupSettingsModal
+                     group={group}
+                     onClose={handleCloseSettings}
+                     onBack={onBack}
+                  />
+               </Portal>
+            )}
+         </AnimatePresence>
 
          {/* Invite Modal */}
-         <Portal>
-            <AnimatePresence>
-               {showInviteModal && (
+         <AnimatePresence>
+            {showInviteModal && (
+               <Portal>
                   <InviteModal
                      isOpen={showInviteModal}
                      onClose={() => setShowInviteModal(false)}
                      groupName={group.name}
                      inviteCode={group.inviteCode || ''}
                   />
-               )}
-            </AnimatePresence>
-         </Portal>
+               </Portal>
+            )}
+         </AnimatePresence>
 
          <BulkActionsBar
             selectedCount={selectedIds.length}
@@ -645,182 +645,177 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    };
 
    return (
-      <Portal>
-         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <motion.div
-               key="backdrop"
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={onClose}
-               className="fixed inset-0 bg-black/40 backdrop-blur-md"
-            />
-            <motion.div
-               key="modal"
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border relative"
-               style={{ zIndex: 10 }}
-            >
-               <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
-                  <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                     <X className="w-5 h-5 text-slate-500" />
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+         <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+         />
+         <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+         >
+            <div className="flex justify-between items-center mb-6">
+               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
+               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-slate-500" />
+               </button>
+            </div>
+
+            <div className="space-y-6">
+               <div className="flex flex-col items-center gap-2">
+                  <div
+                     className="size-24 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden cursor-pointer hover:brightness-90 transition-all relative border-2 border-border"
+                     onClick={handleImageClick}
+                  >
+                     {uploading ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                     ) : group.image ? (
+                        <img src={group.image} alt="" className="w-full h-full object-cover" />
+                     ) : (
+                        <Users className="w-8 h-8 text-slate-400" />
+                     )}
+                  </div>
+                  <button
+                     onClick={handleImageClick}
+                     className="text-xs font-bold text-primary hover:underline"
+                  >
+                     Cambiar imagen
                   </button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                </div>
 
-               <div className="space-y-6">
-                  <div className="flex flex-col items-center gap-2">
-                     <div
-                        className="size-24 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden cursor-pointer hover:brightness-90 transition-all relative border-2 border-border"
-                        onClick={handleImageClick}
-                     >
-                        {uploading ? (
-                           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        ) : group.image ? (
-                           <img src={group.image} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                           <Users className="w-8 h-8 text-slate-400" />
-                        )}
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre del Grupo</label>
+                     <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Moneda principal</label>
+                     <PremiumDropdown
+                        value={currency}
+                        onChange={setCurrency}
+                        groups={[
+                           {
+                              title: 'Monedas',
+                              options: [
+                                 { id: 'ARS', label: 'ARS - Peso Argentino', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+                                 { id: 'USD', label: 'USD - Dólar Estadounidense', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                 { id: 'EUR', label: 'EUR - Euro', icon: DollarSign, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+                              ]
+                           }
+                        ]}
+                     />
+                  </div>
+                  <div className="pt-2">
+                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Código de Invitación</label>
+                     <div className="flex items-center gap-2">
+                        <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl font-mono text-xs font-bold text-center border border-border">
+                           {group.inviteCode || 'No generado'}
+                        </code>
+                        <button
+                           onClick={async () => {
+                              setSaving(true);
+                              await refreshInviteCode(group.id);
+                              setSaving(false);
+                           }}
+                           className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors"
+                           title="Regenerar código"
+                        >
+                           <History className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
+                        </button>
                      </div>
-                     <button
-                        onClick={handleImageClick}
-                        className="text-xs font-bold text-primary hover:underline"
-                     >
-                        Cambiar imagen
-                     </button>
-                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                     <p className="text-[10px] text-slate-500 mt-1 font-medium">Cualquiera con este código puede unirse al grupo.</p>
                   </div>
 
-                  <div className="space-y-4">
-                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre del Grupo</label>
-                        <input
-                           type="text"
-                           value={name}
-                           onChange={(e) => setName(e.target.value)}
-                           className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
-                        />
-                     </div>
-                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Moneda principal</label>
-                        <PremiumDropdown
-                           value={currency}
-                           onChange={setCurrency}
-                           groups={[
-                              {
-                                 title: 'Monedas',
-                                 options: [
-                                    { id: 'ARS', label: 'ARS - Peso Argentino', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
-                                    { id: 'USD', label: 'USD - Dólar Estadounidense', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-                                    { id: 'EUR', label: 'EUR - Euro', icon: DollarSign, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
-                                 ]
-                              }
-                           ]}
-                        />
-                     </div>
-                     <div className="pt-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Código de Invitación</label>
-                        <div className="flex items-center gap-2">
-                           <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl font-mono text-xs font-bold text-center border border-border">
-                              {group.inviteCode || 'No generado'}
-                           </code>
-                           <button
-                              onClick={async () => {
-                                 setSaving(true);
-                                 await refreshInviteCode(group.id);
-                                 setSaving(false);
-                              }}
-                              className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors"
-                              title="Regenerar código"
-                           >
-                              <History className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
-                           </button>
+                  {/* Danger Zone */}
+                  <div className="pt-6 border-t border-border mt-4">
+                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Zona de Peligro</p>
+
+                     {showDeleteConfirm ? (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                           <p className="text-xs font-bold text-red-600 mb-3">
+                              {isOwner ? '¿Estás seguro? Esta acción eliminará el grupo para todos.' : '¿Estás seguro de que querés salir del grupo?'}
+                           </p>
+                           <div className="flex gap-2">
+                              <button
+                                 onClick={isOwner ? handleDelete : handleLeave}
+                                 disabled={deleting}
+                                 className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-500/20"
+                              >
+                                 {deleting ? 'Procesando...' : isOwner ? 'Sí, eliminar grupo' : 'Sí, salir del grupo'}
+                              </button>
+                              <button
+                                 onClick={() => setShowDeleteConfirm(false)}
+                                 className="flex-1 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl"
+                              >
+                                 Cancelar
+                              </button>
+                           </div>
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-1 font-medium">Cualquiera con este código puede unirse al grupo.</p>
-                     </div>
-
-                     {/* Danger Zone */}
-                     <div className="pt-6 border-t border-border mt-4">
-                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Zona de Peligro</p>
-
-                        {showDeleteConfirm ? (
-                           <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                              <p className="text-xs font-bold text-red-600 mb-3">
-                                 {isOwner ? '¿Estás seguro? Esta acción eliminará el grupo para todos.' : '¿Estás seguro de que querés salir del grupo?'}
-                              </p>
-                              <div className="flex gap-2">
-                                 <button
-                                    onClick={isOwner ? handleDelete : handleLeave}
-                                    disabled={deleting}
-                                    className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-500/20"
-                                 >
-                                    {deleting ? 'Procesando...' : isOwner ? 'Sí, eliminar grupo' : 'Sí, salir del grupo'}
-                                 </button>
-                                 <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    className="flex-1 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl"
-                                 >
-                                    Cancelar
-                                 </button>
+                     ) : (
+                        <button
+                           onClick={() => setShowDeleteConfirm(true)}
+                           className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <div className="size-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
+                                 <Trash2 className="w-4 h-4" />
+                              </div>
+                              <div className="text-left">
+                                 <p className="text-sm font-bold text-red-600">{isOwner ? 'Eliminar Grupo' : 'Salir del Grupo'}</p>
+                                 <p className="text-[10px] text-red-400 font-medium">
+                                    {isOwner ? 'Se perderán todos los datos' : 'Ya no tendrás acceso a este grupo'}
+                                 </p>
                               </div>
                            </div>
-                        ) : (
-                           <button
-                              onClick={() => setShowDeleteConfirm(true)}
-                              className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all group"
-                           >
-                              <div className="flex items-center gap-3">
-                                 <div className="size-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
-                                    <Trash2 className="w-4 h-4" />
-                                 </div>
-                                 <div className="text-left">
-                                    <p className="text-sm font-bold text-red-600">{isOwner ? 'Eliminar Grupo' : 'Salir del Grupo'}</p>
-                                    <p className="text-[10px] text-red-400 font-medium">
-                                       {isOwner ? 'Se perderán todos los datos' : 'Ya no tendrás acceso a este grupo'}
-                                    </p>
-                                 </div>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-red-300 group-hover:translate-x-1 transition-transform" />
-                           </button>
-                        )}
+                           <ChevronRight className="w-4 h-4 text-red-300 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                     )}
+                  </div>
+
+                  {error && (
+                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-600 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        {error}
                      </div>
+                  )}
 
-                     {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-600 flex items-center gap-2">
-                           <AlertCircle className="w-4 h-4 text-red-500" />
-                           {error}
-                        </div>
-                     )}
-
-                     {success && (
-                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 flex items-center gap-2">
-                           <Check className="w-4 h-4 text-emerald-500" />
-                           Cambios guardados con éxito
-                        </div>
-                     )}
-                  </div>
-
-                  <div className="flex gap-3 mt-8">
-                     <button
-                        onClick={onClose}
-                        className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                     >
-                        Cancelar
-                     </button>
-                     <button
-                        onClick={handleSave}
-                        disabled={!name || saving || uploading}
-                        className="flex-1 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg shadow-black/5 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
-                     </button>
-                  </div>
+                  {success && (
+                     <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500" />
+                        Cambios guardados con éxito
+                     </div>
+                  )}
                </div>
-            </motion.div>
-         </div>
-      </Portal>
+
+               <div className="flex gap-3 mt-8">
+                  <button
+                     onClick={onClose}
+                     className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                     Cancelar
+                  </button>
+                  <button
+                     onClick={handleSave}
+                     disabled={!name || saving || uploading}
+                     className="flex-1 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg shadow-black/5 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                  >
+                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+                  </button>
+               </div>
+            </div>
+         </motion.div>
+      </div>
    );
 };
 
@@ -944,198 +939,193 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
    };
 
    return (
-      <Portal>
-         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <motion.div
-               key="backdrop"
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={onClose}
-               className="fixed inset-0 bg-black/40 backdrop-blur-md"
-            />
-            <motion.div
-               key="modal"
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
-               style={{ zIndex: 10 }}
-            >
-               <div className="flex justify-between items-center mb-5">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                     {initialData ? 'Editar gasto' : 'Nuevo gasto grupal'}
-                  </h3>
-                  <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                     <X className="w-5 h-5 text-slate-500" />
-                  </button>
-               </div>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+         <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+         />
+         <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
+         >
+            <div className="flex justify-between items-center mb-5">
+               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {initialData ? 'Editar gasto' : 'Nuevo gasto grupal'}
+               </h3>
+               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-slate-500" />
+               </button>
+            </div>
 
-               <div className="space-y-4 max-h-[60vh] overflow-y-auto px-2 -mx-2 scrollbar-hide">
-                  <div className="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Descripción</label>
-                        <input
-                           type="text"
-                           value={title}
-                           onChange={(e) => setTitle(e.target.value)}
-                           placeholder="Ej: Cena en Palermo"
-                           className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                        />
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto</label>
-                        <div className="relative group/input">
-                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">$</span>
-                           <input
-                              type="number"
-                              value={amount}
-                              onChange={(e) => setAmount(e.target.value)}
-                              placeholder="0"
-                              className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-2.5 text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                           />
-                        </div>
-                     </div>
-                  </div>
-
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto px-2 -mx-2 scrollbar-hide">
+               <div className="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Categoría</label>
-                     <PremiumDropdown
-                        value={category}
-                        onChange={setCategory}
-                        groups={[
-                           {
-                              title: 'Categorías',
-                              options: categories.map(c => ({
-                                 id: c.name,
-                                 label: c.name,
-                                 icon: LayoutGrid,
-                                 color: c.color,
-                                 bgColor: c.bg_color
-                              }))
-                           }
-                        ]}
-                        className="w-full h-10"
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Descripción</label>
+                     <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Ej: Cena en Palermo"
+                        className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                      />
                   </div>
-
-                  <div className="pt-2">
-                     <div className="flex items-center justify-between mb-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Division:</label>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                           <button
-                              onClick={() => setSplitMode('equal')}
-                              className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'equal' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
-                           >
-                              IGUAL
-                           </button>
-                           <button
-                              onClick={() => setSplitMode('percent')}
-                              className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'percent' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
-                           >
-                              %
-                           </button>
-                           <button
-                              onClick={() => setSplitMode('amount')}
-                              className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'amount' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
-                           >
-                              $
-                           </button>
-                        </div>
-                     </div>
-
-                     <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
-                        {members.map(member => {
-                           const isSelected = splitBetween.includes(member.id);
-                           return (
-                              <div key={member.id} className="flex items-center gap-3 bg-slate-100 dark:bg-white/5 p-2 rounded-xl border border-border/50">
-                                 <button
-                                    onClick={() => toggleMember(member.id)}
-                                    className={`size-10 rounded-full border-2 transition-all overflow-hidden ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-transparent opacity-50'}`}
-                                 >
-                                    <img src={member.avatar || undefined} alt="" className="w-full h-full object-cover" />
-                                 </button>
-                                 <div className="flex-1">
-                                    <p className={`text-[11px] font-bold ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{member.name}</p>
-                                    {isSelected && splitMode === 'equal' && <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">1 / {splitBetween.length}</p>}
-                                 </div>
-
-                                 {isSelected && splitMode !== 'equal' && (
-                                    <div className="relative w-24">
-                                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{splitMode === 'percent' ? '%' : '$'}</span>
-                                       <input
-                                          type="number"
-                                          value={customValues[member.id] || ''}
-                                          onChange={(e) => updateCustomValue(member.id, e.target.value)}
-                                          className="w-full bg-white dark:bg-slate-800 border border-border rounded-lg pl-5 pr-2 py-1 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
-                                       />
-                                    </div>
-                                 )}
-                              </div>
-                           );
-                        })}
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto</label>
+                     <div className="relative group/input">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">$</span>
+                        <input
+                           type="number"
+                           value={amount}
+                           onChange={(e) => setAmount(e.target.value)}
+                           placeholder="0"
+                           className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl pl-10 pr-4 py-2.5 text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                        />
                      </div>
                   </div>
+               </div>
 
-                  {/* Recurring & Installments - Compact Grid */}
-                  <div className="pt-4 border-t border-border mt-2 grid grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Recurrente</label>
+               <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Categoría</label>
+                  <PremiumDropdown
+                     value={category}
+                     onChange={setCategory}
+                     groups={[
+                        {
+                           title: 'Categorías',
+                           options: categories.map(c => ({
+                              id: c.name,
+                              label: c.name,
+                              icon: LayoutGrid,
+                              color: c.color,
+                              bgColor: c.bg_color
+                           }))
+                        }
+                     ]}
+                     className="w-full h-10"
+                  />
+               </div>
+
+               <div className="pt-2">
+                  <div className="flex items-center justify-between mb-3">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Division:</label>
+                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                         <button
-                           onClick={() => setIsRecurring(!isRecurring)}
-                           className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all ${isRecurring ? 'bg-blue-500/10 border-blue-500/30 text-blue-600' : 'bg-slate-50 dark:bg-white/5 border-border text-slate-500'}`}
+                           onClick={() => setSplitMode('equal')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'equal' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
                         >
-                           <div className="flex items-center gap-2">
-                              <Repeat className="w-3.5 h-3.5" />
-                              <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
-                           </div>
-                           <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                              <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-                           </div>
+                           IGUAL
+                        </button>
+                        <button
+                           onClick={() => setSplitMode('percent')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'percent' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
+                        >
+                           %
+                        </button>
+                        <button
+                           onClick={() => setSplitMode('amount')}
+                           className={`px-2 py-1 text-[10px] font-black rounded-md transition-all ${splitMode === 'amount' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400'}`}
+                        >
+                           $
                         </button>
                      </div>
+                  </div>
 
-                     <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">N° Cuotas</label>
-                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-border h-[42px]">
-                           <input
-                              type="number"
-                              placeholder="1"
-                              value={currentInstallment}
-                              onChange={(e) => setCurrentInstallment(e.target.value)}
-                              className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
-                           />
-                           <span className="text-slate-400 text-[10px] font-black">/</span>
-                           <input
-                              type="number"
-                              placeholder="1"
-                              value={totalInstallments}
-                              onChange={(e) => setTotalInstallments(e.target.value)}
-                              className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
-                           />
-                        </div>
-                     </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
+                     {members.map(member => {
+                        const isSelected = splitBetween.includes(member.id);
+                        return (
+                           <div key={member.id} className="flex items-center gap-3 bg-slate-100 dark:bg-white/5 p-2 rounded-xl border border-border/50">
+                              <button
+                                 onClick={() => toggleMember(member.id)}
+                                 className={`size-10 rounded-full border-2 transition-all overflow-hidden ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-transparent opacity-50'}`}
+                              >
+                                 <img src={member.avatar || undefined} alt="" className="w-full h-full object-cover" />
+                              </button>
+                              <div className="flex-1">
+                                 <p className={`text-[11px] font-bold ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{member.name}</p>
+                                 {isSelected && splitMode === 'equal' && <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">1 / {splitBetween.length}</p>}
+                              </div>
+
+                              {isSelected && splitMode !== 'equal' && (
+                                 <div className="relative w-24">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{splitMode === 'percent' ? '%' : '$'}</span>
+                                    <input
+                                       type="number"
+                                       value={customValues[member.id] || ''}
+                                       onChange={(e) => updateCustomValue(member.id, e.target.value)}
+                                       className="w-full bg-white dark:bg-slate-800 border border-border rounded-lg pl-5 pr-2 py-1 text-right text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                    />
+                                 </div>
+                              )}
+                           </div>
+                        );
+                     })}
                   </div>
                </div>
 
-               <div className="flex gap-3 mt-8">
-                  <button
-                     onClick={onClose}
-                     className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                     Cancelar
-                  </button>
-                  <button
-                     onClick={handleSave}
-                     disabled={!title || !amount || splitBetween.length === 0 || saving}
-                     className="flex-1 py-3 rounded-xl bg-blue-gradient text-white font-bold shadow-lg shadow-blue-500/30 hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
-                  >
-                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
-                  </button>
+               {/* Recurring & Installments - Compact Grid */}
+               <div className="pt-4 border-t border-border mt-2 grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Recurrente</label>
+                     <button
+                        onClick={() => setIsRecurring(!isRecurring)}
+                        className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all ${isRecurring ? 'bg-blue-500/10 border-blue-500/30 text-blue-600' : 'bg-slate-50 dark:bg-white/5 border-border text-slate-500'}`}
+                     >
+                        <div className="flex items-center gap-2">
+                           <Repeat className="w-3.5 h-3.5" />
+                           <span className="text-xs font-bold">{isRecurring ? 'Si' : 'No'}</span>
+                        </div>
+                        <div className={`w-8 h-4 rounded-full relative transition-all ${isRecurring ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                           <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-all ${isRecurring ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                        </div>
+                     </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">N° Cuotas</label>
+                     <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-border h-[42px]">
+                        <input
+                           type="number"
+                           placeholder="1"
+                           value={currentInstallment}
+                           onChange={(e) => setCurrentInstallment(e.target.value)}
+                           className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
+                        />
+                        <span className="text-slate-400 text-[10px] font-black">/</span>
+                        <input
+                           type="number"
+                           placeholder="1"
+                           value={totalInstallments}
+                           onChange={(e) => setTotalInstallments(e.target.value)}
+                           className="w-full bg-white dark:bg-black/40 border-none rounded-lg text-center font-bold text-xs h-full focus:ring-1 focus:ring-primary/30"
+                        />
+                     </div>
+                  </div>
                </div>
-            </motion.div>
-         </div>
-      </Portal>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+               <button
+                  onClick={onClose}
+                  className="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+               >
+                  Cancelar
+               </button>
+               <button
+                  onClick={handleSave}
+                  disabled={!title || !amount || splitBetween.length === 0 || saving}
+                  className="flex-1 py-3 rounded-xl bg-blue-gradient text-white font-bold shadow-lg shadow-blue-500/30 hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+               >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : initialData ? 'Actualizar' : 'Guardar'}
+               </button>
+            </div>
+         </motion.div>
+      </div>
    );
 };
 
