@@ -41,6 +41,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, groupName, i
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="relative w-full max-w-sm bg-surface rounded-[2.5rem] p-8 shadow-2xl border border-white/10 overflow-hidden"
+                style={{ zIndex: 10 }}
             >
                 {/* Decorative background blob */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
