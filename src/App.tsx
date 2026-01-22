@@ -34,43 +34,31 @@ const App: React.FC = () => {
         }
         return 'dark';
     });
-    const { user, signOut, loading: authLoading } = useAuthContext();
+    const { user, signOut } = useAuthContext();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-    const [redirectPending, setRedirectPending] = useState(false);
 
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Handle redirect path immediately when user becomes available
-    useEffect(() => {
-        const handleRedirect = () => {
-            if (!user) return;
-
-            const redirectPath = localStorage.getItem('splita_redirect_path');
-            if (redirectPath) {
-                const currentPath = location.pathname + location.search + location.hash;
-
-                // Loop Guard: If we are already there, don't redirect again
-                if (currentPath !== redirectPath) {
-                    setRedirectPending(true);
-                    localStorage.removeItem('splita_redirect_path');
-                    navigate(redirectPath, { replace: true });
-                    // Small delay to ensure navigation completes
-                    setTimeout(() => setRedirectPending(false), 100);
-                } else {
-                    localStorage.removeItem('splita_redirect_path');
-                }
-            }
-        };
-
-        handleRedirect();
-    }, [user, location.pathname, navigate]);
-
-    // Sync onboarding data separately (no redirect logic here)
     useEffect(() => {
         const syncOnboarding = async () => {
             if (!user) return;
+
+            // Handle Invite/Deep Link Redirects
+            const redirectPath = localStorage.getItem('splita_redirect_path');
+            if (redirectPath) {
+                const currentFn = () => location.pathname + location.search + location.hash;
+
+                // Loop Guard: If we are already there, don't redirect again
+                if (currentFn() !== redirectPath) {
+                    navigate(redirectPath, { replace: true });
+                }
+
+                // Clear only after successful check/redirect
+                localStorage.removeItem('splita_redirect_path');
+                return; // Prioritize redirect over onboarding sync
+            }
 
             const pendingData = localStorage.getItem('pending_onboarding');
             if (pendingData) {
@@ -123,25 +111,6 @@ const App: React.FC = () => {
 
         syncOnboarding();
     }, [user]);
-
-    // Show loading splash while auth is being determined or redirect is pending
-    if (authLoading || redirectPending) {
-        return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
-                {/* Background Ambience */}
-                <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0">
-                    <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
-                </div>
-                <div className="fixed bottom-[-10%] left-[-5%] pointer-events-none opacity-5 dark:opacity-10 z-0">
-                    <div className="w-[500px] h-[500px] bg-blue-900 rounded-full blur-[120px]" />
-                </div>
-                <div className="inline-flex items-center justify-center size-16 rounded-3xl bg-blue-500/10 text-blue-600 mb-6 font-black text-2xl z-10">
-                    S
-                </div>
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin z-10"></div>
-            </div>
-        );
-    }
 
     const getRouteTitle = (pathname: string): string => {
         // Handle dynamic routes first
@@ -201,11 +170,14 @@ const App: React.FC = () => {
         navigate(AppRoute.DASHBOARD_GROUPS + '/' + groupId);
     };
 
-    const isAuthRoute = location.pathname === AppRoute.LOGIN || location.pathname === AppRoute.ONBOARDING;
-    const isStandaloneRoute = location.pathname.startsWith('/unirse/') || location.pathname.startsWith('/join/');
+    // Public routes: Login, Onboarding, and Invite/Join (no sidebar/header/bottomnav)
+    const isPublicRoute =
+        location.pathname === AppRoute.LOGIN ||
+        location.pathname === AppRoute.ONBOARDING ||
+        location.pathname.startsWith('/unirse/') ||
+        location.pathname.startsWith('/join/');
 
-    // Standalone routes: Auth pages AND Join Group (no sidebar/header)
-    if (isAuthRoute || isStandaloneRoute) {
+    if (isPublicRoute) {
         return (
             <Routes>
                 <Route path={AppRoute.LOGIN} element={<Login onLogin={() => navigate(AppRoute.DASHBOARD_PERSONAL)} onRegister={() => navigate(AppRoute.ONBOARDING)} />} />
@@ -261,9 +233,6 @@ const App: React.FC = () => {
                             <Route path={AppRoute.AI_HISTORY} element={<AIHistory />} />
                             <Route path={AppRoute.SETTINGS} element={<Settings />} />
                         </Route>
-                        <Route path="/unirse/:inviteCode" element={<JoinGroup />} />
-                        {/* Backward compatibility for legacy links */}
-                        <Route path="/join/:inviteCode" element={<RedirectToJoin />} />
                         <Route path="*" element={<Navigate to={AppRoute.DASHBOARD_PERSONAL} replace />} />
                     </Routes>
                 </main>
