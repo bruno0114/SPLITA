@@ -9,8 +9,9 @@ interface OnboardingProps {
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
    const [step, setStep] = useState(1);
+   const [inviteContext, setInviteContext] = useState<{ inviteCode: string, groupId: string, groupName: string } | null>(null);
    const [formData, setFormData] = useState({
-      usageType: 'couple',
+      usageType: 'friends', // Default to friends for invites
       groupName: '',
       groupMembers: [] as string[],
       settings: {
@@ -19,24 +20,53 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
          notifyNew: false
       }
    });
-   const totalSteps = 6;
+
+   const inviteFlow = !!inviteContext;
+   const totalSteps = inviteFlow ? 3 : 6;
+
+   React.useEffect(() => {
+      const context = localStorage.getItem('splita_invite_context');
+      if (context) {
+         try {
+            const parsed = JSON.parse(context);
+            setInviteContext(parsed);
+            setFormData(prev => ({ ...prev, usageType: 'friends' }));
+         } catch (e) {
+            console.error("Error parsing invite context:", e);
+         }
+      }
+   }, []);
 
    const handleNext = (data?: Partial<typeof formData>) => {
       if (data) {
          setFormData(prev => ({ ...prev, ...data }));
       }
 
-      if (step < totalSteps) {
-         setStep(step + 1);
+      if (inviteFlow) {
+         if (step === 1) {
+            setStep(5); // Jump to settings
+         } else if (step === 5) {
+            setStep(6); // Final step
+         } else {
+            console.log("[AUTH] Onboarding step complete, calling onComplete");
+            onComplete();
+         }
       } else {
-         console.log("[AUTH] Onboarding step complete, calling onComplete");
-         onComplete();
+         if (step < totalSteps) {
+            setStep(step + 1);
+         } else {
+            console.log("[AUTH] Onboarding step complete, calling onComplete");
+            onComplete();
+         }
       }
    };
 
    const handleBack = () => {
-      if (step > 1) {
-         setStep(step - 1);
+      if (inviteFlow) {
+         if (step === 5) setStep(1);
+         else if (step === 6) setStep(5);
+      } else {
+         if (step > 1) setStep(step - 1);
       }
    };
 
@@ -75,12 +105,23 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onLogin }) => {
                <h2 className="text-xl font-extrabold leading-tight tracking-tight">Splita</h2>
             </div>
             <div className="flex items-center gap-4">
-               {step > 1 && <span className="text-slate-500 text-sm font-medium hidden sm:inline">Paso {step} de {totalSteps}</span>}
+               {step > 1 && (
+                  <span className="text-slate-500 text-sm font-medium hidden sm:inline">
+                     Paso {inviteFlow ? (step === 5 ? 2 : 3) : step} de {totalSteps}
+                  </span>
+               )}
             </div>
          </header>
 
          <main className="flex flex-1 flex-col items-center justify-center py-8 px-6 z-10">
-            {step === 1 && <StepWelcome onNext={handleStart} progress={getProgress()} onLogin={handleLoginClick} />}
+            {step === 1 && (
+               <StepWelcome
+                  onNext={handleStart}
+                  progress={getProgress()}
+                  onLogin={handleLoginClick}
+                  groupName={inviteContext?.groupName}
+               />
+            )}
             {step === 2 && <StepUsageType onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.usageType} />}
             {step === 3 && <StepCreateGroup onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.groupName} />}
             {step === 4 && <StepAddPeople onNext={handleNext} onBack={handleBack} progress={getProgress()} initialValue={formData.groupMembers} />}
@@ -129,7 +170,7 @@ const ButtonGroup = ({ onNext, onBack, nextLabel = "Continuar" }: { onNext: () =
    </div>
 );
 
-const StepWelcome = ({ onNext, progress, onLogin }: { onNext: () => void, progress: number, onLogin: () => void }) => (
+const StepWelcome = ({ onNext, progress, onLogin, groupName }: { onNext: () => void, progress: number, onLogin: () => void, groupName?: string }) => (
    <div className="flex flex-col w-full max-w-[480px] gap-8 items-center text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="w-full">
          <ProgressBar percent={progress} />
@@ -151,12 +192,16 @@ const StepWelcome = ({ onNext, progress, onLogin }: { onNext: () => void, progre
             Bienvenido a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-blue-600">Splita</span>
          </h1>
          <p className="text-slate-500 dark:text-slate-400 text-base md:text-lg font-normal leading-relaxed max-w-[340px] mx-auto">
-            La forma más fácil de organizar gastos compartidos.
+            {groupName ? (
+               <>Te invitaron a unirte a <strong>{groupName}</strong> para organizar gastos compartidos.</>
+            ) : (
+               "La forma más fácil de organizar gastos compartidos."
+            )}
          </p>
       </div>
       <div className="w-full space-y-4">
          <button onClick={onNext} className="flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-gradient h-14 md:h-16 text-white font-bold text-lg md:text-xl shadow-[0_0_20px_rgba(0,122,255,0.3)] hover:brightness-110 hover:scale-[1.02] transition-all active:scale-95 group">
-            Empezar
+            {groupName ? "Continuar" : "Empezar"}
             <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
          </button>
          <p className="text-slate-500 text-sm">

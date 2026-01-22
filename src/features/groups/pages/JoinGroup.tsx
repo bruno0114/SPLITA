@@ -47,6 +47,16 @@ const JoinGroup: React.FC = () => {
             const target = location.pathname + location.search + location.hash;
             console.log("[INVITE] save redirect", target, inviteCode);
             localStorage.setItem('splita_redirect_path', target);
+
+            // Save invite context for onboarding flow
+            if (group) {
+                localStorage.setItem('splita_invite_context', JSON.stringify({
+                    inviteCode,
+                    groupId: group.id,
+                    groupName: group.name
+                }));
+            }
+
             navigate(AppRoute.LOGIN);
             return;
         }

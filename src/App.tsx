@@ -19,6 +19,8 @@ import AIHistory from '@/features/expenses/pages/AIHistory';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAuthContext } from '@/features/auth/context/AuthContext';
+import { useGroups } from '@/context/GroupsContext';
+import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
 
 // Helper component for legacy redirect
 const RedirectToJoin: React.FC = () => {
@@ -35,8 +37,10 @@ const App: React.FC = () => {
         return 'dark';
     });
     const { user, signOut } = useAuthContext();
+    const { joinGroup } = useGroups();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [inviteToJoin, setInviteToJoin] = useState<{ inviteCode: string, groupId: string, groupName: string } | null>(null);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -97,12 +101,22 @@ const App: React.FC = () => {
                                     user_id: user.id,
                                     role: 'admin'
                                 });
+
+                            // Store for redirect
+                            localStorage.setItem('splita_new_group_id', group.id);
                         }
                     }
 
                     // 3. Clear and notify
                     localStorage.removeItem('pending_onboarding');
                     console.log('Onboarding synced successfully');
+
+                    // 4. Handle Redirection to the new group or dashboard
+                    const newGroupId = localStorage.getItem('splita_new_group_id');
+                    if (newGroupId) {
+                        localStorage.removeItem('splita_new_group_id');
+                        navigate(`/grupos/${newGroupId}`, { replace: true });
+                    }
                 } catch (err) {
                     console.error('Error syncing onboarding data:', err);
                 }
@@ -110,7 +124,50 @@ const App: React.FC = () => {
         };
 
         syncOnboarding();
-    }, [user]);
+    }, [user, navigate]);
+
+    // Invite Observer: Shows a modal if user is authenticated and came from an invite
+    useEffect(() => {
+        if (!user) return;
+
+        const inviteContext = localStorage.getItem('splita_invite_context');
+        if (inviteContext) {
+            try {
+                const parsed = JSON.parse(inviteContext);
+                // Check if user is already a member could be done here, 
+                // but joinGroup RPC handles it anyway or we can just show the modal.
+                setInviteToJoin(parsed);
+                // We keep it in localStorage until they interact with the modal 
+                // or we can remove it now and rely on state.
+                // localStorage.removeItem('splita_invite_context'); 
+            } catch (e) {
+                console.error("Error parsing invite context:", e);
+                localStorage.removeItem('splita_invite_context');
+            }
+        }
+    }, [user, location.pathname]);
+
+    const handleConfirmJoin = async () => {
+        if (!inviteToJoin) return;
+
+        try {
+            const { error } = await joinGroup(inviteToJoin.inviteCode);
+            if (!error) {
+                const gid = inviteToJoin.groupId;
+                setInviteToJoin(null);
+                localStorage.removeItem('splita_invite_context');
+                navigate(`/grupos/${gid}`);
+            } else {
+                console.error("Join error:", error);
+                setInviteToJoin(null);
+                localStorage.removeItem('splita_invite_context');
+            }
+        } catch (e) {
+            console.error("Join error:", e);
+            setInviteToJoin(null);
+            localStorage.removeItem('splita_invite_context');
+        }
+    };
 
     const getRouteTitle = (pathname: string): string => {
         // Handle dynamic routes first
@@ -240,6 +297,21 @@ const App: React.FC = () => {
                 {/* Bottom Nav */}
                 <BottomNav currentRoute={currentRoute} onNavigate={handleNavigate} />
             </div>
+
+            {/* Global Invite Confirmation Modal */}
+            <PremiumConfirmModal
+                isOpen={!!inviteToJoin}
+                title="¿Unirse al grupo?"
+                message={`Te invitaron a compartir gastos en "${inviteToJoin?.groupName}". ¿Querés unirte ahora?`}
+                confirmLabel="Unirme"
+                cancelLabel="Ahora no"
+                onConfirm={handleConfirmJoin}
+                onCancel={() => {
+                    setInviteToJoin(null);
+                    localStorage.removeItem('splita_invite_context');
+                }}
+                type="info"
+            />
         </div>
     );
 };

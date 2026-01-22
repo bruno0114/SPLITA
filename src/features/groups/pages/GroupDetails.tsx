@@ -39,6 +39,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
    const [selectedIds, setSelectedIds] = useState<string[]>([]);
    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+   const [permissionError, setPermissionError] = useState<{ isOpen: boolean; payerName: string }>({ isOpen: false, payerName: '' });
    const { showToast } = useToast();
 
    const group = groups.find(g => g.id === groupId);
@@ -118,16 +119,30 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
          setSelectedIds([]);
          showToast(`${selectedIds.length} movimientos eliminados`, 'success');
       } else {
-         showToast('Error al eliminar movimientos', 'error');
+         if (error.includes('row-level security') || error.includes('policy')) {
+            // For mass delete, we don't necessarily know all payers, but we can show a general permission error
+            setPermissionError({ isOpen: true, payerName: 'sus creadores' });
+         } else {
+            showToast('Error al eliminar movimientos', 'error');
+         }
       }
       setDeleteConfirm({ isOpen: false, id: null });
    };
 
    const handleConfirmDelete = async () => {
       if (deleteConfirm.id) {
+         const txToDelete = transactions.find(t => t.id === deleteConfirm.id);
          const { error } = await deleteTransaction(deleteConfirm.id);
+
          if (error) {
-            showToast('Error al eliminar el gasto', 'error');
+            if (error.includes('row-level security') || error.includes('policy')) {
+               setPermissionError({
+                  isOpen: true,
+                  payerName: txToDelete?.payer.name || 'su creador'
+               });
+            } else {
+               showToast('Error al eliminar el gasto', 'error');
+            }
          } else {
             showToast('Gasto eliminado', 'success');
          }
@@ -495,6 +510,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             confirmLabel="Eliminar"
             onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
             onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+         />
+
+         {/* Permission Error Modal */}
+         <PremiumConfirmModal
+            isOpen={permissionError.isOpen}
+            title="Acción no permitida"
+            message={`No puedes eliminar este movimiento porque fue cargado por ${permissionError.payerName}. Habla con él para eliminarlo.`}
+            confirmLabel="Entendido"
+            onConfirm={() => setPermissionError({ isOpen: false, payerName: '' })}
+            onCancel={() => setPermissionError({ isOpen: false, payerName: '' })}
+            type="info"
          />
       </div>
    );

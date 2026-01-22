@@ -40,6 +40,11 @@ export interface PersonalTransaction {
   created_at: string;
   is_group?: boolean;
   raw_date?: string;
+  payer?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
 }
 
 export interface Category {

@@ -127,7 +127,8 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                             category,
                             date,
                             amount,
-                            group:groups ( name )
+                            group:groups ( name ),
+                            payer:profiles!payer_id ( full_name, avatar_url )
                         )
                     `)
                     .eq('user_id', user.id);
@@ -151,7 +152,12 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                             type: (s.transaction.amount >= 0 ? 'expense' : 'income') as 'income' | 'expense',
                             date: s.transaction.date,
                             payment_method: s.transaction.group?.name || 'Grupo',
-                            is_group: true
+                            is_group: true,
+                            payer: s.transaction.payer ? {
+                                id: s.transaction.payer_id, // Note: payer_id comes from s.transaction object
+                                name: s.transaction.payer.full_name || 'Alguien',
+                                avatar: s.transaction.payer.avatar_url
+                            } : undefined
                         }))
                         .filter((tx: any) => {
                             const inDateRange = (!filters.startDate || tx.date >= filters.startDate) &&

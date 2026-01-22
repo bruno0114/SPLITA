@@ -47,6 +47,7 @@ const PersonalFinance: React.FC = () => {
     isGroup?: boolean;
     groupName?: string;
   }>({ isOpen: false, id: null });
+  const [permissionError, setPermissionError] = useState<{ isOpen: boolean; memberName: string }>({ isOpen: false, memberName: '' });
   const { showToast } = useToast();
 
   const filteredTransactions = transactions.filter(tx => {
@@ -98,9 +99,18 @@ const PersonalFinance: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (deleteConfirm.id) {
+      const txToDelete = fullTransactions.find(t => t.id === deleteConfirm.id);
       const { error } = await deleteTransaction(deleteConfirm.id);
+
       if (error) {
-        showToast('Error al eliminar el movimiento', 'error');
+        if (error.includes('row-level security') || error.includes('policy')) {
+          setPermissionError({
+            isOpen: true,
+            memberName: txToDelete?.payer?.name || 'su creador'
+          });
+        } else {
+          showToast('Error al eliminar el movimiento', 'error');
+        }
       } else {
         showToast('Movimiento eliminado', 'success');
       }
@@ -140,7 +150,11 @@ const PersonalFinance: React.FC = () => {
       showToast(`${selectedIds.length} movimientos eliminados`, 'success');
       setSelectedIds([]);
     } else {
-      showToast('Error al eliminar movimientos', 'error');
+      if (error.includes('row-level security') || error.includes('policy')) {
+        setPermissionError({ isOpen: true, memberName: 'sus creadores' });
+      } else {
+        showToast('Error al eliminar movimientos', 'error');
+      }
     }
     setDeleteConfirm({ isOpen: false, id: null });
   };
@@ -466,6 +480,17 @@ const PersonalFinance: React.FC = () => {
         confirmLabel="Eliminar"
         onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
         onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+      />
+
+      {/* Permission Error Modal */}
+      <PremiumConfirmModal
+        isOpen={permissionError.isOpen}
+        title="Acción no permitida"
+        message={`No puedes eliminar este movimiento porque fue cargado por ${permissionError.memberName}. Habla con él para eliminarlo.`}
+        confirmLabel="Entendido"
+        onConfirm={() => setPermissionError({ isOpen: false, memberName: '' })}
+        onCancel={() => setPermissionError({ isOpen: false, memberName: '' })}
+        type="info"
       />
     </div>
   );
