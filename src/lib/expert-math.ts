@@ -70,7 +70,7 @@ export const simplifyDebts = (balances: Record<string, number>, members: Member[
  * (Current Spent / Days Elapsed) * Total Days in Month
  */
 export const projectMonthlySpending = (currentSpent: number, daysElapsed: number, totalDays: number) => {
-    if (daysElapsed === 0) return currentSpent;
+    if (daysElapsed <= 0) return currentSpent;
     return (currentSpent / daysElapsed) * totalDays;
 };
 
@@ -86,4 +86,20 @@ export const splitEqually = (total: number, memberCount: number) => {
         base,
         remainder
     };
+};
+
+/**
+ * Checks if a date string falls within the current month (local time).
+ * Robustly handles YYYY-MM-DD vs ISO strings.
+ */
+export const isCurrentMonth = (dateStr: string) => {
+    if (!dateStr) return false;
+    // Append time if missing to force local interpretation of "day" 
+    // (otherwise YYYY-MM-DD is UTC midnight -> prev day local)
+    const safeStr = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+    // Using noon is safer than midnight to avoid edge case shifts
+
+    const d = new Date(safeStr);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 };

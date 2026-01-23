@@ -40,6 +40,11 @@ export interface PersonalTransaction {
   created_at: string;
   is_group?: boolean;
   raw_date?: string;
+  original_amount?: number;
+  original_currency?: string;
+  exchange_rate?: number;
+  is_recurring?: boolean;
+  recurring_pattern?: string | null;
   payer?: {
     id: string;
     name: string;

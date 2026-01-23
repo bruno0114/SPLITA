@@ -62,12 +62,15 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
 
     const fetchTransactions = useCallback(async (isLoadMore = false) => {
         if (!user?.id) {
-            console.log('[usePersonalTransactions] No user session, clearing data.');
+            console.log('[usePersonalTransactions] No user session, setting error state.');
             setTransactions([]);
+            setFullTransactions([]);
             setSummary({ balance: 0, totalIncome: 0, totalExpenses: 0, totalCount: 0 });
             setLoading(false);
             setLoadingMore(false);
-            setError(null);
+            // Surface the error instead of silently returning empty data
+            // This allows UI components to show appropriate feedback
+            setError('SESSION_EXPIRED');
             return;
         }
 
@@ -343,12 +346,14 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     .eq('transaction_id', realTxId);
 
                 // Then delete the parent transaction (Option A: Total Deletion)
-                const { error } = await supabase
+                const { error, count } = await supabase
                     .from('transactions')
-                    .delete()
-                    .eq('id', realTxId);
+                    .delete({ count: 'exact' })
+                    .eq('id', realTxId)
+                    .eq('created_by', user.id);
 
                 if (error) throw error;
+                if (count === 0) throw new Error('PERMISSION_DENIED');
             } else {
                 const { error, count } = await supabase
                     .from('personal_transactions')
@@ -397,7 +402,8 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                 const { error, count } = await supabase
                     .from('transactions')
                     .delete({ count: 'exact' })
-                    .in('id', splitIds);
+                    .in('id', splitIds)
+                    .eq('created_by', user.id);
                 if (error) throw error;
                 if (count === 0) throw new Error('PERMISSION_DENIED');
             }

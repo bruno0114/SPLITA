@@ -5,15 +5,41 @@ import { useCurrency } from '@/context/CurrencyContext';
 
 interface AnimatedPriceProps {
     amount: number; // Base amount in ARS
+    originalAmount?: number;
+    originalCurrency?: string;
     className?: string;
     showCode?: boolean;
+    /**
+     * If true, skip currency conversion and display the amount as-is.
+     * Use this when the amount has already been converted or is in the display currency.
+     */
+    skipConversion?: boolean;
 }
 
-const AnimatedPrice: React.FC<AnimatedPriceProps> = ({ amount, className = "", showCode = false }) => {
+const AnimatedPrice: React.FC<AnimatedPriceProps> = ({
+    amount,
+    originalAmount,
+    originalCurrency,
+    className = "",
+    showCode = false,
+    skipConversion = false
+}) => {
     const { currency, exchangeRate } = useCurrency();
 
     const isUSD = currency === 'USD';
-    const displayAmount = isUSD ? amount / exchangeRate : amount;
+
+    // Determine display amount based on conversion settings
+    let displayAmount: number;
+    if (skipConversion) {
+        // Amount is already in the target currency, display as-is
+        displayAmount = amount;
+    } else if (isUSD && originalCurrency === 'USD' && originalAmount !== undefined) {
+        // Use original USD amount if available (avoids round-trip conversion loss)
+        displayAmount = originalAmount;
+    } else {
+        // Standard conversion: ARS stored, convert to USD if needed
+        displayAmount = isUSD ? amount / exchangeRate : amount;
+    }
 
     const formatted = new Intl.NumberFormat('es-AR', {
         style: 'currency',

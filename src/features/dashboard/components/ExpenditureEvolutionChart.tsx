@@ -10,6 +10,7 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { PersonalTransaction } from '@/types/index';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface ExpenditureEvolutionChartProps {
     transactions: PersonalTransaction[];
@@ -29,8 +30,21 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
+    const { currency, exchangeRate } = useCurrency();
+    const isUSD = currency === 'USD';
+
     if (active && payload && payload.length) {
         const total = payload.reduce((sum: number, entry: any) => sum + entry.value, 0);
+
+        const formatValue = (val: number) => {
+            return new Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: isUSD ? 'USD' : 'ARS',
+                minimumFractionDigits: isUSD ? 2 : 0,
+                maximumFractionDigits: isUSD ? 2 : 0,
+            }).format(val);
+        };
+
         return (
             <div className="bg-slate-900/95 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-2xl">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{label}</p>
@@ -42,14 +56,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                                 <span className="text-xs font-bold text-white/90">{entry.name}</span>
                             </div>
                             <span className="text-xs font-black text-white">
-                                {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(entry.value)}
+                                {formatValue(entry.value)}
                             </span>
                         </div>
                     ))}
                     <div className="pt-2 mt-2 border-t border-white/5 flex items-center justify-between">
                         <span className="text-xs font-black text-blue-400">TOTAL</span>
                         <span className="text-xs font-black text-blue-400">
-                            {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(total)}
+                            {formatValue(total)}
                         </span>
                     </div>
                 </div>
@@ -60,6 +74,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const ExpenditureEvolutionChart: React.FC<ExpenditureEvolutionChartProps> = ({ transactions, onUpgrade }) => {
+    const { currency, exchangeRate } = useCurrency();
+    const isUSD = currency === 'USD';
+
     const chartData = useMemo(() => {
         const monthsMap: Record<string, any> = {};
 
@@ -76,11 +93,14 @@ const ExpenditureEvolutionChart: React.FC<ExpenditureEvolutionChartProps> = ({ t
                 if (!monthsMap[monthKey]) {
                     monthsMap[monthKey] = { name: monthKey.toUpperCase() };
                 }
-                monthsMap[monthKey][category] = (monthsMap[monthKey][category] || 0) + Number(t.amount);
+
+                // Convert to current currency
+                const amount = isUSD ? Number(t.amount) / exchangeRate : Number(t.amount);
+                monthsMap[monthKey][category] = (monthsMap[monthKey][category] || 0) + amount;
             });
 
         return Object.values(monthsMap);
-    }, [transactions]);
+    }, [transactions, currency, exchangeRate]);
 
     const categories = useMemo(() => {
         const cats = new Set<string>();

@@ -1,22 +1,24 @@
 # STATE.md
 
 ## Current Position
-- **Phase**: 18.4 - Invite Onboarding & UX Flows
-- **Task**: Planning
-- **Status**: Active (resumed 2026-01-22)
+- **Phase**: 20 - Fix Category Inconsistencies
+- **Task**: Execution
+- **Status**: Active (resumed 2026-01-23)
 
 ## Accomplished (Last Session)
-- Phase 18.3: Fixed Join Group public layout to hide sidebar/header for unauthenticated users.
-- Phase 18.4 Discussion: Finalized UX decisions for invite onboarding, second confirmation, and error handling.
+- Phase 19: Financial Calculations & Currency Review completed.
+- Verified Projections, Health Score, and Currency switch.
+- Calculated consistency plan for categories (Phase 20).
 
 ## Next Steps
-1. Create PLAN.md files for Phase 18.4 (Invite Onboarding variant, Join modal, Redirect logic).
-2. Implement 3-step invite onboarding flow.
-3. Implement post-signup join confirmation modal.
-4. Add RLS error handling using PremiumConfirmModal.
+1. /execute 20 - Align CategoryDetail data source and filters.
+2. Verify category consistency across scopes.
+3. Commit pending changes.
 
 ## Context
-- `App.tsx`: Routing logic for public vs private layout.
-- `Onboarding.tsx`: 6-step flow needs branching for invite flow.
-- `JoinGroup.tsx`: Needs to store invite context in localStorage.
-- `PremiumConfirmModal.tsx`: To be used for permission errors.
+- `Categories.tsx` & `CategoryDetail.tsx`: Need alignment on monthly scope and `fullTransactions` usage.
+- `useCategoryStats.ts`: Updated to include all categories.
+- `PersonalFinance.tsx`: Reference implementation for correct monthly calculation.
+
+## Blockers
+- None.

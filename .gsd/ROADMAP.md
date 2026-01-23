@@ -107,3 +107,7 @@
   - Implement secure `join_group_by_code` RPC.
   - Wire frontend route to RPC with auth checks.
   - Verify permissions for new members.
+
+### Phase 19: Financial Calculations & Currency Review
+**Status**: 🚀 In Progress
+**Objective**: Review and fix core financial behaviors: Projections, Categories, Economic Health, Deletion logic, Currency switching, and USD Blue filtering.

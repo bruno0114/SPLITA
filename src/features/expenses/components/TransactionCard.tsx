@@ -1,5 +1,6 @@
 import { ShoppingBag, DollarSign, Edit2, Trash2, Calendar, Repeat, Hash, CheckCircle2, Circle, LayoutGrid, User, Users } from 'lucide-react';
 import { Transaction, PersonalTransaction } from '@/types/index';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 interface TransactionCardProps {
     transaction: Transaction | PersonalTransaction;
@@ -27,8 +28,7 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
     const isRecurring = (transaction as any).is_recurring;
     const installments = (transaction as any).recurring_pattern || (transaction as any).installments;
 
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+
 
     const formatDate = (dateStr: string) => {
         try {
@@ -107,7 +107,12 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
             <div className="flex items-center justify-between w-full md:w-auto gap-4 md:gap-6 pl-[4.5rem] md:pl-0">
                 <div className="text-left md:text-right flex flex-col md:items-end">
                     <p className={`font-black text-base md:text-lg flex items-center gap-1.5 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                        {isIncome ? '+' : '-'}{formatCurrency(amount)}
+                        {isIncome ? '+' : '-'}
+                        <AnimatedPrice
+                            amount={amount}
+                            originalAmount={transaction.original_amount}
+                            originalCurrency={transaction.original_currency}
+                        />
                         {installments && (
                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 min-w-[20px] rounded-full bg-primary/10 text-primary text-[9px] font-black ring-1 ring-primary/20">
                                 {installments.includes('/') ? installments : <><Hash className="w-2.5 h-2.5 mr-0.5" />{installments}</>}

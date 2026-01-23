@@ -10,6 +10,7 @@ interface ProjectionCardProps {
 }
 
 import ProjectionsModal from './ProjectionsModal';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 const ProjectionCard: React.FC<ProjectionCardProps> = ({ currentSpent, budget = 500000 }) => {
     const [showModal, setShowModal] = React.useState(false);
@@ -41,7 +42,7 @@ const ProjectionCard: React.FC<ProjectionCardProps> = ({ currentSpent, budget = 
                                 Proyección Mensual
                             </div>
                             <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-                                $ {projection.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                <AnimatedPrice amount={projection} showCode />
                             </h3>
                         </div>
                         <div className={`size-10 rounded-2xl flex items-center justify-center shadow-lg ${isOverBudget ? 'bg-orange-500 shadow-orange-500/20' : 'bg-blue-500 shadow-blue-500/20'} text-white`}>

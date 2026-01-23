@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
-    ChevronDown, Wallet, Users, LayoutGrid, ArrowRight
+    ChevronDown, Wallet, Users, LayoutGrid, ArrowRight, Loader2
 } from 'lucide-react';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
@@ -13,6 +13,9 @@ import { useCategoryStats } from '../hooks/useCategoryStats';
 import CategoryManagerModal from '@/features/analytics/components/CategoryManagerModal';
 import { Settings2 } from 'lucide-react';
 import { AppRoute } from '@/types/index';
+import { useCurrency } from '@/context/CurrencyContext';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
+import { AnalyticsTransaction } from '../hooks/useCategoryStats';
 
 // Map string icon names to components
 const IconMap: Record<string, React.ElementType> = {
@@ -23,26 +26,62 @@ const Categories: React.FC = () => {
     const navigate = useNavigate();
     const [scope, setScope] = useState<string>('personal'); // 'personal' or groupId
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { currency, exchangeRate } = useCurrency();
 
     // Data Fetching
-    const { fullTransactions: personalTx } = usePersonalTransactions();
+    const { fullTransactions: personalTx, loading: personalLoading } = usePersonalTransactions();
     const { groups } = useGroups();
-    const { transactions: groupTx } = useTransactions(scope !== 'personal' ? scope : null);
+    const { transactions: groupTx, loading: groupLoading } = useTransactions(scope !== 'personal' ? scope : null);
+
+    // Determine loading state based on current scope
+    const isLoading = scope === 'personal' ? personalLoading : groupLoading;
 
     const activeTransactions = scope === 'personal' ? personalTx : groupTx;
-    const { totalExpense, categories } = useCategoryStats(activeTransactions as any[]); // Type assertion needed until unification
 
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+
+
+    // Show ALL transactions by default - no auto-filtering
+    // User can apply date filters explicitly if needed
+    const allTransactions = useMemo((): AnalyticsTransaction[] => {
+        return activeTransactions.map(t => ({
+            id: t.id,
+            amount: t.amount,
+            category: t.category,
+            date: t.date,
+            type: (t as any).type as 'income' | 'expense' | undefined
+        }));
+    }, [activeTransactions]);
+
+    const { totalExpense, categories } = useCategoryStats(allTransactions);
+
+    const formatCurrency = (val: number) => {
+        const isUSD = currency === 'USD';
+        const displayVal = isUSD ? val / exchangeRate : val;
+        return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: isUSD ? 'USD' : 'ARS',
+            maximumFractionDigits: isUSD ? 2 : 0
+        }).format(displayVal);
+    };
 
     const selectedGroup = groups.find(g => g.id === scope);
+
+    // Show loader while fetching data
+    if (isLoading && activeTransactions.length === 0) {
+        return (
+            <div className="flex flex-col h-[70vh] w-full items-center justify-center bg-background gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Cargando categorías...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="px-6 md:px-12 py-6 md:py-10">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-10 gap-4">
                 <div>
                     <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Análisis de gastos</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Desglose detallado por categorías.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">Desglose por categoría.</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -88,9 +127,8 @@ const Categories: React.FC = () => {
                     </p>
                     <div className="flex flex-wrap items-baseline gap-2">
                         <span className="text-4xl md:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
-                            {formatCurrency(totalExpense)}
+                            <AnimatedPrice amount={totalExpense} showCode />
                         </span>
-                        <span className="text-lg md:text-xl text-slate-500 dark:text-slate-400 font-medium">ARS</span>
                     </div>
                 </div>
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full"></div>

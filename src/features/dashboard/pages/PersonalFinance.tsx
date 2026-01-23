@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle, Calendar, Filter, BarChart3 } from 'lucide-react';
 import { usePersonalTransactions, TransactionFilters } from '../hooks/usePersonalTransactions';
 import { PersonalTransaction } from '@/types/index';
+import { useCurrency } from '@/context/CurrencyContext';
 import ProjectionCard from '../components/ProjectionCard';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
@@ -49,6 +50,20 @@ const PersonalFinance: React.FC = () => {
   }>({ isOpen: false, id: null });
   const [permissionError, setPermissionError] = useState<{ isOpen: boolean; memberName: string }>({ isOpen: false, memberName: '' });
   const { showToast } = useToast();
+  const { currency, exchangeRate } = useCurrency();
+
+  const currentMonthExpenses = React.useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    return fullTransactions
+      .filter(t => {
+        const d = new Date(t.date);
+        return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      })
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  }, [fullTransactions]);
 
   const filteredTransactions = transactions.filter(tx => {
     if (activeType === 'all') return true;
@@ -75,8 +90,15 @@ const PersonalFinance: React.FC = () => {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading, loadMore]);
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => {
+    const isUSD = currency === 'USD';
+    const displayVal = isUSD ? val / exchangeRate : val;
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: isUSD ? 'USD' : 'ARS',
+      maximumFractionDigits: isUSD ? 2 : 0
+    }).format(displayVal);
+  };
 
   const getBalanceChange = () => {
     if (summary.totalIncome === 0) return 0;
@@ -280,7 +302,7 @@ const PersonalFinance: React.FC = () => {
           />
         </div>
         <div className="lg:col-span-1">
-          <ProjectionCard currentSpent={summary.totalExpenses} />
+          <ProjectionCard currentSpent={currentMonthExpenses} />
         </div>
       </div>
 

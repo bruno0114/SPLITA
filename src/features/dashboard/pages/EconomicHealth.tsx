@@ -5,9 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEconomicHealth } from '../hooks/useEconomicHealth';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { AppRoute } from '@/types/index';
+import { useCurrency } from '@/context/CurrencyContext';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 const EconomicHealth: React.FC = () => {
    const { data, loading, refreshAdvice } = useEconomicHealth();
+   const { currency, exchangeRate } = useCurrency();
    const navigate = useNavigate();
    const [showPremiumModal, setShowPremiumModal] = React.useState(false);
 
@@ -17,8 +20,15 @@ const EconomicHealth: React.FC = () => {
    const circumference = 2 * Math.PI * radius;
    const offset = circumference - (score / 100) * circumference;
 
-   const formatCurrency = (val: number) =>
-      new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+   const formatCurrency = (val: number) => {
+      const isUSD = currency === 'USD';
+      const displayVal = isUSD ? val / exchangeRate : val;
+      return new Intl.NumberFormat('es-AR', {
+         style: 'currency',
+         currency: isUSD ? 'USD' : 'ARS',
+         maximumFractionDigits: isUSD ? 2 : 0
+      }).format(displayVal);
+   };
 
    if (loading) {
       return (
@@ -206,7 +216,9 @@ const EconomicHealth: React.FC = () => {
                   <div className="glass-panel rounded-3xl p-6 space-y-6">
                      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ingresos</h3>
                      <div className="space-y-1 py-4">
-                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(data.monthlyIncome)}</p>
+                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                           <AnimatedPrice amount={data.monthlyIncome} />
+                        </p>
                         <p className="text-xs text-slate-500">este período</p>
                      </div>
                   </div>
@@ -214,7 +226,9 @@ const EconomicHealth: React.FC = () => {
                   <div className="glass-panel rounded-3xl p-6 space-y-4">
                      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Gastos</h3>
                      <div className="space-y-1 py-4">
-                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(data.monthlyExpenses)}</p>
+                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                           <AnimatedPrice amount={data.monthlyExpenses} />
+                        </p>
                         <p className="text-xs text-slate-500">este período</p>
                      </div>
                   </div>

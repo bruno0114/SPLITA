@@ -41,28 +41,35 @@ export const useTransactions = (groupId?: string | null) => {
             if (error) throw error;
 
             // Transform data
-            const validTransactions: Transaction[] = data.map((t: any) => ({
-                id: t.id,
-                date: t.date,
-                merchant: t.title, // Mapping title to merchant for now
-                category: t.category,
-                amount: t.amount,
-                payer: t.payer ? {
-                    id: t.payer.id,
-                    name: t.payer.full_name || 'Desconocido',
-                    avatar: t.payer.avatar_url || '',
-                } : { id: t.payer_id, name: 'Desconocido', avatar: '' },
-                splitWith: (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
-                    id: s.user.id,
-                    name: s.user.full_name || 'Miembro',
-                    avatar: s.user.avatar_url || ''
-                })),
-                icon: 'Receipt', // Default
-                iconColor: 'text-blue-400',
-                iconBg: 'bg-blue-500/10',
-                categoryColor: 'text-slate-500',
-                categoryBg: 'bg-slate-100',
-            }));
+            const validTransactions: Transaction[] = data.map((t: any) => {
+                // Find current user's split to get their portion of the amount
+                const userSplit = (t.splits || []).find((s: any) => s.user_id === user.id);
+
+                return {
+                    id: t.id,
+                    date: t.date,
+                    merchant: t.title, // Mapping title to merchant for now
+                    category: t.category,
+                    // Use user's split amount, not total transaction amount
+                    // This ensures category totals reflect what the user actually owes
+                    amount: userSplit?.amount_owed ?? t.amount,
+                    payer: t.payer ? {
+                        id: t.payer.id,
+                        name: t.payer.full_name || 'Desconocido',
+                        avatar: t.payer.avatar_url || '',
+                    } : { id: t.payer_id, name: 'Desconocido', avatar: '' },
+                    splitWith: (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
+                        id: s.user.id,
+                        name: s.user.full_name || 'Miembro',
+                        avatar: s.user.avatar_url || ''
+                    })),
+                    icon: 'Receipt', // Default
+                    iconColor: 'text-blue-400',
+                    iconBg: 'bg-blue-500/10',
+                    categoryColor: 'text-slate-500',
+                    categoryBg: 'bg-slate-100',
+                };
+            });
 
             setTransactions(validTransactions);
         } catch (err: any) {

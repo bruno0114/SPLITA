@@ -1,17 +1,31 @@
 // --- APP CONFIGURATION ---
 
-export const CATEGORY_CONFIG: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  'compras': { label: 'Compras', icon: 'ShoppingBag', color: 'text-orange-500', bg: 'bg-orange-500/10' },
-  'supermercado': { label: 'Supermercado', icon: 'ShoppingCart', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  'gastronomia': { label: 'Gastronomía', icon: 'Coffee', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  'servicios': { label: 'Servicios', icon: 'Zap', color: 'text-purple-500', bg: 'bg-purple-500/10' },
-  'transporte': { label: 'Transporte', icon: 'Car', color: 'text-rose-500', bg: 'bg-rose-500/10' },
-  'casa': { label: 'Casa', icon: 'Home', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-  'viajes': { label: 'Viajes', icon: 'Plane', color: 'text-sky-500', bg: 'bg-sky-500/10' },
-  'varios': { label: 'Varios', icon: 'MoreHorizontal', color: 'text-slate-500', bg: 'bg-slate-500/10' }
+export interface CategoryConfig {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  bg: string;
+}
+
+export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
+  'compras': { id: 'compras', label: 'Compras', icon: 'ShoppingBag', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+  'supermercado': { id: 'supermercado', label: 'Supermercado', icon: 'ShoppingCart', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  'gastronomia': { id: 'gastronomia', label: 'Gastronomía', icon: 'Coffee', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  'servicios': { id: 'servicios', label: 'Servicios', icon: 'Zap', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  'transporte': { id: 'transporte', label: 'Transporte', icon: 'Car', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+  'casa': { id: 'casa', label: 'Casa', icon: 'Home', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+  'viajes': { id: 'viajes', label: 'Viajes', icon: 'Plane', color: 'text-sky-500', bg: 'bg-sky-500/10' },
+  'varios': { id: 'varios', label: 'Varios', icon: 'MoreHorizontal', color: 'text-slate-500', bg: 'bg-slate-500/10' }
 };
 
-export const getCategoryConfig = (categoryName: string) => {
+/**
+ * Get category configuration by category name.
+ * Uses fuzzy matching for backwards compatibility.
+ *
+ * @deprecated Use resolveCategoryId from category-resolver.ts for consistent ID-based resolution
+ */
+export const getCategoryConfig = (categoryName: string): CategoryConfig => {
   const normalized = (categoryName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   if (normalized.includes('super')) return CATEGORY_CONFIG['supermercado'];
@@ -23,4 +37,11 @@ export const getCategoryConfig = (categoryName: string) => {
   if (normalized.includes('viaje')) return CATEGORY_CONFIG['viajes'];
 
   return CATEGORY_CONFIG['varios'];
+};
+
+/**
+ * Get all category IDs.
+ */
+export const getAllCategoryIds = (): string[] => {
+  return Object.keys(CATEGORY_CONFIG);
 };

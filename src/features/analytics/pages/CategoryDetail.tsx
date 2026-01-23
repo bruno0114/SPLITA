@@ -8,9 +8,10 @@ import { useCategories } from '@/features/analytics/hooks/useCategories';
 import {
     ArrowLeft, Calendar, DollarSign, ShoppingBag,
     ChevronLeft, ChevronRight, Filter, Plus,
-    Search, X, Calendar as CalendarIcon, ArrowUpDown
+    Search, X, Calendar as CalendarIcon, ArrowUpDown, Loader2
 } from 'lucide-react';
-import { getCategoryConfig } from '@/lib/constants';
+import { resolveCategoryId, getCategoryConfigById } from '@/lib/category-resolver';
+import { isInDateRange } from '@/lib/date-utils';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
 import TransactionModal from '@/features/expenses/components/TransactionModal';
@@ -21,20 +22,26 @@ import { useToast } from '@/context/ToastContext';
 import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
 import { Transaction, PersonalTransaction, AppRoute } from '@/types/index';
 import { supabase } from '@/lib/supabase';
+import { useCurrency } from '@/context/CurrencyContext';
 
 const ITEMS_PER_PAGE = 8;
 
 const CategoryDetail: React.FC = () => {
     const { scope, categoryId } = useParams<{ scope: string; categoryId: string }>();
     const navigate = useNavigate();
+    const { currency, exchangeRate } = useCurrency();
 
     // Data Fetching
-    const { transactions: personalTx } = usePersonalTransactions();
-    const { transactions: groupTx } = useTransactions(scope !== 'personal' ? scope : null);
+    const { fullTransactions: personalTx, loading: personalLoading } = usePersonalTransactions();
+    const { transactions: groupTx, loading: groupLoading } = useTransactions(scope !== 'personal' ? scope : null);
     const { groups } = useGroups();
     const { categories } = useCategories();
 
-    // Filters State
+    // Determine loading state based on current scope
+    const isLoading = scope === 'personal' ? personalLoading : groupLoading;
+
+    // Filters State - Start with no date filters to show all transactions
+    // User can apply date range filters via the filter panel
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -65,10 +72,11 @@ const CategoryDetail: React.FC = () => {
         totalPages,
         config
     } = useMemo(() => {
-        // 1. Initial filter by category label
+        // 1. Initial filter by category ID (not label) for consistency with useCategoryStats
+        // The categoryId from URL is now expected to be the canonical category ID
         let filtered = activeTransactions.filter(t => {
-            const catConfig = getCategoryConfig(t.category || 'varios');
-            return catConfig.label === categoryId;
+            const resolvedId = resolveCategoryId(t.category);
+            return resolvedId === categoryId;
         });
 
         // 2. Search filter
@@ -80,16 +88,15 @@ const CategoryDetail: React.FC = () => {
             );
         }
 
-        // 3. Date range filter
-        if (dateFrom) {
-            filtered = filtered.filter(t => new Date(t.date) >= new Date(dateFrom));
-        }
-        if (dateTo) {
-            filtered = filtered.filter(t => new Date(t.date) <= new Date(dateTo));
-        }
+        // 3. Date range filter - Use canonical date utilities
+        filtered = filtered.filter(t => isInDateRange(t.date, dateFrom, dateTo));
 
         // 4. Calculate Stats
-        const amount = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
+        const expenses = filtered.filter(t => (t as any).type === 'expense' || !(t as any).type);
+        const amount = expenses.reduce((sum, t) => {
+            const amt = Number(t.amount);
+            return sum + (isNaN(amt) ? 0 : amt);
+        }, 0);
         const totalCount = filtered.length;
         const pages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -97,8 +104,8 @@ const CategoryDetail: React.FC = () => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const paginated = filtered.slice(start, start + ITEMS_PER_PAGE);
 
-        // 6. Get Config (Try DB first, then assets)
-        const catConfig = getCategoryConfig(categoryId || 'varios');
+        // 6. Get Config by ID
+        const catConfig = getCategoryConfigById(categoryId || 'varios');
 
         return {
             paginatedTransactions: paginated,
@@ -110,8 +117,15 @@ const CategoryDetail: React.FC = () => {
         };
     }, [activeTransactions, categoryId, searchTerm, dateFrom, dateTo, currentPage]);
 
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+    const formatCurrency = (val: number) => {
+        const isUSD = currency === 'USD';
+        const displayVal = isUSD ? val / exchangeRate : val;
+        return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: isUSD ? 'USD' : 'ARS',
+            maximumFractionDigits: isUSD ? 2 : 0
+        }).format(displayVal);
+    };
 
     const isActiveScopePersonal = scope === 'personal';
     const scopeName = isActiveScopePersonal ? 'Finanzas Personales' : groups.find(g => g.id === scope)?.name || 'Grupo';
@@ -221,6 +235,16 @@ const CategoryDetail: React.FC = () => {
             showToast('Error al re-asignar movimientos', 'error');
         }
     };
+
+    // Show loader while fetching data
+    if (isLoading && activeTransactions.length === 0) {
+        return (
+            <div className="flex flex-col h-[70vh] w-full items-center justify-center bg-background gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Cargando movimientos...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="px-6 md:px-12 py-6 md:py-10 pb-32 max-w-5xl mx-auto">
