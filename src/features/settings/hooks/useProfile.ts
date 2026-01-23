@@ -31,7 +31,7 @@ export const useProfile = () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id, full_name, avatar_url, email, updated_at')
                 .eq('id', user.id)
                 .single();
 
@@ -74,7 +74,20 @@ export const useProfile = () => {
                 }
             }
 
-            setProfile(data);
+            const { data: secretsData, error: secretsError } = await supabase
+                .from('user_secrets')
+                .select('gemini_api_key')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (secretsError) {
+                console.warn('[useProfile] Failed to fetch user secrets:', secretsError);
+            }
+
+            setProfile({
+                ...data,
+                gemini_api_key: secretsData?.gemini_api_key || null
+            });
         } catch (err: any) {
             console.error('Error fetching profile:', err);
             setError(err.message);
@@ -89,25 +102,58 @@ export const useProfile = () => {
         setSaving(true);
         setError(null);
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .update({
-                    ...updates,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', user.id)
-                .select()
-                .single();
+            const profileUpdates: Record<string, unknown> = {};
+            if (updates.full_name !== undefined) profileUpdates.full_name = updates.full_name;
+            if (updates.email !== undefined) profileUpdates.email = updates.email;
+            if (updates.avatar_url !== undefined) profileUpdates.avatar_url = updates.avatar_url;
 
-            if (error) throw error;
+            let profileData: Profile | null = profile;
 
-            // If the API key was updated, clear the model cache
+            if (Object.keys(profileUpdates).length > 0) {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .update({
+                        ...profileUpdates,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', user.id)
+                    .select('id, full_name, avatar_url, email, updated_at')
+                    .single();
+
+                if (error) throw error;
+                profileData = {
+                    ...data,
+                    gemini_api_key: profile?.gemini_api_key ?? null
+                };
+            }
+
             if (updates.gemini_api_key !== undefined) {
+                const { error: secretsError } = await supabase
+                    .from('user_secrets')
+                    .upsert({
+                        user_id: user.id,
+                        gemini_api_key: updates.gemini_api_key,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+
+                if (secretsError) throw secretsError;
                 clearModelCache();
             }
 
-            setProfile(data);
-            return { data, error: null };
+            const mergedProfile: Profile = {
+                id: profileData?.id || user.id,
+                full_name: profileData?.full_name ?? profile?.full_name ?? null,
+                avatar_url: profileData?.avatar_url ?? profile?.avatar_url ?? null,
+                email: profileData?.email ?? profile?.email ?? null,
+                updated_at: profileData?.updated_at ?? profile?.updated_at ?? null,
+                gemini_api_key: updates.gemini_api_key !== undefined
+                    ? updates.gemini_api_key
+                    : (profileData?.gemini_api_key ?? profile?.gemini_api_key ?? null)
+            };
+
+            setProfile(mergedProfile);
+
+            return { data: profileData, error: null };
         } catch (err: any) {
             setError(err.message);
             return { data: null, error: err.message };

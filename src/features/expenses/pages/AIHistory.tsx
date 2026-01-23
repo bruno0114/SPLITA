@@ -1,13 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAIHistory } from '@/features/expenses/hooks/useAIHistory';
-import { Clock, ChevronRight, FileText, Calendar, ShoppingBag, Eye, ExternalLink, BrainCircuit, FileSpreadsheet, FileCode } from 'lucide-react';
+import { Clock, ChevronRight, FileText, Calendar, ShoppingBag, Eye, BrainCircuit, FileSpreadsheet, FileCode, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import HistoryDetailModal from '../components/HistoryDetailModal';
 
 const AIHistory: React.FC = () => {
     const { getSessions, updateSessionData } = useAIHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
@@ -24,7 +27,7 @@ const AIHistory: React.FC = () => {
             setLoading(false);
         };
         fetchSessions();
-    }, []);
+    }, [getSessions, location.key]);
 
     if (loading) {
         return (
@@ -112,9 +115,16 @@ const AIHistory: React.FC = () => {
                                             <Calendar className="w-3.5 h-3.5" />
                                             {new Date(session.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </div>
-                                        <span className="bg-blue-600/10 text-blue-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">
-                                            {session.raw_data?.length || 0} GASTOS DETECTADOS
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {session.reimport_count > 0 && (
+                                                <span className="bg-amber-500/10 text-amber-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">
+                                                    Reimportado {session.reimport_count}
+                                                </span>
+                                            )}
+                                            <span className="bg-blue-600/10 text-blue-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">
+                                                {session.raw_data?.length || 0} GASTOS DETECTADOS
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
@@ -138,14 +148,34 @@ const AIHistory: React.FC = () => {
                                             </div>
                                         ))}
                                     </div>
+
+                                    <div className="mt-5 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => navigate(`/importar?sessionId=${session.id}`)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black shadow-lg shadow-blue-500/20 hover:brightness-110 transition-all"
+                                        >
+                                            <RotateCw className="w-3.5 h-3.5" />
+                                            Reimportar
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedSession(session)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-xs font-black hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
+                                        >
+                                            <Eye className="w-3.5 h-3.5" />
+                                            Ver detalles
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Arrow */}
-                                <div className="hidden md:flex items-center pr-4">
-                                    <div className="size-10 rounded-full border border-border flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:border-blue-500/30 transition-all">
-                                        <ChevronRight className="w-5 h-5" />
+                                    <div className="hidden md:flex items-center pr-4">
+                                        <button
+                                            onClick={() => setSelectedSession(session)}
+                                            className="size-10 rounded-full border border-border flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:border-blue-500/30 transition-all"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
                                     </div>
-                                </div>
                             </div>
                         </motion.div>
                     ))}

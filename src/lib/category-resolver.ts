@@ -176,3 +176,41 @@ export const getAllCategoryIds = (): string[] => {
 export const isValidCategoryId = (id: string): boolean => {
     return id in CATEGORY_CONFIG;
 };
+
+/**
+ * Resolve a category string, passing through custom category names.
+ *
+ * Unlike resolveCategoryId which falls back to 'varios', this function
+ * returns the original input if it doesn't match a system category.
+ * Use this when you want to preserve user-created category names.
+ *
+ * @param input - Category string from transaction
+ * @returns Canonical category ID for system categories, or original input for custom categories
+ */
+export const resolveOrPassthrough = (input: string | null | undefined): string => {
+    if (!input) return 'varios';
+
+    const normalized = normalizeCategory(input);
+
+    // 1. Direct match in system categories
+    if (CATEGORY_ALIAS_MAP[normalized]) {
+        return CATEGORY_ALIAS_MAP[normalized];
+    }
+
+    // 2. Prefix match (handles "supermercado chino", etc.)
+    for (const [alias, id] of Object.entries(CATEGORY_ALIAS_MAP)) {
+        if (normalized.startsWith(alias)) {
+            return id;
+        }
+    }
+
+    // 3. Contains match (legacy fuzzy behavior)
+    for (const [alias, id] of Object.entries(CATEGORY_ALIAS_MAP)) {
+        if (normalized.includes(alias) && alias.length >= 4) {
+            return id;
+        }
+    }
+
+    // 4. Passthrough: return original input (preserves custom category names)
+    return input.trim();
+};

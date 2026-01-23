@@ -1,11 +1,12 @@
 
+import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export const useAIHistory = () => {
     const { user } = useAuth();
 
-    const uploadReceipt = async (file: File) => {
+    const uploadReceipt = useCallback(async (file: File) => {
         if (!user) return null;
 
         const fileExt = file.name.split('.').pop();
@@ -26,9 +27,9 @@ export const useAIHistory = () => {
             .getPublicUrl(fileName);
 
         return publicUrl;
-    };
+    }, [user]);
 
-    const saveSession = async (imageUrls: string[], rawData: any) => {
+    const saveSession = useCallback(async (imageUrls: string[], rawData: any) => {
         if (!user) return null;
 
         const { data, error } = await supabase
@@ -47,9 +48,9 @@ export const useAIHistory = () => {
         }
 
         return data;
-    };
+    }, [user]);
 
-    const getSessions = async () => {
+    const getSessions = useCallback(async () => {
         if (!user) return [];
 
         const { data, error } = await supabase
@@ -63,9 +64,57 @@ export const useAIHistory = () => {
         }
 
         return data;
-    };
+    }, [user]);
 
-    const updateSessionData = async (sessionId: string, newData: any) => {
+    const getSessionById = useCallback(async (sessionId: string) => {
+        if (!user) return null;
+
+        const { data, error } = await supabase
+            .from('ai_import_sessions')
+            .select('*')
+            .eq('id', sessionId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching AI session:', error);
+            return null;
+        }
+
+        return data;
+    }, [user]);
+
+    const incrementReimportCount = useCallback(async (sessionId: string) => {
+        if (!user) return null;
+
+        const { data: current, error: currentError } = await supabase
+            .from('ai_import_sessions')
+            .select('reimport_count')
+            .eq('id', sessionId)
+            .single();
+
+        if (currentError) {
+            console.error('Error fetching reimport count:', currentError);
+            return null;
+        }
+
+        const nextCount = (current?.reimport_count || 0) + 1;
+
+        const { data, error } = await supabase
+            .from('ai_import_sessions')
+            .update({ reimport_count: nextCount })
+            .eq('id', sessionId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating reimport count:', error);
+            return null;
+        }
+
+        return data;
+    }, [user]);
+
+    const updateSessionData = useCallback(async (sessionId: string, newData: any) => {
         if (!user) return null;
 
         const { data, error } = await supabase
@@ -81,7 +130,7 @@ export const useAIHistory = () => {
         }
 
         return data;
-    };
+    }, [user]);
 
-    return { uploadReceipt, saveSession, getSessions, updateSessionData };
+    return { uploadReceipt, saveSession, getSessions, updateSessionData, getSessionById, incrementReimportCount };
 };

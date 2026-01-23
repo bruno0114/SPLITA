@@ -16,8 +16,8 @@ const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
    const totalOwedToUser = groups.reduce((acc, g) => acc + (g.userBalance > 0 ? g.userBalance : 0), 0);
    const totalUserOwes = groups.reduce((acc, g) => acc + (g.userBalance < 0 ? Math.abs(g.userBalance) : 0), 0);
 
-   const handleCreateGroup = async (name: string, type: string, currency: string) => {
-      const result = await createGroup(name, type);
+   const handleCreateGroup = async (name: string, type: string, currency: string, customTypeLabel?: string | null) => {
+      const result = await createGroup(name, type, currency, customTypeLabel);
       if (!result.error) {
          setShowCreateModal(false);
       }
@@ -125,13 +125,14 @@ const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
 
 interface CreateGroupModalProps {
    onClose: () => void;
-   onSave: (name: string, type: string, currency: string) => Promise<{ data?: any; error: any }>;
+   onSave: (name: string, type: string, currency: string, customTypeLabel?: string | null) => Promise<{ data?: any; error: any }>;
 }
 
 const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) => {
    const [name, setName] = useState('');
    const [type, setType] = useState('other');
    const [currency, setCurrency] = useState('ARS');
+   const [customTypeLabel, setCustomTypeLabel] = useState('');
    const [saving, setSaving] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
@@ -154,7 +155,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
       }
       setError(null);
       setSaving(true);
-      const result = await onSave(name.trim(), type, currency);
+      const result = await onSave(name.trim(), type, currency, type === 'other' ? customTypeLabel.trim() : null);
       setSaving(false);
       if (result.error) {
          setError(result.error);
@@ -237,6 +238,19 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onSave }) 
                      ))}
                   </div>
                </div>
+
+               {type === 'other' && (
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Etiqueta personalizada</label>
+                     <input
+                        type="text"
+                        value={customTypeLabel}
+                        onChange={(e) => setCustomTypeLabel(e.target.value)}
+                        placeholder="Ej: Amigos, Trabajo, Familia"
+                        className="w-full bg-slate-50 dark:bg-black/20 border border-border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                     />
+                  </div>
+               )}
 
                {/* Error Message */}
                {error && (

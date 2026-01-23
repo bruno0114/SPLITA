@@ -10,7 +10,7 @@ import {
     ChevronLeft, ChevronRight, Filter, Plus,
     Search, X, Calendar as CalendarIcon, ArrowUpDown, Loader2
 } from 'lucide-react';
-import { resolveCategoryId, getCategoryConfigById } from '@/lib/category-resolver';
+import { resolveCategoryId, getCategoryConfigById, isValidCategoryId } from '@/lib/category-resolver';
 import { isInDateRange } from '@/lib/date-utils';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import TransactionCard from '@/features/expenses/components/TransactionCard';
@@ -60,6 +60,12 @@ const CategoryDetail: React.FC = () => {
 
     const activeTransactions = scope === 'personal' ? personalTx : groupTx;
 
+    const normalizeCategory = (input: string) => input
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
     const personalFuncs = usePersonalTransactions();
     const groupFuncs = useTransactions(scope !== 'personal' ? scope : null);
 
@@ -74,9 +80,16 @@ const CategoryDetail: React.FC = () => {
     } = useMemo(() => {
         // 1. Initial filter by category ID (not label) for consistency with useCategoryStats
         // The categoryId from URL is now expected to be the canonical category ID
+        const isSystemCategory = isValidCategoryId(categoryId || '');
+
         let filtered = activeTransactions.filter(t => {
-            const resolvedId = resolveCategoryId(t.category);
-            return resolvedId === categoryId;
+            if (!categoryId) return false;
+            if (isSystemCategory) {
+                const resolvedId = resolveCategoryId(t.category);
+                return resolvedId === categoryId;
+            }
+            if (!t.category) return false;
+            return normalizeCategory(t.category) === normalizeCategory(categoryId);
         });
 
         // 2. Search filter
@@ -93,10 +106,16 @@ const CategoryDetail: React.FC = () => {
 
         // 4. Calculate Stats
         const expenses = filtered.filter(t => (t as any).type === 'expense' || !(t as any).type);
-        const amount = expenses.reduce((sum, t) => {
+        const incomes = filtered.filter(t => (t as any).type === 'income');
+        const expenseAmount = expenses.reduce((sum, t) => {
             const amt = Number(t.amount);
             return sum + (isNaN(amt) ? 0 : amt);
         }, 0);
+        const incomeAmount = incomes.reduce((sum, t) => {
+            const amt = Number(t.amount);
+            return sum + (isNaN(amt) ? 0 : amt);
+        }, 0);
+        const amount = expenseAmount > 0 ? expenseAmount : incomeAmount;
         const totalCount = filtered.length;
         const pages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -106,6 +125,13 @@ const CategoryDetail: React.FC = () => {
 
         // 6. Get Config by ID
         const catConfig = getCategoryConfigById(categoryId || 'varios');
+        const customConfig = categories.find(c => !c.is_system && normalizeCategory(c.name) === normalizeCategory(categoryId || ''));
+        const resolvedConfig = customConfig ? {
+            label: customConfig.name,
+            icon: customConfig.icon,
+            color: customConfig.color,
+            bg: customConfig.bg_color
+        } : catConfig;
 
         return {
             paginatedTransactions: paginated,
@@ -113,9 +139,9 @@ const CategoryDetail: React.FC = () => {
             totalFiltered: totalCount,
             totalAmount: amount,
             totalPages: pages,
-            config: catConfig
+            config: resolvedConfig
         };
-    }, [activeTransactions, categoryId, searchTerm, dateFrom, dateTo, currentPage]);
+    }, [activeTransactions, categoryId, searchTerm, dateFrom, dateTo, currentPage, categories]);
 
     const formatCurrency = (val: number) => {
         const isUSD = currency === 'USD';

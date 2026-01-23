@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
@@ -10,6 +10,7 @@ import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalT
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { useCategoryStats } from '../hooks/useCategoryStats';
+import { useCategories } from '../hooks/useCategories';
 import CategoryManagerModal from '@/features/analytics/components/CategoryManagerModal';
 import { Settings2 } from 'lucide-react';
 import { AppRoute } from '@/types/index';
@@ -24,14 +25,24 @@ const IconMap: Record<string, React.ElementType> = {
 
 const Categories: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [scope, setScope] = useState<string>('personal'); // 'personal' or groupId
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { currency, exchangeRate } = useCurrency();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const scopeParam = params.get('scope');
+        if (scopeParam && scopeParam !== scope) {
+            setScope(scopeParam);
+        }
+    }, [location.search, scope]);
 
     // Data Fetching
     const { fullTransactions: personalTx, loading: personalLoading } = usePersonalTransactions();
     const { groups } = useGroups();
     const { transactions: groupTx, loading: groupLoading } = useTransactions(scope !== 'personal' ? scope : null);
+    const { categories: customCategories, refresh: refreshCategories } = useCategories();
 
     // Determine loading state based on current scope
     const isLoading = scope === 'personal' ? personalLoading : groupLoading;
@@ -52,7 +63,7 @@ const Categories: React.FC = () => {
         }));
     }, [activeTransactions]);
 
-    const { totalExpense, categories } = useCategoryStats(allTransactions);
+    const { totalExpense, categories } = useCategoryStats(allTransactions, customCategories);
 
     const formatCurrency = (val: number) => {
         const isUSD = currency === 'USD';
@@ -114,7 +125,10 @@ const Categories: React.FC = () => {
 
                 <AnimatePresence>
                     {isModalOpen && (
-                        <CategoryManagerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+                        <CategoryManagerModal isOpen={isModalOpen} onClose={() => {
+                            setIsModalOpen(false);
+                            refreshCategories();
+                        }} />
                     )}
                 </AnimatePresence>
             </header>

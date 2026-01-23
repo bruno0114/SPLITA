@@ -8,8 +8,8 @@ interface GroupsContextValue {
     groups: Group[];
     loading: boolean;
     error: string | null;
-    createGroup: (name: string, type: string) => Promise<{ data?: any; error: any }>;
-    updateGroup: (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string }>) => Promise<{ data?: any; error: any }>;
+    createGroup: (name: string, type: string, currency: string, customTypeLabel?: string | null) => Promise<{ data?: any; error: any }>;
+    updateGroup: (id: string, updates: Partial<{ name: string; currency: string; image_url: string; invite_code?: string; type?: string; custom_type_label?: string | null }>) => Promise<{ data?: any; error: any }>;
     deleteGroup: (id: string) => Promise<{ error: any; success: boolean }>;
     leaveGroup: (groupId: string) => Promise<{ error: any; success: boolean }>;
     refreshInviteCode: (id: string) => Promise<{ data?: any; error: any }>;
@@ -71,7 +71,8 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const validGroups: Group[] = (groupsData || []).map((g: any) => ({
                 id: g.id,
                 name: g.name,
-                type: 'other',
+                type: g.type || 'other',
+                customTypeLabel: g.custom_type_label,
                 currency: g.currency,
                 image: g.image_url,
                 inviteCode: g.invite_code,
@@ -95,7 +96,7 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, [user]);
 
-    const createGroup = async (name: string, type: string) => {
+    const createGroup = async (name: string, type: string, currency: string, customTypeLabel?: string | null) => {
         if (!user) return { error: 'No authenticated user' };
 
         try {
@@ -104,7 +105,9 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 .insert({
                     name,
                     created_by: user.id,
-                    currency: 'ARS'
+                    currency,
+                    type,
+                    custom_type_label: customTypeLabel || null
                 })
                 .select()
                 .single();
@@ -144,11 +147,11 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             // Transform RPC result to match expected shape for UI preview
             // Note: RPC returns { id, name, image_url, member_count }
             const transformedData = {
-                id: data.id,
-                name: data.name,
-                image_url: data.image_url,
+                id: groupData.id,
+                name: groupData.name,
+                image_url: groupData.image_url,
                 invite_code: code, // Pass back the code so UI has it
-                members: Array(data.member_count).fill({ profiles: { id: 'preview', avatar_url: '' } }) // Dummy members for valid length
+                members: Array(groupData.member_count).fill({ profiles: { id: 'preview', avatar_url: '' } }) // Dummy members for valid length
             };
 
             return { data: transformedData, error: null };

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Transaction, AppRoute } from '@/types/index';
@@ -6,7 +6,7 @@ import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useTransactions } from '@/features/expenses/hooks/useTransactions';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useProfile } from '@/features/settings/hooks/useProfile';
 import { getGeminiClient, extractExpensesFromImages } from '@/services/ai';
 import StardustOverlay from '@/components/ai/StardustOverlay';
@@ -23,8 +23,9 @@ type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
 const ImportExpenses: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { groups, loading: loadingGroups } = useGroups();
-  const { uploadReceipt, saveSession } = useAIHistory();
+  const { uploadReceipt, saveSession, getSessionById, incrementReimportCount } = useAIHistory();
 
   // Default to the first group if available, or user must select
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -71,7 +72,10 @@ const ImportExpenses: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [offTopicJoke, setOffTopicJoke] = useState<string | null>(null);
+  const [reimportSessionId, setReimportSessionId] = useState<string | null>(null);
+  const [isReimporting, setIsReimporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastLoadedSessionId = useRef<string | null>(null);
 
   // --- Handlers ---
 
@@ -97,6 +101,7 @@ const ImportExpenses: React.FC = () => {
       setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
+
 
   // --- Gemini API Integration ---
 
@@ -145,29 +150,7 @@ const ImportExpenses: React.FC = () => {
       }
 
       setOffTopicJoke(null);
-      const mappedTransactions: Transaction[] = extractedData.map((item: any, index: number) => ({
-        id: `scan-${Date.now()}-${index}`,
-        date: new Date(item.date).toLocaleDateString('es-AR'), // Display format
-        raw_date: item.date, // ISO YYYY-MM-DD from Gemini
-        merchant: item.merchant,
-        category: item.category,
-        amount: item.amount,
-        payer: user ? {
-          id: user.id,
-          name: user.user_metadata.full_name || user.user_metadata.name || 'Vos',
-          avatar: user.user_metadata.avatar_url || ''
-        } : { id: 'u1', name: 'Vos', avatar: '' },
-        splitWith: [],
-        icon: getCategoryIcon(item.category),
-        iconColor: 'text-blue-500',
-        iconBg: 'bg-blue-500/10',
-        categoryColor: 'text-slate-600',
-        categoryBg: 'bg-slate-100',
-        original_amount: item.amount,
-        original_currency: item.currency,
-        is_recurring: item.is_recurring,
-        installments: item.installments,
-      }));
+      const mappedTransactions: Transaction[] = mapRawDataToTransactions(extractedData);
 
       setScannedTransactions(mappedTransactions);
       setStep('review');
@@ -203,7 +186,7 @@ const ImportExpenses: React.FC = () => {
     });
   };
 
-  const getCategoryIcon = (category: string): string => {
+  const getCategoryIcon = useCallback((category: string): string => {
     const map: Record<string, string> = {
       'Supermercado': 'ShoppingCart',
       'Gastronomía': 'Utensils',
@@ -212,7 +195,74 @@ const ImportExpenses: React.FC = () => {
       'Compras': 'ShoppingBag',
     };
     return map[category] || 'Receipt';
-  };
+  }, []);
+
+  const mapRawDataToTransactions = useCallback((rawData: any[]): Transaction[] => {
+    return rawData.map((item: any, index: number) => ({
+      id: `scan-${Date.now()}-${index}`,
+      date: new Date(item.date).toLocaleDateString('es-AR'),
+      raw_date: item.date,
+      merchant: item.merchant,
+      category: item.category,
+      amount: item.amount,
+      payer: user ? {
+        id: user.id,
+        name: user.user_metadata.full_name || user.user_metadata.name || 'Vos',
+        avatar: user.user_metadata.avatar_url || ''
+      } : { id: 'u1', name: 'Vos', avatar: '' },
+      splitWith: [],
+      icon: getCategoryIcon(item.category),
+      iconColor: 'text-blue-500',
+      iconBg: 'bg-blue-500/10',
+      categoryColor: 'text-slate-600',
+      categoryBg: 'bg-slate-100',
+      original_amount: item.amount,
+      original_currency: item.currency,
+      is_recurring: item.is_recurring,
+      installments: item.installments,
+    }));
+  }, [getCategoryIcon, user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sessionId = params.get('sessionId');
+    if (!sessionId || !user) return;
+    if (lastLoadedSessionId.current === sessionId) return;
+
+    const loadSession = async () => {
+      setIsReimporting(true);
+      setError(null);
+      const session = await getSessionById(sessionId);
+
+      if (!session) {
+        setError('No se encontró la sesión para reimportar.');
+        setStep('upload');
+        setIsReimporting(false);
+        return;
+      }
+
+      lastLoadedSessionId.current = sessionId;
+      setReimportSessionId(sessionId);
+
+      if (!session.raw_data || session.raw_data.length === 0) {
+        setOffTopicJoke(getOffTopicJoke());
+        setScannedTransactions([]);
+        setStep('review');
+        setIsReimporting(false);
+        navigate(AppRoute.IMPORT, { replace: true });
+        return;
+      }
+
+      const mappedTransactions = mapRawDataToTransactions(session.raw_data);
+      setOffTopicJoke(null);
+      setScannedTransactions(mappedTransactions);
+      setStep('review');
+      setIsReimporting(false);
+      navigate(AppRoute.IMPORT, { replace: true });
+    };
+
+    loadSession();
+  }, [location.search, user, getSessionById, mapRawDataToTransactions, navigate]);
 
   // --- REVIEW VIEW ---
   const [txSettings, setTxSettings] = useState<Record<string, {
@@ -460,6 +510,9 @@ const ImportExpenses: React.FC = () => {
         setError(`Se importaron ${successCount} de ${selectedIds.length} gastos. Algunos fallaron: ${errors.slice(0, 2).join(', ')}`);
         setStep('review');
       } else {
+        if (reimportSessionId) {
+          await incrementReimportCount(reimportSessionId);
+        }
         setSuccess(`¡Excelente! Se importaron ${successCount} gastos correctamente.`);
         setTimeout(() => {
           if (selectedGroupId === 'personal') navigate(AppRoute.DASHBOARD_PERSONAL);
@@ -475,6 +528,16 @@ const ImportExpenses: React.FC = () => {
 
   // --- Render Helpers ---
   const renderCurrentStep = () => {
+    if (isReimporting) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-6 text-center">
+          <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-6" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Reimportando desde historial...</h2>
+          <p className="text-slate-500">Estamos preparando tus gastos para revisar.</p>
+        </div>
+      );
+    }
+
     if (step === 'upload') {
       return (
         <div className="max-w-4xl mx-auto">
@@ -835,61 +898,62 @@ const ImportExpenses: React.FC = () => {
   return (
     <div className="px-6 py-8 pb-32 min-h-screen">
       {renderCurrentStep()}
-      {/* Dev Debug Panel */}
-      <div className="mt-20 p-6 bg-slate-900 rounded-3xl text-xs font-mono text-emerald-400 overflow-hidden border border-emerald-500/20 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Icons.Code className="w-4 h-4" /> DEBUG PANEL (SOLO DEV)
-          </h3>
-          <span className="bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">{debugInfo.sessionId || 'Sin sesión'}</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Pasos y Duración</p>
-            {debugInfo.steps.map((s, i) => (
-              <div key={i} className="flex justify-between items-center bg-black/30 p-1.5 rounded">
-                <span>{s.name}</span>
-                <span className="text-white bg-slate-800 px-1 rounded">{s.duration}ms</span>
-              </div>
-            ))}
+      {import.meta.env.DEV && localStorage.getItem('show_debug_panel') === 'true' && (
+        <div className="mt-20 p-6 bg-slate-900 rounded-3xl text-xs font-mono text-emerald-400 overflow-hidden border border-emerald-500/20 shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Icons.Code className="w-4 h-4" /> DEBUG PANEL (SOLO DEV)
+            </h3>
+            <span className="bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">{debugInfo.sessionId || 'Sin sesión'}</span>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Contadores</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-black/30 p-2 rounded text-center">
-                <span className="block text-slate-500 text-[9px]">DETECTADOS</span>
-                <span className="text-lg text-white font-bold">{debugInfo.counts.detected}</span>
-              </div>
-              <div className="bg-black/30 p-2 rounded text-center">
-                <span className="block text-slate-500 text-[9px]">INSERTADOS</span>
-                <span className="text-lg text-emerald-500 font-bold">{debugInfo.counts.inserted} / {debugInfo.counts.selected}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Pasos y Duración</p>
+              {debugInfo.steps.map((s, i) => (
+                <div key={i} className="flex justify-between items-center bg-black/30 p-1.5 rounded">
+                  <span>{s.name}</span>
+                  <span className="text-white bg-slate-800 px-1 rounded">{s.duration}ms</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Contadores</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-black/30 p-2 rounded text-center">
+                  <span className="block text-slate-500 text-[9px]">DETECTADOS</span>
+                  <span className="text-lg text-white font-bold">{debugInfo.counts.detected}</span>
+                </div>
+                <div className="bg-black/30 p-2 rounded text-center">
+                  <span className="block text-slate-500 text-[9px]">INSERTADOS</span>
+                  <span className="text-lg text-emerald-500 font-bold">{debugInfo.counts.inserted} / {debugInfo.counts.selected}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Errores Crudos (Last 5)</p>
-            {debugInfo.errors.length === 0 ? (
-              <p className="text-emerald-500/40 italic">Ningún error capturado</p>
-            ) : (
-              debugInfo.errors.slice(-5).map((e, i) => (
-                <div key={i} className="bg-red-500/10 border border-red-500/20 p-2 rounded text-[10px]">
-                  <p className="text-red-400 font-bold mb-1">[{e.step}]</p>
-                  <p className="text-slate-300 mb-1">{e.message}</p>
-                  <details className="mt-1">
-                    <summary className="cursor-pointer text-slate-500 hover:text-white">Ver JSON</summary>
-                    <pre className="mt-1 p-1 bg-black rounded overflow-x-auto text-[9px] text-red-300">
-                      {JSON.stringify(e.raw, null, 2)}
-                    </pre>
-                  </details>
-                </div>
-              ))
-            )}
+            <div className="space-y-2">
+              <p className="text-slate-400 border-b border-slate-800 pb-1 uppercase tracking-tighter">Errores Crudos (Last 5)</p>
+              {debugInfo.errors.length === 0 ? (
+                <p className="text-emerald-500/40 italic">Ningún error capturado</p>
+              ) : (
+                debugInfo.errors.slice(-5).map((e, i) => (
+                  <div key={i} className="bg-red-500/10 border border-red-500/20 p-2 rounded text-[10px]">
+                    <p className="text-red-400 font-bold mb-1">[{e.step}]</p>
+                    <p className="text-slate-300 mb-1">{e.message}</p>
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-slate-500 hover:text-white">Ver JSON</summary>
+                      <pre className="mt-1 p-1 bg-black rounded overflow-x-auto text-[9px] text-red-300">
+                        {JSON.stringify(e.raw, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

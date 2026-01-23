@@ -17,6 +17,7 @@ import BulkActionsBar from '@/features/expenses/components/BulkActionsBar';
 import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
 import { useToast } from '@/context/ToastContext';
 import Portal from '@/components/ui/Portal';
+import { useNotifications } from '@/features/notifications/hooks/useNotifications';
 
 interface GroupDetailsProps {
    groupId?: string | null;
@@ -41,57 +42,85 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const [selectedIds, setSelectedIds] = useState<string[]>([]);
    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
    const [permissionError, setPermissionError] = useState<{ isOpen: boolean; payerName: string }>({ isOpen: false, payerName: '' });
+   const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+   const [settling, setSettling] = useState(false);
+   const [settlingIds, setSettlingIds] = useState<string[]>([]);
    const { showToast } = useToast();
+   const { createNotifications, fetchNotifications } = useNotifications();
 
    const group = groups.find(g => g.id === groupId);
+   const isOwner = !!group && user?.id === group.createdBy;
+
+   const groupTypeLabel = useMemo(() => {
+      if (!group) return '';
+      const defaultLabels: Record<string, string> = {
+         trip: 'Viaje',
+         house: 'Casa',
+         couple: 'Pareja',
+         other: 'Otro'
+      };
+      if (group.type === 'other' && group.customTypeLabel?.trim()) {
+         return group.customTypeLabel.trim();
+      }
+      return defaultLabels[group.type] || 'Otro';
+   }, [group]);
 
    // Calculate Group Balances
-   const balances = useMemo(() => {
-      if (!group || !user) return { userBalance: 0, totalSpent: 0, userSpent: 0, memberBalances: {} as Record<string, number> };
+    const balances = useMemo(() => {
+        if (!group || !user) return { userBalance: 0, totalSpent: 0, userSpent: 0, memberBalances: {} as Record<string, number> };
 
-      let userBalance = 0;
-      let totalSpent = 0;
-      let userSpent = 0;
-      const memberBalances: Record<string, number> = {};
+        let userBalance = 0;
+        let totalSpent = 0;
+        let userSpent = 0;
+        const memberBalances: Record<string, number> = {};
 
-      // Initialize member balances
-      group.members.forEach(m => memberBalances[m.id] = 0);
+        group.members.forEach(m => memberBalances[m.id] = 0);
 
-      transactions.forEach(tx => {
-         totalSpent += tx.amount;
+        transactions.forEach(tx => {
+            const txTotal = tx.totalAmount ?? tx.amount;
+            totalSpent += txTotal;
 
-         // Equal split assumption for now based on UI
-         const splitCount = tx.splitWith.length || 1;
-         const amountPerPerson = tx.amount / splitCount;
-
-         // Payer gets credit (+)
-         if (memberBalances[tx.payer.id] !== undefined) {
-            memberBalances[tx.payer.id] += tx.amount;
-         }
-
-         // Splitters get debit (-)
-         tx.splitWith.forEach(member => {
-            if (memberBalances[member.id] !== undefined) {
-               memberBalances[member.id] -= amountPerPerson;
+            if (memberBalances[tx.payer.id] !== undefined) {
+                memberBalances[tx.payer.id] += txTotal;
             }
-         });
 
-         // Current User specific stats
-         const iAmInSplit = tx.splitWith.find(m => m.id === user.id);
-         if (iAmInSplit) {
-            userSpent += amountPerPerson;
-         }
-      });
+            if (tx.splits && tx.splits.length > 0) {
+                tx.splits.forEach(split => {
+                    if (memberBalances[split.userId] !== undefined) {
+                        memberBalances[split.userId] -= split.amount;
+                    }
+                    if (split.userId === user.id) {
+                        userSpent += split.amount;
+                    }
+                });
+            } else {
+                const splitCount = tx.splitWith.length || 1;
+                const amountPerPerson = txTotal / splitCount;
 
-      userBalance = memberBalances[user.id] || 0;
+                tx.splitWith.forEach(member => {
+                    if (memberBalances[member.id] !== undefined) {
+                        memberBalances[member.id] -= amountPerPerson;
+                    }
+                    if (member.id === user.id) {
+                        userSpent += amountPerPerson;
+                    }
+                });
+            }
+        });
 
-      // Special case: If user is alone in the group, show total spent as negative situation
-      if (group.members.length === 1 && group.members[0].id === user.id) {
-         userBalance = -userSpent;
-      }
+        userBalance = memberBalances[user.id] || 0;
 
-      return { userBalance, totalSpent, userSpent, memberBalances };
-   }, [transactions, group, user]);
+        if (group.members.length === 1 && group.members[0].id === user.id) {
+            userBalance = -userSpent;
+        }
+
+        return { userBalance, totalSpent, userSpent, memberBalances };
+    }, [transactions, group, user]);
+
+    const simplifiedDebts = useMemo(() => {
+       if (!group) return [] as { from: string; to: string; amount: number }[];
+       return expertSimplifyDebts(balances.memberBalances, group.members);
+    }, [balances.memberBalances, group]);
 
 
    const handleBack = () => {
@@ -207,6 +236,100 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       setShowSettings(false);
    };
 
+   const canSettleDebt = (fromId: string) => {
+      if (!user || !group) return false;
+      return fromId === user.id || isOwner;
+   };
+
+   const notifySettlement = async (fromId: string, toId: string, amount: number) => {
+      if (!group) return;
+      const fromMember = group.members.find(m => m.id === fromId);
+      const toMember = group.members.find(m => m.id === toId);
+      const formattedAmount = amount.toLocaleString('es-AR');
+      const title = 'Deuda saldada';
+      const body = `${fromMember?.name || 'Alguien'} le pagó a ${toMember?.name || 'alguien'} $ ${formattedAmount}`;
+
+      const notifications = group.members.map(member => ({
+         userId: member.id,
+         groupId: group.id,
+         type: 'settlement',
+         title,
+         body,
+         metadata: {
+            fromId,
+            toId,
+            amount
+         }
+      }));
+
+      await createNotifications(notifications);
+      await fetchNotifications();
+   };
+
+   const createSettlementTransaction = async (fromId: string, toId: string, amount: number, skipRefresh?: boolean) => {
+      if (!group) return { error: 'Missing group' };
+
+      const fromMember = group.members.find(m => m.id === fromId);
+      const toMember = group.members.find(m => m.id === toId);
+
+      const result = await addTransaction({
+         title: `Liquidación con ${toMember?.name || 'miembro'}`,
+         amount,
+         category: 'Saldos',
+         date: new Date().toISOString(),
+         splitBetween: [toId],
+         customSplits: { [toId]: amount },
+         payerId: fromId
+      }, { skipRefresh });
+
+      if (!result.error) {
+         await notifySettlement(fromId, toId, amount);
+      }
+
+      return result;
+   };
+
+   const handleSettleDebt = async (fromId: string, toId: string, amount: number) => {
+      if (!canSettleDebt(fromId)) return;
+      setSettlingIds(prev => [...prev, `${fromId}-${toId}`]);
+      const { error } = await createSettlementTransaction(fromId, toId, amount);
+      if (!error) {
+         showToast('Deuda saldada', 'success');
+      } else {
+         showToast('Error al saldar deuda: ' + error, 'error');
+      }
+      setSettlingIds(prev => prev.filter(id => id !== `${fromId}-${toId}`));
+   };
+
+   const handleSettleAllDebts = async () => {
+      if (!group || !user) return;
+      const debtsToSettle = simplifiedDebts.filter(debt => canSettleDebt(debt.from));
+
+      if (debtsToSettle.length === 0) {
+         showToast('No tenés deudas pendientes', 'info');
+         setSettleConfirmOpen(false);
+         return;
+      }
+
+      setSettling(true);
+      for (let i = 0; i < debtsToSettle.length; i += 1) {
+         const debt = debtsToSettle[i];
+         const isLast = i === debtsToSettle.length - 1;
+         const { error } = await createSettlementTransaction(debt.from, debt.to, debt.amount, !isLast);
+         if (error) {
+            showToast('Error al saldar deudas: ' + error, 'error');
+            setSettling(false);
+            setSettleConfirmOpen(false);
+            return;
+         }
+      }
+
+      await refreshTransactions();
+      showToast('Deudas saldadas', 'success');
+      setSettling(false);
+      setSettleConfirmOpen(false);
+   };
+
    if (!group) {
       if (groups.length === 0) return <div className="p-10 text-center">Cargando grupos...</div>;
       return <div className="p-10 text-center">Grupo no encontrado.</div>;
@@ -250,11 +373,14 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                            {group.members.map(m => (
                               <img key={m.id} src={m.avatar} alt={m.name} className="size-8 rounded-full border-2 border-background" title={m.name} />
                            ))}
-                           <button className="size-8 rounded-full border-2 border-background bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300">
+                           <button
+                              onClick={handleInvite}
+                              className="size-8 rounded-full border-2 border-background bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300"
+                           >
                               <Plus className="w-4 h-4" />
                            </button>
                         </div>
-                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{group.type.toUpperCase()}</span>
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{groupTypeLabel.toUpperCase()}</span>
                      </div>
                   </div>
 
@@ -266,7 +392,11 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                         <Share className="w-4 h-4" />
                         Invitar
                      </button>
-                     <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/20 hover:brightness-110 transition-all">
+                     <button
+                        onClick={() => setSettleConfirmOpen(true)}
+                        disabled={settling}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/20 hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                     >
                         <Receipt className="w-4 h-4" />
                         Saldar deudas
                      </button>
@@ -299,7 +429,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                               `$ 0`}
                      </p>
                   </div>
-                  <div className="glass-panel p-4 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-surface/50 transition-colors">
+                  <div
+                     onClick={() => navigate(`/categorias?scope=${group.id}`)}
+                     className="glass-panel p-4 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-surface/50 transition-colors"
+                  >
                      <BarChart3 className="w-6 h-6 text-blue-500" />
                      <span className="ml-2 font-bold text-sm text-blue-500">Ver reporte</span>
                   </div>
@@ -387,17 +520,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           {(() => {
-                              const simplified = expertSimplifyDebts(balances.memberBalances, group.members);
-                              if (simplified.length === 0) {
-                                 return <div className="col-span-2 py-10 text-center text-slate-500 font-medium">No hay deudas pendientes. ¡Están al día!</div>;
-                              }
-                              return simplified.map((tx, i) => {
+                           {simplifiedDebts.length === 0 ? (
+                              <div className="col-span-2 py-10 text-center text-slate-500 font-medium">No hay deudas pendientes. ¡Están al día!</div>
+                           ) : (
+                              simplifiedDebts.map((tx, i) => {
                                  const fromMember = group.members.find(m => m.id === tx.from);
                                  const toMember = group.members.find(m => m.id === tx.to);
+                                 const canSettle = canSettleDebt(tx.from);
+                                 const isSettling = settlingIds.includes(`${tx.from}-${tx.to}`) || settling;
                                  return (
                                     <motion.div
-                                       key={i}
+                                       key={`${tx.from}-${tx.to}-${i}`}
                                        initial={{ opacity: 0, x: -10 }}
                                        animate={{ opacity: 1, x: 0 }}
                                        transition={{ delay: i * 0.1 }}
@@ -420,12 +553,20 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                                        </div>
                                        <div className="text-right">
                                           <p className="text-lg font-black text-blue-500">$ {tx.amount.toLocaleString('es-AR')}</p>
-                                          <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500 transition-colors">Saldar</button>
+                                          <button
+                                             onClick={() => handleSettleDebt(tx.from, tx.to, tx.amount)}
+                                             disabled={!canSettle || isSettling}
+                                             className={`text-[10px] font-black uppercase tracking-widest transition-colors ${canSettle && !isSettling
+                                                ? 'text-slate-400 hover:text-blue-500'
+                                                : 'text-slate-300 cursor-not-allowed'}`}
+                                          >
+                                             {isSettling ? 'Saldando...' : 'Saldar'}
+                                          </button>
                                        </div>
                                     </motion.div>
                                  );
-                              });
-                           })()}
+                              })
+                           )}
                         </div>
 
                         <div className="pt-6 border-t border-border">
@@ -519,6 +660,18 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
             onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
          />
 
+         <PremiumConfirmModal
+            isOpen={settleConfirmOpen}
+            title="Saldar deudas"
+            message={isOwner
+               ? 'Esto generará movimientos de liquidación para todas las deudas del grupo. ¿Querés continuar?'
+               : 'Esto generará movimientos de liquidación para tus deudas pendientes. ¿Querés continuar?'}
+            confirmLabel={settling ? 'Saldando...' : 'Confirmar'}
+            onConfirm={handleSettleAllDebts}
+            onCancel={() => setSettleConfirmOpen(false)}
+            type="info"
+         />
+
          {/* Permission Error Modal */}
          <PremiumConfirmModal
             isOpen={permissionError.isOpen}
@@ -545,6 +698,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    const { user } = useAuth();
    const [name, setName] = useState(group.name);
    const [currency, setCurrency] = useState(group.currency || 'ARS');
+   const [customTypeLabel, setCustomTypeLabel] = useState(group.customTypeLabel || '');
    const [saving, setSaving] = useState(false);
    const [uploading, setUploading] = useState(false);
    const [deleting, setDeleting] = useState(false);
@@ -575,7 +729,11 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
       if (!name) return;
       setSaving(true);
       setError(null);
-      const { error } = await updateGroup(group.id, { name, currency });
+      const { error } = await updateGroup(group.id, {
+         name,
+         currency,
+         custom_type_label: group.type === 'other' ? (customTypeLabel.trim() || null) : null
+      });
       if (!error) {
          setSuccess(true);
          setTimeout(() => {
@@ -645,20 +803,20 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
    };
 
    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-         <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md"
-         />
-         <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border"
-         >
+       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             onClick={onClose}
+             className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
+          />
+          <motion.div
+             initial={{ opacity: 0, scale: 0.95, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+             className="relative z-[110] w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface rounded-3xl p-6 shadow-2xl border border-border"
+          >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ajustes del Grupo</h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
@@ -716,6 +874,18 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({ group, onClose,
                         ]}
                      />
                   </div>
+                  {group.type === 'other' && (
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Etiqueta del grupo</label>
+                        <input
+                           type="text"
+                           value={customTypeLabel}
+                           onChange={(e) => setCustomTypeLabel(e.target.value)}
+                           placeholder="Ej: Amigos, Familia, Trabajo"
+                           className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none font-bold"
+                        />
+                     </div>
+                  )}
                   <div className="pt-2">
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Código de Invitación</label>
                      <div className="flex items-center gap-2">

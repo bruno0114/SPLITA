@@ -42,28 +42,36 @@ export const useTransactions = (groupId?: string | null) => {
 
             // Transform data
             const validTransactions: Transaction[] = data.map((t: any) => {
-                // Find current user's split to get their portion of the amount
-                const userSplit = (t.splits || []).find((s: any) => s.user_id === user.id);
+                const splitUsers = (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
+                    id: s.user.id,
+                    name: s.user.full_name || 'Miembro',
+                    avatar: s.user.avatar_url || ''
+                }));
 
                 return {
                     id: t.id,
                     date: t.date,
-                    merchant: t.title, // Mapping title to merchant for now
+                    merchant: t.title,
                     category: t.category,
-                    // Use user's split amount, not total transaction amount
-                    // This ensures category totals reflect what the user actually owes
-                    amount: userSplit?.amount_owed ?? t.amount,
+                    amount: t.amount,
+                    totalAmount: t.amount,
                     payer: t.payer ? {
                         id: t.payer.id,
                         name: t.payer.full_name || 'Desconocido',
                         avatar: t.payer.avatar_url || '',
                     } : { id: t.payer_id, name: 'Desconocido', avatar: '' },
-                    splitWith: (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
-                        id: s.user.id,
-                        name: s.user.full_name || 'Miembro',
-                        avatar: s.user.avatar_url || ''
+                    splitWith: splitUsers,
+                    splits: (t.splits || []).filter((s: any) => s.user).map((s: any) => ({
+                        userId: s.user_id,
+                        amount: s.amount_owed,
+                        paid: s.paid,
+                        user: {
+                            id: s.user.id,
+                            name: s.user.full_name || 'Miembro',
+                            avatar: s.user.avatar_url || ''
+                        }
                     })),
-                    icon: 'Receipt', // Default
+                    icon: 'Receipt',
                     iconColor: 'text-blue-400',
                     iconBg: 'bg-blue-500/10',
                     categoryColor: 'text-slate-500',
@@ -92,6 +100,7 @@ export const useTransactions = (groupId?: string | null) => {
         exchange_rate?: number;
         is_recurring?: boolean;
         installments?: string | null;
+        payerId?: string;
     }, options?: { skipRefresh?: boolean }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
@@ -101,7 +110,7 @@ export const useTransactions = (groupId?: string | null) => {
                 .from('transactions')
                 .insert({
                     group_id: groupId,
-                    payer_id: user.id,
+                    payer_id: data.payerId || user.id,
                     created_by: user.id,
                     amount: data.amount,
                     title: data.title,
@@ -120,13 +129,14 @@ export const useTransactions = (groupId?: string | null) => {
 
             // 2. Insert Splits
             let splitInserts = [];
+            const payerId = data.payerId || user.id;
 
             if (data.customSplits && Object.keys(data.customSplits).length > 0) {
                 splitInserts = Object.entries(data.customSplits).map(([uid, amt]) => ({
                     transaction_id: txData.id,
                     user_id: uid,
                     amount_owed: amt,
-                    paid: uid === user.id
+                    paid: uid === payerId
                 }));
             } else if (data.splitBetween && data.splitBetween.length > 0) {
                 const splitAmount = data.amount / data.splitBetween.length;
@@ -134,7 +144,7 @@ export const useTransactions = (groupId?: string | null) => {
                     transaction_id: txData.id,
                     user_id: uid,
                     amount_owed: splitAmount,
-                    paid: uid === user.id
+                    paid: uid === payerId
                 }));
             } else {
                 // Single user fallback (personal transaction inside a group context)
@@ -173,7 +183,7 @@ export const useTransactions = (groupId?: string | null) => {
         category: string;
         date: string;
         splitBetween: string[];
-        customSplits?: { userId: string; amount: number }[];
+        customSplits?: Record<string, number> | { userId: string; amount: number }[];
     }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
@@ -203,13 +213,22 @@ export const useTransactions = (groupId?: string | null) => {
 
             let splitInserts = [];
 
-            if (data.customSplits && data.customSplits.length > 0) {
-                splitInserts = data.customSplits.map(s => ({
-                    transaction_id: id,
-                    user_id: s.userId,
-                    amount_owed: s.amount,
-                    paid: s.userId === user.id
-                }));
+            if (data.customSplits && Object.keys(data.customSplits).length > 0) {
+                if (Array.isArray(data.customSplits)) {
+                    splitInserts = data.customSplits.map(s => ({
+                        transaction_id: id,
+                        user_id: s.userId,
+                        amount_owed: s.amount,
+                        paid: s.userId === user.id
+                    }));
+                } else {
+                    splitInserts = Object.entries(data.customSplits).map(([uid, amt]) => ({
+                        transaction_id: id,
+                        user_id: uid,
+                        amount_owed: amt,
+                        paid: uid === user.id
+                    }));
+                }
             } else {
                 const splitAmount = data.amount / data.splitBetween.length;
                 splitInserts = data.splitBetween.map(uid => ({

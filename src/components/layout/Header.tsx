@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, DollarSign, LogOut, Settings, Split, ChevronDown, Check, Coins } from 'lucide-react';
+import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, LogOut, Settings, Split, ChevronDown, Check, Coins } from 'lucide-react';
 import { AppRoute, Theme } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProfile } from '@/features/settings/hooks/useProfile';
+import { useNotifications } from '@/features/notifications/hooks/useNotifications';
 
 interface HeaderProps {
   title: string;
@@ -19,12 +20,14 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
   const { user } = useAuth();
   const { profile } = useProfile();
   const { currency, setCurrency, rateSource, setRateSource, exchangeRate, loading: ratesLoading } = useCurrency();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   // Get user display data from profile (synced with social/manual updates)
   const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
   const userAvatar = profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [menuOrigin, setMenuOrigin] = useState({ x: 0, y: 0 });
 
   const getThemeBtnClass = (theme: Theme) => `size-8 flex items-center justify-center rounded-full transition-all ${currentTheme === theme ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`;
@@ -104,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-2 w-48 bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    className="absolute top-full right-0 mt-2 w-48 bg-surface/90 backdrop-blur-2xl border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
                   >
                     <div className="p-2 border-b border-border/50">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-1">Tipo de cambio</p>
@@ -154,10 +157,69 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
             </button>
           </div>
           <div className="h-6 w-px bg-border mx-1 hidden md:block"></div>
-          <button className="relative size-9 md:size-10 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2.5 size-2 bg-red-500 rounded-full border border-background"></span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="relative size-9 md:size-10 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2.5 size-2 bg-red-500 rounded-full border border-background"></span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute top-full right-0 mt-2 w-80 bg-surface/90 backdrop-blur-2xl border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+                  >
+                    <div className="p-2 border-b border-border/50 flex items-center justify-between">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Notificaciones</p>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={async () => { await markAllRead(); }}
+                          className="text-[10px] font-black text-primary uppercase tracking-widest px-2 hover:underline"
+                        >
+                          Leer todas
+                        </button>
+                      )}
+                    </div>
+                    <div className="p-1 max-h-[360px] overflow-y-auto custom-scrollbar">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-6 text-xs font-semibold text-slate-500 text-center">No hay notificaciones nuevas.</div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <button
+                            key={notification.id}
+                            onClick={() => { if (!notification.read_at) markRead(notification.id); }}
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all ${notification.read_at
+                              ? 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5'
+                              : 'bg-blue-500/10 text-slate-900 dark:text-white hover:bg-blue-500/15'}
+                            `}
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold truncate">{notification.title}</p>
+                              {!notification.read_at && (
+                                <span className="ml-2 size-2 rounded-full bg-red-500" />
+                              )}
+                            </div>
+                            {notification.body && (
+                              <p className="text-[11px] opacity-70 mt-1 line-clamp-2">{notification.body}</p>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Desktop Logout - Only visible on desktop */}
           <div className="hidden md:flex items-center">

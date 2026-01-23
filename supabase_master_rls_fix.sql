@@ -32,10 +32,40 @@ DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 ------------------------------------------------------------------
+-- 1.1 USER SECRETS (AI KEYS, TOKENS)
+------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.user_secrets (
+  user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  gemini_api_key text,
+  updated_at timestamptz
+);
+
+ALTER TABLE public.user_secrets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own secrets" ON public.user_secrets;
+CREATE POLICY "Users can view their own secrets" ON public.user_secrets
+FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own secrets" ON public.user_secrets;
+CREATE POLICY "Users can insert their own secrets" ON public.user_secrets
+FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own secrets" ON public.user_secrets;
+CREATE POLICY "Users can update their own secrets" ON public.user_secrets
+FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Optional cleanup if profiles has legacy gemini_api_key data
+-- UPDATE public.profiles SET gemini_api_key = NULL WHERE gemini_api_key IS NOT NULL;
+
+------------------------------------------------------------------
 -- 2. GROUPS & MEMBERS
 ------------------------------------------------------------------
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+
+-- Ensure group type metadata exists
+ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS type text DEFAULT 'other';
+ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS custom_type_label text;
 
 -- Groups
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.groups;
@@ -126,3 +156,50 @@ CREATE POLICY "Users can update their categories" ON public.categories FOR UPDAT
 
 DROP POLICY IF EXISTS "Users can delete their categories" ON public.categories;
 CREATE POLICY "Users can delete their categories" ON public.categories FOR DELETE USING (user_id = auth.uid());
+
+------------------------------------------------------------------
+-- 6.1 AI IMPORT SESSIONS
+------------------------------------------------------------------
+ALTER TABLE public.ai_import_sessions ADD COLUMN IF NOT EXISTS reimport_count integer DEFAULT 0;
+
+------------------------------------------------------------------
+-- 7. NOTIFICATIONS
+------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  group_id uuid REFERENCES public.groups(id) ON DELETE CASCADE,
+  type text NOT NULL,
+  title text NOT NULL,
+  body text,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
+  read_at timestamptz
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their notifications" ON public.notifications;
+CREATE POLICY "Users can view their notifications" ON public.notifications
+FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their notifications" ON public.notifications;
+CREATE POLICY "Users can insert their notifications" ON public.notifications
+FOR INSERT WITH CHECK (
+  auth.uid() = user_id
+  OR (
+    group_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.group_members gm_sender
+      WHERE gm_sender.group_id = group_id AND gm_sender.user_id = auth.uid()
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.group_members gm_target
+      WHERE gm_target.group_id = group_id AND gm_target.user_id = user_id
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
+CREATE POLICY "Users can update their notifications" ON public.notifications
+FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

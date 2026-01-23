@@ -13,8 +13,15 @@ export interface Transaction {
   merchant: string;
   category: string;
   amount: number;
+  totalAmount?: number;
   payer: User;
   splitWith: User[];
+  splits?: {
+    userId: string;
+    amount: number;
+    paid: boolean;
+    user: User;
+  }[];
   icon: string;
   iconColor: string;
   iconBg: string;
@@ -76,6 +83,7 @@ export interface Group {
   id: string;
   name: string;
   type: 'trip' | 'house' | 'couple' | 'other';
+  customTypeLabel?: string | null;
   members: User[];
   userBalance: number; // Positive = user is owed, Negative = user owes
   currency: string;
