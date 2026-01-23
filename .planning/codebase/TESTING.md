@@ -1,139 +1,169 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## Test Framework
 
-**Runner:**
-- Not configured - No test framework detected in `package.json`
-- No vitest, jest, mocha, or testing library dependencies
+**Runner:** Not detected
 
-**Assertion Library:**
-- None installed
+**Assertion Library:** Not detected
 
-**Run Commands:**
-- Testing commands not available in current setup
-- `package.json` contains only: `dev`, `build`, `preview` scripts
+**Status:** No testing framework or test files found in `src/` directory. Project is not configured with Jest, Vitest, or similar.
+
+**Run Commands:** Not applicable
 
 ## Test File Organization
 
-**Location:**
-- No test files found in codebase
-- 0 `.test.*` or `.spec.*` files across entire `src/` directory
-- Testing infrastructure not present
+**Location:** Not applicable - no tests present
 
-**Naming:**
-- Not applicable - no test files
+**Naming:** Not applicable
 
-**Structure:**
-- Not applicable - no test files
+**Structure:** Not applicable
 
-## Test Structure
-
-**Suite Organization:**
-- Not applicable - testing not implemented
-
-**Patterns:**
-- Not applicable - testing not implemented
-
-## Mocking
-
-**Framework:**
-- Not applicable - no testing infrastructure
-
-**Patterns:**
-- Not applicable - testing not implemented
-
-**What to Mock:**
-- Not applicable - testing not implemented
-
-**What NOT to Mock:**
-- Not applicable - testing not implemented
-
-## Fixtures and Factories
-
-**Test Data:**
-- Not applicable - no test fixtures created
-- Sample data exists in services (e.g., fallback model lists in `src/services/ai.ts`)
-
-**Location:**
-- Not applicable - no dedicated test data directory
-
-## Coverage
+## Test Coverage
 
 **Requirements:** Not enforced
 
-**View Coverage:**
-- No coverage tools installed
+**Current State:** No test files exist in the codebase. Production code has no test coverage.
 
-## Test Types
+## Development Notes
 
-**Unit Tests:**
-- Not implemented
-- Best candidates for future unit testing:
-  - `src/lib/expert-math.ts` - Pure functions for debt simplification and projections
-  - `src/services/ai.ts` - Model selection and validation logic
-  - `src/lib/constants.ts` - Static values and calculations
-  - Custom hooks: `useTransactions`, `usePersonalTransactions`, `useCategories`
+**What Needs Testing:**
 
-**Integration Tests:**
-- Not implemented
-- Future candidates would test Supabase interactions (authentication, data fetching, mutations)
+Based on codebase analysis, the following areas are most critical and should be targeted for first testing:
 
-**E2E Tests:**
-- Not implemented
+### High-Priority Test Targets
 
-## Common Patterns
+**1. Custom Hooks (`src/features/*/hooks/`)**
+- `useTransactions.ts` (313 lines) - Critical CRUD operations on transactions
+  - `fetchTransactions()` - data loading and transformation
+  - `addTransaction()` - insert with splits logic
+  - `updateTransaction()` - update and split refresh
+  - `deleteTransaction()` / `deleteTransactions()` - permission checks
+  - Return format consistency
 
-**Async Testing:**
-- Not applicable - no test framework
+- `useEconomicHealth.ts` (151 lines) - Financial score calculations
+  - `monthlySummary` calculation (memoized)
+  - Score formula and status mapping logic
+  - AI advice fetching and caching
+  - Edge cases (zero transactions, no income)
 
-**Error Testing:**
-- Not applicable - no test framework
+- `usePersonalTransactions.ts` (440 lines) - Personal finance data aggregation
+  - Data fetching and filtering
+  - Transaction categorization
+  - Monthly/yearly summaries
 
-## Manual Testing Observations
+- `useCategoryStats.ts` (83 lines) - Analytics aggregation
+  - Category grouping logic
+  - Percentage calculations
+  - Pre-population of default categories
 
-**Current Error Handling:**
-- Errors logged to console with service prefixes
-- State-based error tracking in custom hooks (`error` state)
-- User-facing errors handled via toast notifications (`useToast()`)
-- API errors from Supabase destructured and caught: `const { data, error } = await supabase...`
+**2. Services (`src/services/` and `src/lib/`)**
+- `ai.ts` (288 lines) - Gemini API integration
+  - Model selection and fallback logic
+  - API error handling
+  - Prompt injection protection
+  - Rate limiting and caching
 
-**Validation in Code:**
-- Input validation in custom hooks (e.g., checking `!groupId || !user` before fetching)
-- Supabase RLS policies provide database-level validation
-- Form validation in modal components (`TransactionModal.tsx`, `CategoryManagerModal.tsx`)
+- `personality.ts` - User personality classification
+- `dolar-api.ts` - Exchange rate fetching and caching
 
-**Debugging Capabilities:**
-- Console logging throughout services and hooks with prefixed messages
-- No debug mode or verbose logging flag
-- localStorage inspection for session/state debugging
+**3. Context Providers (`src/context/`)**
+- `AuthContext.tsx` - Auth state management
+- `CurrencyContext.tsx` - Currency conversion logic
+- `GroupsContext.tsx` - Group operations (join, leave, etc.)
 
-## Future Testing Strategy
+**4. Components with Complex Logic**
+- `ImportExpenses.tsx` (896 lines) - Receipt upload and AI extraction
+- `GroupDetails.tsx` (1131 lines) - Group management UI
+- `TransactionModal.tsx` (295 lines) - Form validation and submission
 
-**Priority Areas:**
-1. **Pure utility functions** (`src/lib/expert-math.ts`, `src/lib/dolar-api.ts`)
-   - High value, easy to test, no dependencies
-   - Current state: Critical debt simplification logic untested
+### Medium-Priority Test Targets
 
-2. **Custom hooks** (`src/features/*/hooks/*.ts`)
-   - Medium value, requires testing library setup
-   - Current risk: Hook logic bugs difficult to catch without automated tests
+**1. Utility Functions**
+- Date formatting functions (e.g., in `TransactionCard.tsx`)
+- Currency conversion calculations
+- Category mapping logic
 
-3. **API/Service layer** (`src/services/ai.ts`, Supabase interactions)
-   - High value, medium complexity
-   - Current state: AI service heavily relied upon, no validation coverage
+**2. Type Definitions**
+- Test that component props match type definitions
+- Test interface serialization/deserialization
 
-4. **Components** (lower priority)
-   - Render testing less critical for this app
-   - Focus first on logic layer, then component integration
+### Testing Strategy Recommendations
 
-**Recommended Setup:**
-- Framework: Vitest (Vite-native, fast, React compatible)
-- Testing Library: @testing-library/react for component tests
-- Mocking: MSW for API mocking, Vitest mocks for module mocking
-- Coverage target: 60%+ for critical paths (business logic first, UI second)
+**Setup Required:**
+
+1. Install testing framework (recommend Vitest for speed with Vite)
+   ```bash
+   npm install -D vitest @vitest/ui happy-dom @testing-library/react @testing-library/user-event
+   ```
+
+2. Create `vitest.config.ts`
+   ```typescript
+   import { defineConfig } from 'vitest/config'
+   import react from '@vitejs/plugin-react'
+
+   export default defineConfig({
+     plugins: [react()],
+     test: {
+       globals: true,
+       environment: 'happy-dom',
+       coverage: { provider: 'v8', reporter: ['text', 'json', 'html'] }
+     }
+   })
+   ```
+
+3. Create test helper utilities
+   - Mock Supabase client for all hook tests
+   - Mock currency context for component tests
+   - Mock router for navigation-dependent components
+
+**Test File Locations:**
+- Co-locate with source files: `useTransactions.test.ts` next to `useTransactions.ts`
+- Component tests in same directory as component
+- Shared test utilities in `src/__tests__/` or `src/test-utils/`
+
+**Mock Strategy:**
+- Mock Supabase client (`@supabase/supabase-js`) for all DB operations
+- Mock Framer Motion animations for deterministic component tests
+- Mock fetch calls for API services (dolar-api, AI services)
+- Create factory functions for test data (transactions, users, groups)
+
+**Critical Test Patterns Needed:**
+
+1. **Hook Testing with Async Data:**
+```typescript
+// Pattern observed in useTransactions:
+const { result } = renderHook(() => useTransactions('group-id'), {
+  wrapper: ({ children }) => <TestProvider>{children}</TestProvider>
+});
+await waitFor(() => expect(result.current.loading).toBe(false));
+expect(result.current.transactions).toBeDefined();
+```
+
+2. **Error Handling in Hooks:**
+```typescript
+// Test the { error: null } / { error: message } pattern
+const { result } = renderHook(() => useTransactions());
+act(() => result.current.addTransaction(...));
+await waitFor(() => expect(result.current.error).toBe(null) || toBe(errorMessage));
+```
+
+3. **Memoization Testing:**
+```typescript
+// Verify useMemo dependencies in hooks like useEconomicHealth
+const firstResult = result.current.data;
+rerender(); // same props
+const secondResult = result.current.data;
+expect(firstResult).toBe(secondResult); // referential equality
+```
+
+**Coverage Goals:**
+- Custom hooks: 100% (critical for reliability)
+- Service functions: 100% (math, API logic)
+- Components: 80%+ (focus on business logic, not presentation)
+- Utilities: 100%
 
 ---
 
-*Testing analysis: 2026-01-21*
+*Testing analysis: 2026-01-23*

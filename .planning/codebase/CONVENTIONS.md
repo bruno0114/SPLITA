@@ -1,155 +1,153 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## Naming Patterns
 
 **Files:**
-- React components: `PascalCase.tsx` (e.g., `TransactionCard.tsx`, `PersonalFinance.tsx`)
-- Custom hooks: `camelCase.ts` prefixed with `use` (e.g., `useTransactions.ts`, `usePersonalTransactions.ts`)
-- Services/utilities: `camelCase.ts` (e.g., `personality.ts`, `ai.ts`, `dolar-api.ts`)
-- Type/interface files: `index.ts` (centralized in `src/types/index.ts`)
-- Context providers: `PascalCase.tsx` (e.g., `AuthContext.tsx`, `GroupsContext.tsx`)
+- React components: PascalCase (e.g., `Sidebar.tsx`, `TransactionCard.tsx`)
+- Custom hooks: camelCase with `use` prefix (e.g., `useTransactions.ts`, `useEconomicHealth.ts`)
+- Services/utilities: camelCase (e.g., `ai.ts`, `dolar-api.ts`, `personality.ts`)
+- Type definition file: `index.ts` (e.g., `src/types/index.ts`)
+- Context files: PascalCase ending in `Context.tsx` (e.g., `AuthContext.tsx`, `CurrencyContext.tsx`)
 
 **Functions:**
-- Exported functions use camelCase (e.g., `useAuth`, `useTransactions`, `getArgentineInsight`)
-- Event handlers prefixed with `handle` (e.g., `handleEdit`, `handleDeleteClick`, `handleConfirmDelete`, `handleNavigate`)
-- Getter/finder functions use `get` prefix (e.g., `getRouteTitle`, `getBalanceChange`, `getArgentineInsight`)
-- Async functions return Promises (e.g., `signInWithGoogle`, `fetchTransactions`)
+- Exported functions: camelCase (e.g., `getGeminiClient`, `fetchDolarRates`, `getDailyAdvice`)
+- React component functions: PascalCase (e.g., `Sidebar`, `AnimatedPrice`, `NavItem`)
+- Handler functions: `handle` + PascalCase (e.g., `handleConfirmJoin`, `handleNavigate`, `handleLogOut`)
+- Callback functions: same pattern as handlers (e.g., `onNavigate`, `onLogout`, `onSelect`)
 
 **Variables:**
-- State variables use camelCase (e.g., `isSidebarCollapsed`, `isFilterOpen`, `selectedGroupId`, `deleteConfirm`)
-- Boolean flags prefixed with `is`, `has`, `can`, `should` (e.g., `isSelected`, `hasMore`, `canDelete`, `shouldRefresh`)
-- Temporary/loop variables use single letter or descriptive camelCase (e.g., `i`, `j`, `debtor`, `creditor`)
-- Context values suffixed with `Context` (e.g., `AuthContext`, `GroupsContext`)
+- State variables: camelCase (e.g., `isCollapsed`, `inviteToJoin`, `aiInsights`)
+- Constants: UPPER_SNAKE_CASE (e.g., `CATEGORY_CONFIG`, `EXTRACTION_PROMPT`)
+- Boolean variables: prefix with `is` or `has` (e.g., `isPublicRoute`, `hasIncome`, `isRecurring`)
+- Array/collection variables: plural form (e.g., `transactions`, `categories`, `insights`)
 
 **Types:**
-- Interfaces use PascalCase (e.g., `User`, `Transaction`, `PersonalTransaction`, `Category`, `Group`)
-- Union/discriminated types use UPPERCASE or PascalCase (e.g., `Theme`, `Currency`, `AIErrorCode`)
-- Enum names use PascalCase (e.g., `AppRoute`)
-- Interface properties use camelCase (e.g., `user_id`, `full_name`, `avatar_url` for DB fields; `userId`, `fullName` for JS objects)
+- Interfaces: PascalCase ending with `Props` for component props, or descriptive names (e.g., `SidebarProps`, `AnimatedPriceProps`, `EconomicHealthData`, `CurrencyContextType`)
+- Enums: PascalCase (e.g., `AppRoute`)
+- Type aliases: PascalCase (e.g., `Theme`, `Currency`)
 
 ## Code Style
 
 **Formatting:**
-- No explicit formatter configured (no .prettierrc)
-- Indentation: 4 spaces observed in most files (React components)
-- Line length: No strict limit enforced
-- Quotes: Single quotes used consistently in imports and strings
-- Semicolons: Used at end of statements
+- No explicit formatter configured (ESLint/Prettier not set up)
+- Use 4-space indentation (observed in most files)
+- Trailing commas in objects and arrays when multi-line
+- Consistent use of single quotes for strings
 
 **Linting:**
-- No explicit linting configuration found (no .eslintrc)
-- TypeScript strict mode enabled via `tsconfig.json`
-- Import organization loosely observed but not enforced
+- No explicit linting configuration found
+- TypeScript strict mode via `tsconfig.json` with `isolatedModules: true`
 
 ## Import Organization
 
 **Order:**
-1. React and third-party libraries (`react`, `react-dom`, `react-router-dom`, `framer-motion`)
-2. SDK imports (`@google/genai`, `@supabase/supabase-js`)
-3. UI libraries (`lucide-react`)
-4. Local path aliases (`@/types`, `@/lib`, `@/features`, `@/components`, `@/context`, `@/services`)
-5. Relative imports (same directory)
+1. React and built-in libraries (e.g., `import React from 'react'`)
+2. Third-party packages (e.g., `framer-motion`, `lucide-react`, `react-router-dom`)
+3. Type imports (e.g., `import { AppRoute, Theme } from '@/types/index'`)
+4. Local feature/context imports (e.g., `import { useAuth } from '@/features/auth/hooks/useAuth'`)
+5. Component imports (e.g., `import Sidebar from '@/components/layout/Sidebar'`)
+6. Utility/service imports (e.g., `import { useCurrency } from '@/context/CurrencyContext'`)
 
 **Path Aliases:**
-- `@/*` resolves to `./src/*` (configured in `tsconfig.json`)
-- All imports use absolute paths with `@/` prefix rather than relative paths
-- Example: `import { useAuth } from '@/features/auth/hooks/useAuth'`
+- `@/*` maps to `./src/*` (defined in `tsconfig.json`)
+- Use `@/` for all local imports (not relative paths)
+- Examples: `@/types/index`, `@/features/auth/hooks/useAuth`, `@/components/ui/AnimatedPrice`
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks used for async operations and API calls
-- Errors destructured from Supabase responses: `const { data, error } = await supabase...`
-- Throws or returns error objects in custom hooks
-- Examples from codebase (`src/features/expenses/hooks/useTransactions.ts`):
-  ```typescript
-  try {
-      const { data, error } = await supabase.from('transactions').select(...)
-      if (error) throw error;
-      // Process data
-  } catch (err: any) {
-      console.error('Error fetching transactions:', err);
-      setError(err.message);
-  } finally {
-      setLoading(false);
-  }
-  ```
-- State-based error tracking: `error` state in hooks (e.g., `[error, setError]`)
-- Toast notifications for user-facing errors via `useToast()` hook
-- Console logging for debugging, not production errors
+- Try-catch blocks with specific error logging
+- Errors logged with context prefix (e.g., `console.error('[useTransactions] Delete error:', err)`)
+- Return `{ error: null }` / `{ data: null, error: err.message }` pattern in hooks and services
+- Supabase errors thrown and caught (e.g., `if (error) throw error`)
+- Custom error codes in AI service (e.g., `API_KEY_MISSING`, `INVALID_KEY`, `RATE_LIMIT`)
+
+**Example from `useTransactions.ts`:**
+```typescript
+try {
+    const { data, error } = await supabase.from('transactions').select(...);
+    if (error) throw error;
+    setTransactions(validTransactions);
+} catch (err: any) {
+    console.error('Error fetching transactions:', err);
+    setError(err.message);
+} finally {
+    setLoading(false);
+}
+```
 
 ## Logging
 
-**Framework:** `console` (no dedicated logger)
+**Framework:** `console` object (no centralized logging service)
 
 **Patterns:**
-- `console.log()` for informational messages, often with service prefixes
-- `console.warn()` for potential issues (e.g., fallback behaviors)
-- `console.error()` for actual errors and failures
-- Service-based prefixes: `[AI Service]`, `[DolarAPI]`, `[useCategories]`, `[GroupsContext]`
-- Example from `src/services/ai.ts`:
-  ```typescript
-  console.log("[AI Service] Available models:", availableModels);
-  console.warn("[AI Service] Could not list models, using fallback list.", error);
-  console.error("[AI Service] Error analyzing health:", error);
-  ```
-- Minimal logging in components, more in services and hooks
+- `console.log()` for informational messages (e.g., sync success, auth flow events)
+- `console.error()` for error messages with context prefix in brackets
+- Log context prefixes: `[useTransactions]`, `[AUTH]`, `[GroupsContext]`, `[BulkActions]`, `[AI Service]`
+- Verbose logging in development (e.g., available models list in `ai.ts`)
+
+**Examples:**
+```typescript
+console.log("[AUTH] Login.tsx effect triggering onLogin");
+console.error('[useTransactions] Delete error:', err);
+console.warn("[AI Service] Could not list models, using fallback list.", error);
+```
 
 ## Comments
 
 **When to Comment:**
-- Algorithm explanations (e.g., in `src/lib/expert-math.ts` explaining debt simplification)
-- Complex logic or non-obvious decisions
-- TODO/FIXME markers sparingly (minimal use in codebase)
-- Section dividers for component layout blocks (e.g., `/* Mobile Menu Trigger */`)
+- Explain complex business logic (e.g., discount calculations, score formulas)
+- Mark intentional workarounds or temporary solutions
+- Clarify non-obvious conditional logic
+- Document loop guards and state management patterns
 
 **JSDoc/TSDoc:**
-- Used selectively in services and utility functions
-- Function descriptions at module level (e.g., `src/services/ai.ts`, `src/lib/expert-math.ts`)
-- Parameter and return type documentation minimal
-- Example from `src/lib/expert-math.ts`:
-  ```typescript
-  /**
-   * Simplifies debts between a group of people.
-   * Reduces the total number of transactions needed to settle.
-   */
-  export const simplifyDebts = (balances: Record<string, number>, members: Member[]) => { ... }
-  ```
+- Function interfaces documented with JSDoc (e.g., AI service functions)
+- Not consistently applied across all functions
+- Used for public APIs and service functions (e.g., `getGeminiClient`, `smokeTestModel`)
+
+**Example from `ai.ts`:**
+```typescript
+/**
+ * Returns a Gemini client using either a provided user key
+ * or the default system key from environment variables.
+ */
+export const getGeminiClient = (userKey?: string | null) => {
+```
 
 ## Function Design
 
 **Size:**
-- Functions range from 10-50 lines typically
-- Larger files (400-1000 lines) are React pages, not single functions
-- Utility functions kept compact (20-30 lines)
-- Hooks may be longer due to state management and effects
+- Large functions common (300+ lines observed in pages like `ImportExpenses.tsx`, `GroupDetails.tsx`)
+- Recommendation: Keep under 200 lines where possible; break into sub-functions for complex logic
+- Custom hooks can be larger due to state management (e.g., `useTransactions.ts` is 313 lines)
 
 **Parameters:**
-- Destructured props in React components: `const Component: React.FC<Props> = ({ prop1, prop2 }) => { ... }`
-- Options objects for optional parameters (e.g., `{ skipRefresh?: boolean }` in `addTransaction`)
-- Single responsibility principle: functions accept related parameters only
+- Prefer destructured object parameters in hooks and context providers
+- Component props passed as single `Props` object interface
+- Optional parameters use `?` and provide defaults
+- Avoid `any` type; use specific types or `unknown` for flexible inputs
 
 **Return Values:**
-- Hooks return objects with state and methods: `{ transactions, loading, error, addTransaction, deleteTransaction }`
-- Async functions return typed responses: `{ data, error }`
-- React components return JSX
-- Utility functions return computed values (numbers, arrays, objects)
+- Hooks return object with state and actions (e.g., `{ data, loading, error, refreshAdvice }`)
+- Service functions return result objects (e.g., `{ data: txData, error: null }`)
+- Context hooks throw errors if used outside provider (e.g., `useCurrency`, `useAuthContext`)
 
 ## Module Design
 
 **Exports:**
-- Named exports preferred for functions and types
-- Default exports rare (only for React components as default when used alone)
-- Example: `export const useAuth = () => { ... }` not `export default useAuth`
-- Barrel files: Not heavily used; single-responsibility modules
+- Default exports for components (e.g., `export default Sidebar`)
+- Named exports for hooks (e.g., `export const useTransactions = ...`)
+- Named exports for types and enums (e.g., `export interface EconomicHealthData`, `export enum AppRoute`)
+- Re-export types from single index file (`src/types/index.ts`)
 
 **Barrel Files:**
-- Central type barrel: `src/types/index.ts` exports all type definitions
-- Services imported individually: `import { validateGeminiKey } from '@/services/ai'`
-- Components imported directly: `import TransactionCard from '@/features/expenses/components/TransactionCard'`
+- `src/types/index.ts` is main barrel file for all type definitions
+- Not extensively used elsewhere; imports are path-specific
+- Examples: import types and hooks directly from their source files
 
 ---
 
-*Convention analysis: 2026-01-21*
+*Convention analysis: 2026-01-23*

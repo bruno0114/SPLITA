@@ -1,93 +1,112 @@
 # Technology Stack
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## Languages
 
 **Primary:**
-- TypeScript 5.8.2 - All application code (React components, services, hooks, contexts)
-- JSX (via React 19) - Component rendering in .tsx files
+- TypeScript 5.8.2 - Application frontend and configuration
+- JSX/TSX - React component development
+- SQL - Supabase database schema and migrations
 
 **Secondary:**
-- HTML/CSS - UI rendering via React and Framer Motion
+- JavaScript (Node.js) - Build scripts and development tools
+- Bash - Database migration scripts
 
 ## Runtime
 
 **Environment:**
-- Node.js (ES2022 module compilation target)
+- Node.js 18.20.8 - Development and build environment
 
 **Package Manager:**
-- npm
-- Lockfile: package-lock.json (present in git repo)
+- npm 10.8.2
+- Lockfile: `package-lock.json` (present)
 
 ## Frameworks
 
 **Core:**
-- React 19.2.3 - UI library and component framework
-- React DOM 19.2.3 - React rendering to DOM
-- React Router DOM 6.30.3 - Client-side routing
+- React 19.2.3 - UI framework
+- React Router 6.30.3 - Client-side routing
+- Vite 6.2.0 - Build tool and dev server
 
-**UI/Animation:**
-- Framer Motion 12.27.1 - Component animations and transitions
+**UI & Animation:**
+- Framer Motion 12.27.1 - Motion and animation library
 - Lucide React 0.562.0 - Icon library
-- Recharts 3.6.0 - React charting library for analytics
 
-**Backend-as-a-Service:**
-- Supabase JS Client 2.78.0 - PostgreSQL database, authentication, real-time subscriptions
-
-**AI:**
-- Google Generative AI 1.37.0 - Gemini API client for expense extraction and financial analysis
+**Data Visualization:**
+- Recharts 3.6.0 - Charts and graphs for analytics
 
 ## Key Dependencies
 
 **Critical:**
-- `@supabase/supabase-js` 2.78.0 - Database queries, authentication (OAuth with Google), session management. Core to all data operations.
-- `@google/genai` 1.37.0 - Gemini API for AI-powered expense extraction from receipts/images and financial health analysis.
-- `react` 19.2.3 - Core UI framework
-- `react-router-dom` 6.30.3 - Application routing and navigation
+- @supabase/supabase-js 2.78.0 - Database, auth, and real-time subscriptions
+- @google/genai 1.37.0 - Google Gemini AI API integration
 
-**UI & Visualization:**
-- `framer-motion` 12.27.1 - Smooth animations for modals, transitions, and interactive UI elements
-- `lucide-react` 0.562.0 - Icon components for UI elements (Receipt, Settings, etc.)
-- `recharts` 3.6.0 - Charts for analytics, expenditure evolution visualization
+**UI Development:**
+- @vitejs/plugin-react 5.0.0 - Fast refresh for React development
 
 ## Configuration
 
 **Environment:**
-- Vite environment variables loaded via `import.meta.env.VITE_*`
-- Configuration in `vite.config.ts`
-
-**Required Environment Variables:**
-- `VITE_SUPABASE_URL` - Supabase project URL (postgres database endpoint)
-- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key (public JWT token for client queries)
-- `VITE_GEMINI_API_KEY` - Google Gemini API key (optional, can be user-provided or system default)
+- Vite environment variables loaded from `.env` file
+- Variables prefixed with `VITE_` are exposed to browser
+- Critical vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GEMINI_API_KEY`
 
 **Build:**
-- Vite 6.2.0 - Frontend bundler and dev server
-- TypeScript compiler - Static type checking
-- @vitejs/plugin-react 5.0.0 - Fast refresh during development
-
-## Platform Requirements
+- `vite.config.ts` - Vite configuration with React plugin
+- `tsconfig.json` - TypeScript compiler options (ES2022 target, JSX support)
+- Configured path alias: `@/*` maps to `./src/*`
 
 **Development:**
-- Node.js (ES2022 compatible)
-- npm package manager
-- TypeScript 5.8.2 compiler
-- Vite dev server runs on port 3000 (configurable via `server.port`)
+- Dev server runs on port 3000 with host `0.0.0.0`
+- React Fast Refresh enabled via @vitejs/plugin-react
 
-**Production:**
-- Static asset hosting (SPA deployment)
-- Vite build output to `/dist` directory
-- Supabase hosted cloud database (PostgreSQL)
-- Google Cloud for Gemini API access
+## Type System
 
 **TypeScript Configuration:**
 - Target: ES2022
 - Module: ESNext
-- Path alias: `@/*` maps to `./src/*`
-- JSX: react-jsx
-- Module resolution: bundler
+- Module Resolution: bundler
+- Strict settings: isolatedModules enabled, skipLibCheck enabled
+- JSX: react-jsx (automatic)
+- Declaration: noEmit (type checking only, no output files)
+
+## Scripts
+
+**Available Commands:**
+```bash
+npm run dev         # Start Vite development server on port 3000
+npm run build       # Build for production
+npm run preview     # Preview production build locally
+```
+
+## Platform Requirements
+
+**Development:**
+- Node.js 18+
+- npm 10+
+- macOS, Linux, or Windows with bash-compatible shell
+
+**Production:**
+- Static hosting (Netlify, Vercel, AWS S3, etc.)
+- Browser support: Modern browsers with ES2022 support
+- CORS-enabled Supabase and Gemini API access
+
+## External API Keys Required
+
+**Required Environment Variables:**
+```
+VITE_SUPABASE_URL         # Supabase project URL
+VITE_SUPABASE_ANON_KEY    # Supabase anonymous key for auth/DB
+VITE_GEMINI_API_KEY       # Google Gemini API key (optional per-user override in settings)
+```
+
+## Build Output
+
+- Output directory: `dist/`
+- Bundle format: ES modules (ESNext)
+- Source maps: Available during development
 
 ---
 
-*Stack analysis: 2026-01-21*
+*Stack analysis: 2026-01-23*

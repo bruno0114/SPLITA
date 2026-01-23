@@ -1,310 +1,306 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## Directory Layout
 
 ```
-/Users/brunoaguilar/SPLITA-1/
-├── src/
-│   ├── index.tsx              # React root entry point with all providers
-│   ├── App.tsx                # Main app router and layout
-│   ├── types/
-│   │   └── index.ts           # All TypeScript interfaces (User, Transaction, Group, Category, AppRoute enum)
-│   ├── lib/
-│   │   ├── supabase.ts        # Supabase client initialization
-│   │   ├── ai-prompts.ts      # Gemini prompts for expense extraction
-│   │   ├── constants.ts       # App constants
-│   │   ├── expert-math.ts     # Mathematical utilities
-│   │   └── image-utils.ts     # Image processing helpers
-│   ├── services/
-│   │   ├── ai.ts              # Google Gemini API integration (expense extraction, model selection)
-│   │   └── dolar-api.ts       # External currency rate API integration
-│   ├── context/
-│   │   ├── AuthContext.tsx    # Global auth state + login/logout
-│   │   ├── ToastContext.tsx   # Global toast notification system
-│   │   ├── GroupsContext.tsx  # Global groups state (user's groups list)
-│   │   └── CurrencyContext.tsx # Global currency selection (ARS/USD)
-│   ├── hooks/
-│   │   └── useToast.ts        # Export of useToast hook
-│   ├── components/
-│   │   ├── layout/
-│   │   │   ├── Sidebar.tsx    # Left sidebar navigation (desktop)
-│   │   │   ├── BottomNav.tsx  # Bottom navigation (mobile)
-│   │   │   ├── Header.tsx     # Top header with title and theme toggle
-│   │   │   └── ProtectedRoute.tsx # Route guard component
-│   │   ├── ui/
-│   │   │   ├── AnimatedPrice.tsx
-│   │   │   ├── PremiumDropdown.tsx
-│   │   │   ├── PremiumToggleGroup.tsx
-│   │   │   ├── PremiumDatePicker.tsx
-│   │   │   ├── PremiumConfirmModal.tsx
-│   │   │   └── [other UI components]
-│   │   └── ai/
-│   │       └── StardustOverlay.tsx
-│   └── features/
-│       ├── auth/
-│       │   ├── pages/
-│       │   │   ├── Login.tsx
-│       │   │   └── Onboarding.tsx
-│       │   ├── components/
-│       │   ├── context/
-│       │   │   └── AuthContext.tsx (feature-local auth context)
-│       │   └── hooks/
-│       │       └── useAuth.ts
-│       ├── dashboard/
-│       │   ├── pages/
-│       │   │   ├── PersonalFinance.tsx
-│       │   │   └── EconomicHealth.tsx
-│       │   ├── components/
-│       │   │   ├── ProjectionCard.tsx
-│       │   │   ├── SubscriptionModal.tsx
-│       │   │   ├── ExpenditureEvolutionChart.tsx
-│       │   │   └── ProjectionsModal.tsx
-│       │   └── hooks/
-│       │       ├── usePersonalTransactions.ts
-│       │       └── useEconomicHealth.ts
-│       ├── expenses/
-│       │   ├── pages/
-│       │   │   ├── ImportExpenses.tsx
-│       │   │   └── AIHistory.tsx
-│       │   ├── components/
-│       │   │   ├── TransactionModal.tsx
-│       │   │   ├── HistoryDetailModal.tsx
-│       │   │   ├── BulkActionsBar.tsx
-│       │   │   └── TransactionCard.tsx
-│       │   ├── hooks/
-│       │   │   ├── useTransactions.ts
-│       │   │   └── useAIHistory.ts
-│       │   └── services/
-│       │       └── personality.ts
-│       ├── groups/
-│       │   ├── pages/
-│       │   │   ├── Groups.tsx
-│       │   │   ├── GroupDetails.tsx
-│       │   │   └── JoinGroup.tsx
-│       │   ├── components/
-│       │   │   └── InviteModal.tsx
-│       │   └── hooks/
-│       │       └── useGroups.ts
-│       ├── analytics/
-│       │   ├── pages/
-│       │   │   ├── Categories.tsx
-│       │   │   └── CategoryDetail.tsx
-│       │   ├── components/
-│       │   │   └── CategoryManagerModal.tsx
-│       │   └── hooks/
-│       │       ├── useCategories.ts
-│       │       └── useCategoryStats.ts
-│       └── settings/
-│           ├── pages/
-│           │   └── Settings.tsx
-│           ├── components/
-│           │   └── AISettings.tsx
-│           └── hooks/
-│               └── useProfile.ts
-├── vite.config.ts             # Vite build config with path alias '@' → './src'
-├── package.json               # Dependencies (React, Supabase, Recharts, Framer Motion, etc.)
-└── index.html                 # HTML entry point (not shown but standard Vite structure)
+src/
+├── components/               # Shared UI components and layouts
+│   ├── layout/              # Navigation and page structure
+│   │   ├── AppLayout.tsx
+│   │   ├── ProtectedRoute.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── Header.tsx
+│   │   └── BottomNav.tsx
+│   ├── ui/                  # Reusable UI elements
+│   │   ├── Portal.tsx
+│   │   ├── AnimatedPrice.tsx
+│   │   ├── PremiumConfirmModal.tsx
+│   │   ├── PremiumDropdown.tsx
+│   │   ├── PremiumToggleGroup.tsx
+│   │   ├── PremiumDatePicker.tsx
+│   │   └── PremiumButton.tsx (example)
+│   └── ai/                  # AI-related UI components
+│
+├── context/                 # Global context providers
+│   ├── AuthContext.tsx
+│   ├── ToastContext.tsx
+│   ├── GroupsContext.tsx
+│   └── CurrencyContext.tsx
+│
+├── features/                # Feature modules (domain-driven)
+│   ├── auth/                # Authentication
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx
+│   │   ├── hooks/
+│   │   │   └── useAuth.ts
+│   │   ├── pages/
+│   │   │   ├── Login.tsx
+│   │   │   └── Onboarding.tsx
+│   │   └── components/
+│   │
+│   ├── expenses/            # Transaction management
+│   │   ├── hooks/
+│   │   │   ├── useTransactions.ts (group transactions)
+│   │   │   ├── usePersonalTransactions.ts
+│   │   │   └── useAIHistory.ts
+│   │   ├── pages/
+│   │   │   ├── ImportExpenses.tsx (AI import)
+│   │   │   └── AIHistory.tsx
+│   │   ├── components/
+│   │   │   ├── TransactionModal.tsx
+│   │   │   ├── TransactionCard.tsx
+│   │   │   ├── BulkActionsBar.tsx
+│   │   │   ├── HistoryDetailModal.tsx
+│   │   └── services/
+│   │       └── personality.ts (AI service helpers)
+│   │
+│   ├── groups/              # Group management
+│   │   ├── hooks/
+│   │   │   └── useGroups.ts
+│   │   ├── pages/
+│   │   │   ├── Groups.tsx (list)
+│   │   │   ├── GroupDetails.tsx (detail view)
+│   │   │   └── JoinGroup.tsx (invite join)
+│   │   └── components/
+│   │       └── InviteModal.tsx
+│   │
+│   ├── dashboard/           # Personal finance dashboard
+│   │   ├── hooks/
+│   │   │   ├── usePersonalTransactions.ts
+│   │   │   ├── useEconomicHealth.ts
+│   │   │   └── useProjections.ts
+│   │   ├── pages/
+│   │   │   ├── PersonalFinance.tsx
+│   │   │   └── EconomicHealth.tsx
+│   │   └── components/
+│   │       ├── ExpenditureEvolutionChart.tsx
+│   │       ├── ProjectionCard.tsx
+│   │       ├── ProjectionsModal.tsx
+│   │       └── SubscriptionModal.tsx
+│   │
+│   ├── analytics/           # Category analytics
+│   │   ├── hooks/
+│   │   │   ├── useCategories.ts
+│   │   │   └── useCategoryStats.ts
+│   │   ├── pages/
+│   │   │   ├── Categories.tsx
+│   │   │   └── CategoryDetail.tsx
+│   │   └── components/
+│   │       └── CategoryManagerModal.tsx
+│   │
+│   └── settings/            # User settings
+│       ├── hooks/
+│       │   └── useProfile.ts
+│       ├── pages/
+│       │   └── Settings.tsx
+│       └── components/
+│           └── AISettings.tsx
+│
+├── hooks/                   # Shared custom hooks (not feature-specific)
+│
+├── lib/                     # Utilities and library wrappers
+│   ├── supabase.ts          # Supabase client initialization
+│   ├── ai-prompts.ts        # AI prompt templates
+│   ├── constants.ts         # App constants (routes, limits)
+│   ├── expert-math.ts       # Math/calculation utilities
+│   ├── image-utils.ts       # Image processing helpers
+│   └── [other utilities]
+│
+├── services/                # External service integrations
+│   ├── ai.ts                # Google Gemini service wrapper
+│   └── dolar-api.ts         # Currency exchange rate API
+│
+├── types/                   # TypeScript type definitions
+│   └── index.ts             # Central type exports
+│
+├── App.tsx                  # Main App router component
+└── index.tsx                # React DOM mount point, provider stack
 ```
 
 ## Directory Purposes
 
-**src/types/**
-- Purpose: Centralized TypeScript type definitions
-- Contains: Interfaces for User, Transaction, PersonalTransaction, Category, Group, Insight; AppRoute enum; Currency type; Theme type
-- Key files: `src/types/index.ts` (all types in one file for easy access)
+**`src/components/layout/`**
+- Purpose: Layout structure, navigation, page chrome
+- Contains: Sidebar, Header, BottomNav, ProtectedRoute wrapper
+- Key files:
+  - `Sidebar.tsx` - Desktop left nav with collapsible state
+  - `Header.tsx` - Top bar with title, theme switcher, mobile menu
+  - `BottomNav.tsx` - Mobile bottom navigation
+  - `ProtectedRoute.tsx` - Route guard that redirects to login if unauthorized
 
-**src/lib/**
-- Purpose: Shared utilities, constants, configuration, and library initialization
-- Contains: Supabase client setup, AI prompt templates, mathematical helpers, image utilities, constants
-- Key files: `src/lib/supabase.ts` (Supabase client), `src/lib/ai-prompts.ts` (Gemini prompts)
+**`src/components/ui/`**
+- Purpose: Reusable atomic and composite UI components
+- Contains: Buttons, modals, form inputs, animated elements
+- Key files:
+  - `Portal.tsx` - React Portal for modal rendering
+  - `PremiumConfirmModal.tsx` - Generic confirmation dialog
+  - `AnimatedPrice.tsx` - Currency-aware animated number display
+  - `PremiumDatePicker.tsx` - Date range picker component
 
-**src/services/**
-- Purpose: Integration with external APIs and specialized business logic
-- Contains: Google Gemini AI service (expense extraction), currency rate API client
-- Key files: `src/services/ai.ts` (AI expense extraction logic with model caching and smoke tests)
+**`src/context/`**
+- Purpose: Global application state providers
+- Key files:
+  - `AuthContext.tsx` - User session and auth state
+  - `GroupsContext.tsx` - Groups list, create/update/delete, join group
+  - `CurrencyContext.tsx` - Exchange rates, currency preference
+  - `ToastContext.tsx` - Toast notification queue and display
 
-**src/context/**
-- Purpose: Global state management via React Context
-- Contains: Auth state, groups state, currency selection, toast notifications
-- Key files: `src/context/AuthContext.tsx`, `src/context/GroupsContext.tsx` (Supabase-based data fetching)
+**`src/features/*/hooks/`**
+- Purpose: Data fetching and business logic for each feature
+- Pattern: Each hook returns `{ data, loading, error, actions }`
+- Examples:
+  - `useTransactions(groupId)` - Group transaction list with add/update/delete
+  - `usePersonalTransactions()` - User's personal income/expenses
+  - `useCategories()` - Category CRUD with real-time subscription
+  - `useEconomicHealth()` - Financial health metrics calculation
 
-**src/components/**
-- Purpose: Shared UI components and layout wrappers
-- Organized by: `layout/` (page structure), `ui/` (reusable UI elements), `ai/` (AI-specific components)
-- Key files: `src/components/layout/ProtectedRoute.tsx` (auth guard)
+**`src/features/*/pages/`**
+- Purpose: Full-page components that orchestrate features
+- Pattern: Consume hooks, manage page-level state (modals, filters, selections)
+- Contains business logic for routing, filtering, pagination
 
-**src/features/**
-- Purpose: Domain-specific feature modules with self-contained responsibility
-- Structure: Each feature has `pages/`, `components/`, `hooks/`, optionally `services/` and `context/`
-- Pattern: Import what you need from other features; avoid circular dependencies
-- Key features:
-  - `auth/`: Authentication (login, sign-up, OAuth, session management)
-  - `dashboard/`: Personal finance dashboard and economic health views
-  - `expenses/`: Transaction management, AI import, history
-  - `groups/`: Group creation, viewing, joining, member management
-  - `analytics/`: Category views and stats
-  - `settings/`: User profile and settings
+**`src/features/*/components/`**
+- Purpose: Feature-specific sub-components
+- Pattern: Dumb/presentational components that receive props from pages
+- Examples: TransactionCard, TransactionModal, CategoryManagerModal
+
+**`src/lib/`**
+- Purpose: Low-level utilities, constants, wrappers
+- Key files:
+  - `supabase.ts` - Supabase client singleton
+  - `constants.ts` - AppRoute enum, feature flags, limits
+  - `expert-math.ts` - Financial calculations (projections, stats)
+  - `ai-prompts.ts` - Prompt templates for AI
+
+**`src/services/`**
+- Purpose: External API integration wrappers
+- Key files:
+  - `ai.ts` - Google Gemini client with model selection, error handling
+  - `dolar-api.ts` - Fetch USD/ARS exchange rates
+
+**`src/types/`**
+- Purpose: TypeScript interface and enum definitions
+- Key file: `index.ts` - Centralized exports for User, Transaction, Group, etc.
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/index.tsx`: React root render with all context providers
-- `src/App.tsx`: Route definitions, layout structure, theme management
-- `vite.config.ts`: Build configuration with '@' alias and port settings
+- `src/index.tsx` - React DOM render with provider stack
+- `src/App.tsx` - Main router, layout structure, theme logic
 
 **Configuration:**
-- `vite.config.ts`: Vite build settings, environment variable loading, path alias
-- `src/lib/supabase.ts`: Supabase client with URL and anon key from env vars
-- `src/lib/constants.ts`: App-wide constants (category icons, payment methods, etc.)
+- `tsconfig.json` - TypeScript config with path aliases (`@/` → `./src/`)
+- `src/lib/constants.ts` - App constants and routes
+- `src/types/index.ts` - Type definitions
 
 **Core Logic:**
-- `src/features/auth/hooks/useAuth.ts`: Auth actions (sign-in, sign-up, sign-out)
-- `src/features/dashboard/hooks/usePersonalTransactions.ts`: Personal transaction CRUD and filtering
-- `src/features/expenses/hooks/useTransactions.ts`: Group transaction CRUD
-- `src/features/groups/hooks/useGroups.ts`: Group CRUD and management
-- `src/features/analytics/hooks/useCategories.ts`: Category CRUD
+- `src/features/auth/context/AuthContext.tsx` - Auth state, session hydration
+- `src/context/GroupsContext.tsx` - Group management state
+- `src/features/expenses/hooks/useTransactions.ts` - Group transaction CRUD
+- `src/features/dashboard/hooks/usePersonalTransactions.ts` - Personal finance logic
 
 **Testing:**
-- No test files detected; testing patterns not established
-
-**Shared Utilities:**
-- `src/lib/ai-prompts.ts`: Prompts for Gemini expense extraction
-- `src/lib/expert-math.ts`: Currency conversion and mathematical operations
-- `src/lib/image-utils.ts`: Image handling for receipt processing
+- Test files not detected in structure (no test files found)
 
 ## Naming Conventions
 
 **Files:**
-- Page components: PascalCase in `pages/` directory (e.g., `PersonalFinance.tsx`, `ImportExpenses.tsx`)
-- Feature components: PascalCase in `components/` (e.g., `TransactionCard.tsx`, `InviteModal.tsx`)
-- Custom hooks: camelCase starting with `use` (e.g., `usePersonalTransactions.ts`, `useAuth.ts`)
-- Services: camelCase, descriptive name (e.g., `dolar-api.ts`, `personality.ts`)
-- Utilities/libraries: camelCase or hyphenated (e.g., `ai-prompts.ts`, `expert-math.ts`)
+- Components: PascalCase (e.g., `TransactionCard.tsx`, `PersonalFinance.tsx`)
+- Hooks: camelCase with `use` prefix (e.g., `useTransactions.ts`, `useAuth.ts`)
+- Utils/Services: camelCase (e.g., `supabase.ts`, `ai-prompts.ts`)
+- Types: Lower case with `.ts` extension (e.g., `index.ts`)
 
 **Directories:**
-- Feature directories: lowercase, plural nouns (e.g., `features/expenses`, `features/groups`)
-- Internal feature structure: lowercase, singular (e.g., `pages`, `components`, `hooks`, `services`)
-- UI component directories: lowercase (e.g., `ui`, `layout`)
+- Feature folders: camelCase (e.g., `expenses`, `dashboard`, `analytics`)
+- Semantic grouping: `pages/`, `hooks/`, `components/`, `context/`, `services/`
 
-**Variables & Functions:**
-- React components: PascalCase (e.g., `PersonalFinance`, `TransactionCard`)
-- Hooks: camelCase starting with `use` (e.g., `usePersonalTransactions`)
-- State variables: camelCase (e.g., `selectedGroupId`, `filters`, `loadingMore`)
-- Constants: UPPER_SNAKE_CASE (e.g., `PAGE_SIZE = 20` in hooks)
-
-**Types & Interfaces:**
-- Interfaces: PascalCase, descriptive (e.g., `PersonalFinanceSummary`, `TransactionFilters`)
-- Enums: PascalCase (e.g., `AppRoute`)
-- Type unions: camelCase or descriptive (e.g., `ImportStep`, `ToastType`)
+**Exports:**
+- Named exports for reusable hooks and utilities
+- Default export for page components and providers
+- Type exports grouped in `src/types/index.ts`
 
 ## Where to Add New Code
 
-**New Feature Module:**
-1. Create `src/features/{featureName}/` directory
-2. Add subdirectories: `pages/`, `components/`, `hooks/`
-3. Create feature pages in `pages/{PageName}.tsx`
-4. Create feature-specific components in `components/{ComponentName}.tsx`
-5. Create data-fetching hooks in `hooks/use{Feature}.ts`
-6. Import and route in `src/App.tsx` if user-facing
-7. Follow existing hook pattern: return `{ data, loading, error, ...operations }`
+**New Feature (e.g., Budgets):**
+- Create folder: `src/features/budgets/`
+- Add pages: `src/features/budgets/pages/Budgets.tsx`
+- Add hook: `src/features/budgets/hooks/useBudgets.ts`
+- Add components: `src/features/budgets/components/BudgetCard.tsx`
+- Export types in: `src/types/index.ts` (add Budget interface)
+- Register route in: `src/App.tsx` (add AppRoute enum and Route)
+- Update navigation: `src/components/layout/Sidebar.tsx` (add NavItem)
 
-**New Page/Route:**
-1. Create feature directory or add to existing feature
-2. Create page component in `src/features/{feature}/pages/{PageName}.tsx`
-3. Add route definition in `src/App.tsx` within `<Routes>` block
-4. Add `AppRoute` enum value in `src/types/index.ts` if new top-level route
-5. Add navigation in `src/components/layout/Sidebar.tsx` and/or `BottomNav.tsx`
-6. Use `@/features/{feature}/pages/{PageName}` import path
+**New Reusable UI Component:**
+- Location: `src/components/ui/ComponentName.tsx`
+- Pattern: Accept props, no hooks (unless stateful, then use hooks)
+- Export from: `src/components/ui/index.ts` (create if needed)
+- Usage: Import in feature components
 
-**New Hook (Data Fetching):**
-1. Create in `src/features/{feature}/hooks/use{Feature}.ts` (or `src/hooks/` if shared)
-2. Use Supabase client: `import { supabase } from '@/lib/supabase'`
-3. Follow pattern:
-   - Use `useState` for `loading`, `error`, data state
-   - Use `useCallback` for data operations
-   - Return object with: `{ data, loading, error, ...operations }`
-   - Use `useAuth()` to get current user for RLS filtering
-4. Consume in components: `const { data, loading } = useFeature()`
+**New Global State (e.g., Notifications):**
+- Create context: `src/context/NotificationContext.tsx`
+- Export provider and hook: `export const NotificationProvider`, `export const useNotifications`
+- Wrap app: Add to provider stack in `src/index.tsx`
+- Consume: `const { notify } = useNotifications()`
 
-**New Shared Component:**
-1. Create in `src/components/ui/{ComponentName}.tsx` if generic UI
-2. Create in `src/components/layout/{ComponentName}.tsx` if layout-related
-3. For feature-specific components, keep in `src/features/{feature}/components/`
-4. Pass props for configuration; avoid hardcoding values
-5. Use Tailwind classes for styling; match existing color palette
+**New Data Hook (within feature):**
+- Location: `src/features/[feature]/hooks/useNewHook.ts`
+- Pattern:
+  ```typescript
+  export const useNewHook = () => {
+    const { user } = useAuth();
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-**New Utility/Service:**
-1. External API integration: Add to `src/services/{serviceName}.ts` or extend existing
-2. Helper functions: Add to `src/lib/{utilityName}.ts`
-3. Constants: Add to `src/lib/constants.ts`
-4. Make exports explicit; name functions clearly
-5. Add JSDoc comments for public functions
+    const fetchData = useCallback(async () => {
+      // Supabase query
+    }, [user?.id]);
 
-**New Context/Global State:**
-1. Create in `src/context/{FeatureName}Context.tsx`
-2. Follow pattern: create context, Provider component, custom hook
-3. Wrap relevant portion of provider tree in `src/index.tsx`
-4. Provide both state and operations (fetch, create, update, delete)
-5. Handle loading/error states
+    useEffect(() => {
+      fetchData();
+    }, [fetchData]);
 
-**Database Integration:**
-1. All data fetched via Supabase client (`src/lib/supabase.ts`)
-2. RLS policies enforce per-user filtering automatically
-3. Use named selects for nested relationships (see `src/features/expenses/hooks/useTransactions.ts` lines 20-37 for pattern)
-4. Handle pagination via `range()` for performance on large tables
-5. Subscribe to real-time updates via `.on('*')` if needed (not yet implemented)
+    return { data, loading, error, refresh: fetchData };
+  };
+  ```
+
+**New Utility Function:**
+- Location: `src/lib/utility-name.ts` (or add to existing `expert-math.ts`)
+- Pattern: Pure function, no side effects
+- Export: Named export
+- Usage: Import in hooks or components
+
+**New Service Integration:**
+- Location: `src/services/service-name.ts`
+- Pattern: Wrapper around external API/SDK
+- Export: Functions and error types
+- Usage: Called from hooks or context
 
 ## Special Directories
 
-**dist/:**
-- Purpose: Build output directory
-- Generated: Yes (via `npm run build`)
-- Committed: No (.gitignore)
+**`src/components/ai/`**
+- Purpose: AI-specific UI components (future expansion)
+- Generated: No (manual code)
+- Committed: Yes
 
-**node_modules/:**
-- Purpose: Installed dependencies
-- Generated: Yes (via `npm install`)
-- Committed: No (.gitignore)
+**`node_modules/`**
+- Purpose: npm dependencies
+- Generated: Yes (npm install)
+- Committed: No
 
-**src/features/{feature}/services/:**
-- Purpose: Feature-specific API/business logic (rare; most in hooks)
-- Example: `src/features/expenses/services/personality.ts` (unknown purpose)
-- Pattern: Extend if feature needs complex data transformation outside hooks
+**`.env` / Environment Variables**
+- Purpose: Supabase credentials, API keys
+- Location: Root directory (`.env.local` or `.env`)
+- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GEMINI_API_KEY`
+- Committed: No (add to `.gitignore`)
 
-**src/components/ai/:**
-- Purpose: AI-specific UI components
-- Example: `StardustOverlay.tsx` (visual effect for AI processing)
-- Pattern: Keep AI-related visuals separate from core UI
+**`dist/`**
+- Purpose: Production build output
+- Generated: Yes (vite build)
+- Committed: No
 
-## Routing Patterns
+---
 
-**Route Enum Location:** `src/types/index.ts` (lines 78-89)
-
-**Route Usage Pattern:**
-```typescript
-// Define routes with enum
-enum AppRoute {
-  DASHBOARD_PERSONAL = '/',
-  IMPORT = '/importar',
-  GROUP_DETAILS = '/grupos/:groupId',
-}
-
-// Use in navigation
-navigate(AppRoute.DASHBOARD_PERSONAL)
-
-// Use in route definition
-<Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />
-```
-
-**Protected vs Public Routes:**
-- Protected routes: Wrapped in `<Route element={<ProtectedRoute />}>` in `src/App.tsx` (line 198)
-- Public routes: Auth pages (`LOGIN`, `ONBOARDING`) render separately when `isAuthRoute === true` (line 153)
-- Special case: `/unirse/:inviteCode` (join group) is protected but outside main layout
-
-**Navigation:**
-- Desktop: Via `Sidebar` component (click nav items)
-- Mobile: Via `BottomNav` component (bottom tab bar)
-- Programmatic: `useNavigate()` hook from React Router
-- All navigation uses `AppRoute` enum values, never hardcoded paths
+*Structure analysis: 2026-01-23*

@@ -1,180 +1,209 @@
 # Architecture
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## Pattern Overview
 
-**Overall:** Modular Feature-Driven SPA with Layered Context State Management
+**Overall:** Layered SPA with React Context + Custom Hooks pattern
 
 **Key Characteristics:**
-- Feature-based module organization (`/features/auth`, `/features/dashboard`, `/features/expenses`, etc.)
-- React Context API for global state (Auth, Groups, Currency, Toast)
-- Supabase as single source of truth for all data persistence
-- Custom hook layer for data fetching and business logic (`usePersonalTransactions`, `useTransactions`, `useCategories`, etc.)
-- React Router v6 for routing with protected routes and enum-based route definitions
-- TypeScript for full type safety with centralized type definitions in `src/types/index.ts`
+- Client-side React SPA using React Router for navigation
+- State management via Context API combined with custom data hooks
+- Supabase as backend (auth, database, RPC)
+- Feature-based folder organization with co-located hooks and pages
+- Separates concerns between presentational components, data hooks, and context providers
 
 ## Layers
 
-**Presentation Layer (Components & Pages):**
-- Purpose: User interface rendering and interaction
-- Location: `src/components/` and `src/features/*/pages/`
-- Contains: React components, page views, UI components
-- Depends on: Custom hooks, Context providers, UI libraries (lucide-react, recharts, framer-motion)
-- Used by: React Router for route rendering
+**Presentation Layer:**
+- Purpose: UI components and page-level orchestration
+- Location: `src/components/`, `src/features/*/pages/`, `src/features/*/components/`
+- Contains: React components (TSX), styled with Tailwind CSS and Framer Motion
+- Depends on: Custom hooks, Context consumers, UI library (lucide-react, recharts)
+- Used by: App router, users interacting with pages
 
-**Feature Modules:**
-- Purpose: Encapsulate domain-specific functionality with full responsibility chains
-- Location: `src/features/{featureName}/` containing `pages/`, `components/`, `hooks/`, `services/`
-- Contains: Feature pages, feature-specific components, feature hooks, optional services
-- Depends on: Shared hooks, shared context, types, services
-- Used by: App.tsx routing, other features via imports
+**State Management Layer:**
+- Purpose: Global state and data flow orchestration
+- Location: `src/context/`, `src/features/*/context/`
+- Contains: Context providers (Auth, Groups, Currency, Toast) that manage global state
+- Depends on: Supabase SDK, custom hooks, localStorage for persistence
+- Used by: All pages and components via hooks
 
-**Custom Hooks Layer:**
-- Purpose: Data fetching, state management, business logic encapsulation
-- Location: `src/features/*/hooks/` and `src/hooks/`
-- Contains: Hooks like `usePersonalTransactions`, `useTransactions`, `useAuth`, `useGroups`, `useCategories`
-- Depends on: Supabase client, Auth context
-- Used by: Page components for data and operations
+**Data Layer (Hooks):**
+- Purpose: Server communication and data caching/transformation
+- Location: `src/features/*/hooks/`, `src/hooks/`
+- Contains: Custom React hooks (useAuth, useTransactions, usePersonalTransactions, useCategories, etc.)
+- Depends on: Supabase client, useState/useEffect, external APIs
+- Used by: Components and context providers for fetching/updating data
 
-**Context Layer (Global State):**
-- Purpose: Shared state across application (auth, groups, currency, notifications)
-- Location: `src/context/` and `src/features/auth/context/`
-- Contains: `AuthContext`, `GroupsContext`, `CurrencyContext`, `ToastContext`
-- Depends on: Supabase client
-- Used by: Components and hooks throughout the app
-
-**Service Layer:**
-- Purpose: External API integration and specialized business logic
-- Location: `src/services/`
-- Contains: `ai.ts` (Google Gemini integration), `dolar-api.ts` (currency rates)
-- Depends on: External APIs, Supabase
-- Used by: Custom hooks and components
-
-**Utilities & Configuration:**
-- Purpose: Constants, prompts, helper functions, library initialization
-- Location: `src/lib/` and helper files
-- Contains: `supabase.ts` (Supabase client), `ai-prompts.ts`, `constants.ts`, `expert-math.ts`, `image-utils.ts`
-- Depends on: External libraries
-- Used by: Services, hooks, components
+**Infrastructure Layer:**
+- Purpose: Low-level utilities and service integrations
+- Location: `src/lib/`, `src/services/`
+- Contains: Supabase client configuration, AI service (Google Gemini), utility functions, currency API integration
+- Depends on: External SDKs (Supabase, Google GenAI, API clients)
+- Used by: Hooks and data transformation code
 
 ## Data Flow
 
-**User Authentication Flow:**
-1. User visits `/ingresar` or `/bienvenida`
-2. `Login`/`Onboarding` components render without auth requirement
-3. `useAuth()` hook calls Supabase OAuth/password sign-in
-4. `AuthContext` listens to `supabase.auth.onAuthStateChange()` and updates global state
-5. `ProtectedRoute` component redirects to login if no session
-6. App stores onboarding preferences in `localStorage` for post-OAuth sync
-7. `App.tsx` useEffect syncs pending onboarding data to Supabase (`user_settings`, `groups`, `group_members`)
+**Authentication Flow:**
 
-**Transaction Management Flow (Personal):**
-1. User navigates to `PersonalFinance` page (`/`)
-2. `usePersonalTransactions` hook fetches transactions from `personal_transactions` table with RLS filtering
-3. Hook applies client-side filters (`TransactionFilters`) for date, category, type
-4. Component renders paginated list with infinite scroll via IntersectionObserver
-5. User action (add/edit/delete) calls hook functions which update Supabase
-6. Hook re-fetches data and updates local state via `setTransactions`
-7. Toast notifications (`useToast`) show operation results
+1. App boots → `AuthProvider` in `src/features/auth/context/AuthContext.tsx` initializes
+2. AuthContext checks `supabase.auth.getSession()` and subscribes to auth state changes
+3. `useAuth()` hook in `src/features/auth/hooks/useAuth.ts` exposes user state + auth actions
+4. `ProtectedRoute` in `src/components/layout/ProtectedRoute.tsx` guards protected pages
+5. Login/Onboarding pages trigger `signInWithGoogle`, `signUp`, `signInWithPassword` via useAuth
+6. Token stored in Supabase session, automatically included in all subsequent requests
 
-**Transaction Management Flow (Groups):**
-1. User navigates to `Groups` page (`/grupos`)
-2. `GroupsContext` provides list of user's groups from `group_members` ↔ `groups` join
-3. User selects group or views `GroupDetails` (`/grupos/:groupId`)
-4. `useTransactions(groupId)` fetches group transactions with nested `profiles` and `transaction_splits`
-5. Component displays split breakdown and balances
-6. Operations (add/edit/delete) persist to `transactions` and `transaction_splits` tables
+**Transaction Fetch Flow:**
 
-**AI Import Flow (Expense Detection):**
-1. User navigates to `ImportExpenses` (`/importar`)
-2. Component collects images via file input
-3. `extractExpensesFromImages()` from `services/ai.ts` calls Google Gemini API
-4. AI extracts structured transaction data (merchant, amount, category)
-5. User reviews and confirms detected transactions
-6. Confirmed transactions are saved to `personal_transactions` or group `transactions`
-7. `uploadReceipt()` from `useAIHistory` records the import session in `ai_import_sessions`
+1. Page component (e.g., GroupDetails) calls `useTransactions(groupId)`
+2. Hook initializes with state: `[transactions, loading, error]`
+3. useEffect triggers `fetchTransactions()` callback when groupId changes
+4. Hook queries Supabase: `transactions` → `payer` profile, `transaction_splits` with user profiles
+5. Transforms DB rows to `Transaction[]` type
+6. Component consumes `transactions` and renders TransactionCard components
+7. User action (add/edit/delete) calls hook's `addTransaction()`, `updateTransaction()`, or `deleteTransaction()`
+8. Hook sends mutation to Supabase, then calls `fetchTransactions()` to refresh UI
+9. Toast notifications show success/error via `useToast()` injected from `ToastProvider`
+
+**Group Management Flow:**
+
+1. `GroupsProvider` in `src/context/GroupsContext.tsx` provides global groups state
+2. useEffect fetches user's group memberships from `group_members` table
+3. Joins with `groups` table to get group details
+4. Components access groups via `useGroups()` hook
+5. Actions like `createGroup()`, `joinGroup()`, `deleteGroup()` update Supabase
+6. Context refreshes local state and notifies via toast
+7. Invite flow: User receives invite code → stored in localStorage → `PremiumConfirmModal` displays join prompt → `joinGroup()` RPC called
+
+**Personal Finance Flow:**
+
+1. `PersonalFinance` page component calls `usePersonalTransactions()`
+2. Hook fetches user's personal transactions + calculates summary (income/expenses/balance)
+3. Implements pagination with `loadMore()` - fetches 20 at a time
+4. Filters support date ranges and categories
+5. Components show filtered transactions, summary card, charts
+6. User adds transaction → `addTransaction()` → creates `personal_transactions` record
+7. Expense updates trigger chart recalculation and summary refresh
 
 **State Management:**
-- **Authentication:** Supabase auth state + `AuthContext` (singleton pattern)
-- **Global data:** `GroupsContext` (user's groups), `CurrencyContext` (ARS/USD), `ToastContext` (notifications)
-- **Feature state:** Local React component state + custom hooks for data
-- **Persistence:** All data persists to Supabase; client caches data in component state until refresh
-- **Optimistic updates:** Hook functions update local state before server confirmation (no retry logic visible)
+
+- **Context-based state:** Auth (user, session), Groups (list, create/update/delete), Currency (exchange rates, selected currency), Toast (notifications)
+- **Component-local state:** Modals, filters, selected items, pagination offsets
+- **Persistence:** localStorage for theme, currency preference, rate source, onboarding redirect path
+- **Real-time updates:** useEffect dependencies trigger refetches, some hooks subscribe to Supabase channels (e.g., categories)
 
 ## Key Abstractions
 
-**AppRoute Enum:**
-- Purpose: Type-safe route definitions to eliminate magic strings
-- Location: `src/types/index.ts` lines 78-89
-- Examples: `AppRoute.DASHBOARD_PERSONAL = '/'`, `AppRoute.IMPORT = '/importar'`
-- Pattern: Enum-based routes passed to `useNavigate()` and `Link` components
+**Custom Data Hooks (useQuery pattern):**
+- Purpose: Encapsulate Supabase queries and transformations
+- Examples: `useAuth`, `useTransactions`, `usePersonalTransactions`, `useCategories`, `useGroups`, `useProfile`, `useEconomicHealth`
+- Pattern: Return `{ data, loading, error, actions... }`
+- Used by: Pages and components to read data and trigger mutations
 
-**Custom Data Hooks:**
-- Purpose: Encapsulate data fetching and CRUD operations
-- Examples: `usePersonalTransactions`, `useTransactions`, `useCategories`, `useGroups`
-- Pattern: Return loading/error states, data arrays, and operation functions (addTransaction, updateTransaction, deleteTransaction)
-- Location: `src/features/{feature}/hooks/`
-
-**Context Providers:**
-- Purpose: Centralize and share state across component tree
+**Context Providers (State Containers):**
+- Purpose: Share global state without prop drilling
 - Examples: `AuthProvider`, `GroupsProvider`, `CurrencyProvider`, `ToastProvider`
-- Pattern: Context + useContext custom hooks (e.g., `useAuthContext()`, `useToast()`)
-- Location: `src/context/` and `src/features/auth/context/`
+- Pattern: Create context → Provider wraps app → useXyz hook to consume
+- Benefits: Persist state across page transitions, enable cross-feature communication
 
-**Supabase RLS (Row-Level Security):**
-- Purpose: Enforce server-side data access control per user
-- Pattern: All tables have RLS policies; `supabase.auth.user()` filters queries by `user_id`
-- Benefit: No client-side auth logic needed; database enforces data isolation
+**Supabase RPC Wrapper:**
+- Purpose: Encapsulate backend logic and security definer functions
+- Examples: `get_group_details_by_code()`, `join_group_by_code()`
+- Called from: `GroupsContext` hooks
+- Security: RPC uses PostgreSQL definer to enforce RLS even for code that bypasses row-level policies
 
-**Feature Module Boundary:**
-- Purpose: Organize by domain (auth, dashboard, expenses, groups, analytics, settings)
-- Pattern: Each feature self-contained with pages, components, hooks; minimal cross-feature imports
-- Location: `src/features/{featureName}/`
+**Transform Functions:**
+- Purpose: Map database rows to application types
+- Located in: Hook files (inline transformations)
+- Example: `useTransactions` maps `{ payer: {...}, splits: [...] }` to `Transaction` type
 
 ## Entry Points
 
-**Application Root:**
+**Application Entry:**
 - Location: `src/index.tsx`
-- Triggers: Browser load
-- Responsibilities: Render React root, wrap app with all providers (Auth, Toast, Groups, Currency, Router)
+- Responsibilities: Mount React app, wrap with provider stack (Auth → Toast → Router → Groups → Currency)
+- Triggers: Initial app load
 
-**App Component:**
+**Main App Router:**
 - Location: `src/App.tsx`
-- Triggers: After all providers initialize
-- Responsibilities: Define all routes, manage layout (Sidebar, Header, BottomNav), handle theme, handle auth state changes (post-OAuth onboarding sync)
+- Triggers: After AuthProvider hydrates user state
+- Responsibilities:
+  - Render public routes (Login, Onboarding, Join) vs. protected routes
+  - Manage sidebar/header/bottom nav layout
+  - Handle theme switching (light/dark/system)
+  - Handle invite/deeplink redirects from localStorage
+  - Sync onboarding data to Supabase on first login
 
-**Protected Route Guard:**
-- Location: `src/components/layout/ProtectedRoute.tsx`
-- Triggers: Route navigation attempt
-- Responsibilities: Check `useAuth()` loading/user state; redirect to login/onboarding if not authenticated; render Outlet if authenticated
+**Route Configuration:**
+- `AppRoute` enum in `src/types/index.ts` defines all route paths
+- Routes registered in App.tsx `<Routes>` component
+- Protected routes wrapped in `<ProtectedRoute>` component
 
-**Layout Components:**
-- `src/components/layout/Sidebar.tsx`: Left navigation (md+ screens)
-- `src/components/layout/BottomNav.tsx`: Bottom navigation (mobile)
-- `src/components/layout/Header.tsx`: Top header with route title and theme toggle
+**Feature Entry Points (Pages):**
+- `PersonalFinance` - `src/features/dashboard/pages/PersonalFinance.tsx`
+- `Groups` - `src/features/groups/pages/Groups.tsx`
+- `GroupDetails` - `src/features/groups/pages/GroupDetails.tsx`
+- `ImportExpenses` - `src/features/expenses/pages/ImportExpenses.tsx`
+- `Categories` - `src/features/analytics/pages/Categories.tsx`
+- `Settings` - `src/features/settings/pages/Settings.tsx`
 
 ## Error Handling
 
-**Strategy:** Try-catch blocks at data fetch points; error state in hooks; toast notifications for user feedback
+**Strategy:** Try-catch in data hooks, error state propagated to components, toast notifications for user feedback
 
 **Patterns:**
-- Data hooks set `error` state and log to console on Supabase errors
-- Components display error messages inline or via toast
-- AI service (Google Gemini) returns custom error codes (`AIErrorCode`): `'API_KEY_MISSING'`, `'INVALID_KEY'`, `'NO_SUITABLE_MODEL'`, `'REJECTED_BY_AI'`, `'RATE_LIMIT'`, `'UNKNOWN_ERROR'`
-- Graceful degradation: If AI extraction fails, user returns to upload step; if transaction save fails, user retains form data
-- No global error boundary detected; errors handled locally in components/hooks
+
+```typescript
+// Hook pattern: capture error, expose as state
+const hook = async () => {
+  try {
+    const { data, error } = await supabase...
+    if (error) throw error;
+    setData(data);
+  } catch (err) {
+    console.error('[Hook name] Error:', err);
+    setError(err.message);
+  }
+};
+
+// Component pattern: check error state
+const { data, error, loading } = useData();
+if (error) return <div>Error: {error}</div>;
+if (loading) return <Loader />;
+return <div>{data}</div>;
+
+// RLS/Permission errors: Supabase returns error with count=0 on delete
+if (count === 0) throw new Error('No tenés permisos...');
+```
+
+**Special Cases:**
+- Delete transaction permission denied: hook catches `count === 0` from delete response, shows error toast
+- Group join already member: RPC returns error, caught in `joinGroup()`, error shown to user
+- AI API key missing: `getGeminiClient()` throws, caught in ImportExpenses page
 
 ## Cross-Cutting Concerns
 
-**Logging:** Console.log used throughout (see `src/features/dashboard/hooks/usePersonalTransactions.ts` line 75); no centralized logging framework
+**Logging:**
+- Console.error for data hook failures with `[Hook Name]` prefix
+- Example: `console.error('[useTransactions] Delete error:', err)`
 
-**Validation:** Form validation via component state; type safety via TypeScript; Supabase RLS enforces data integrity server-side
+**Validation:**
+- Email/password validation in Login component
+- Category name trimming in `addCategory()`
+- Filters applied in `usePersonalTransactions` with date/category bounds checking
 
-**Authentication:** Supabase Auth (OAuth + email/password); session managed via `AuthContext`; all API calls implicitly authenticated by Supabase client
+**Authentication:**
+- Supabase Auth handles session tokens
+- Custom RLS policies in database enforce data isolation
+- RPC functions use "Security Definer" to elevate permissions for specific operations
+- Hooks check `if (!user)` before mutations
 
-**Authorization:** Row-Level Security (RLS) policies in Supabase enforce per-user data access; no client-side role checks visible (all users are participants/admins of their own groups)
+**Caching/Refresh:**
+- useEffect refetches data when dependencies change (groupId, user)
+- Manual refresh via `refreshTransactions()`, `refreshGroups()`, `refreshRates()` functions
+- No external cache layer; state held in React component/context
 
-**State Persistence:** React Context (volatile) + localStorage for theme preference; all persistent data in Supabase
+---
 
-**Theme Management:** Three-level theme support (light/dark/system) stored in localStorage; applied to document root via class name injection (`App.tsx` lines 116-127)
+*Architecture analysis: 2026-01-23*

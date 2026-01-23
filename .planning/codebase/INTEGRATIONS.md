@@ -1,169 +1,169 @@
 # External Integrations
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-01-23
 
 ## APIs & External Services
 
-**Google Generative AI (Gemini):**
-- Expense extraction from receipts and images
-  - SDK/Client: `@google/genai` 1.37.0
-  - Auth: User-provided API key or system default via `VITE_GEMINI_API_KEY`
-  - Implementation: `src/services/ai.ts`
-  - Models: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash (with experimental fallback)
-  - Uses: Schema-based extraction for structured transaction data
+**Google Gemini AI:**
+- Gemini for financial analysis and AI-powered expense extraction
+  - SDK/Client: @google/genai 1.37.0
+  - Models supported: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash, gemini-2.0-flash-exp
+  - Auth: `VITE_GEMINI_API_KEY` (system-wide or user-provided per profile)
+  - Implementation: `src/services/ai.ts` contains core AI service with model selection, caching, and error handling
+  - Features:
+    - Financial health analysis with daily caching
+    - Expense extraction from images/PDFs with structured JSON response
+    - Dynamic model discovery and smoke testing for API key validation
 
-- Financial health analysis
-  - Function: `analyzeFinancialHealth()` in `src/services/ai.ts`
-  - Analyzes monthly income, expenses, savings rate
-  - Generates 3 actionable financial tips in Spanish (Argentine context)
-
-- Daily financial advice
-  - Function: `getDailyAdvice()` in `src/services/ai.ts`
-  - Cached per user per day in Supabase `daily_insights` table
-  - Falls back to cached version if available, regenerates on force refresh
-
-**DolarAPI:**
-- Exchange rate data for ARS/USD
-  - Endpoint: `https://dolarapi.com/v1/dolares` (all rates)
-  - Endpoint: `https://dolarapi.com/v1/dolares/blue` (blue market rate)
-  - Implementation: `src/services/dolar-api.ts`
-  - Used in: `src/features/expenses/components/TransactionModal.tsx`, `src/features/expenses/pages/ImportExpenses.tsx`
-  - No authentication required
-
-**UI Avatars Service:**
-- Placeholder user avatars
-  - Endpoint: `https://ui-avatars.com/api/?name={name}&background={color}&color={color}`
-  - Used in: Header, Sidebar, Settings components
-  - Fallback when user profile avatar not available
+**Google OAuth:**
+- Social authentication provider
+  - Auth: Supabase-managed OAuth through Google
+  - Redirect: Configured to `/onboarding` on successful sign-in
+  - Implementation: `src/features/auth/hooks/useAuth.ts` with `signInWithGoogle()` method
 
 ## Data Storage
 
 **Databases:**
-- PostgreSQL via Supabase
-  - Connection: `VITE_SUPABASE_URL` (hosted at supabase.co)
-  - Client: `@supabase/supabase-js`
-  - Location: `src/lib/supabase.ts`
+- Supabase PostgreSQL
+  - Connection: `VITE_SUPABASE_URL` (https://knhbsufwidbtyicahaku.supabase.co)
+  - Client: @supabase/supabase-js (v2.78.0)
+  - Real-time subscriptions enabled via WebSocket
 
 **Key Tables:**
-- `profiles` - User profile data (full_name, avatar_url, email, gemini_api_key, updated_at)
-  - Accessed via: `src/features/settings/hooks/useProfile.ts`
-  - RLS policies for data isolation per user
-
-- `transactions` - Expense transactions for groups
-  - Fields: group_id, payer_id, title, amount, category, date, created_by, original_amount, original_currency, exchange_rate, is_recurring, recurring_pattern
-  - Accessed via: `src/features/expenses/hooks/useTransactions.ts`
-
-- `transaction_splits` - Individual user portions of shared expenses
-  - Fields: transaction_id, user_id, amount_owed, paid, category
-  - Linked to transactions via foreign key
-
-- `groups` - Expense sharing groups
-  - Accessed via: `src/features/groups/hooks/useGroups.ts`
-
-- `daily_insights` - Cached daily financial advice
-  - Fields: user_id, date, content (JSON array of strings)
-  - Upsert pattern with conflict on (user_id, date)
-  - Accessed via: `src/services/ai.ts`
+- `profiles` - User profiles with full_name, avatar_url, gemini_api_key, email
+- `groups` - Expense groups with currency, invite_code, created_by
+- `group_members` - Group membership relationships
+- `transactions` - Group transactions with splits, amounts, categories, dates
+- `transaction_splits` - Split breakdown per transaction per user
+- `personal_transactions` - User's personal income/expense transactions
+- `categories` - User-defined and system categories with icons/colors
+- `daily_insights` - Cached AI-generated daily financial advice (per user, per date)
+- `user_settings` - User preferences (usage_type, detect_recurring, split_default)
+- `ai_history` - History of AI-processed file uploads and extractions
 
 **File Storage:**
-- User avatars and profile images stored via Supabase storage (profile.avatar_url references)
+- Local filesystem only
+  - Image processing via client-side utilities in `src/lib/image-utils.ts`
+  - Files sent to Gemini as base64 encoded data in requests
+  - No external file storage service (S3, etc.) currently used
 
 **Caching:**
-- In-memory model cache for Gemini API keys: `modelCache` Map in `src/services/ai.ts`
-- Clears on API key update via `clearModelCache()`
-- Database-backed caching for daily insights (Supabase `daily_insights` table)
+- In-memory model cache in `src/services/ai.ts` (modelCache Map)
+- Supabase database for daily financial advice (daily_insights table)
+- Browser localStorage for:
+  - Theme preference (system/dark/light)
+  - Onboarding state (pending_onboarding)
+  - Redirect paths (splita_redirect_path)
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Supabase Auth (custom JWT-based)
-  - Implementation: `src/features/auth/context/AuthContext.tsx`
-  - OAuth provider: Google (via Supabase)
-  - Session storage via Supabase local storage
+- Supabase Authentication (PostgreSQL-based)
+  - Implementation: `src/features/auth/context/AuthContext.tsx` for state management
+  - Methods: Google OAuth, email/password sign-up, email/password sign-in
 
-**Auth Flow:**
-1. `supabase.auth.signInWithOAuth({ provider: 'google' })` initiates OAuth
-2. Redirect to `/onboarding` after successful auth
-3. `supabase.auth.getSession()` retrieves active session
-4. `supabase.auth.onAuthStateChange()` listener tracks auth state changes
-5. Session stored in browser via Supabase SDK (localStorage by default)
+**Sessions:**
+- Supabase session management with automatic refresh
+- Browser persistence via Supabase client defaults
+- Hook: `src/features/auth/hooks/useAuth.ts` provides sign-in/sign-up functions
 
-**Hooks:**
-- `useAuth()` in `src/features/auth/hooks/useAuth.ts` - Get user, session, loading state
-- `useAuthContext()` in AuthContext - Provider for auth state
-- `useProfile()` in `src/features/settings/hooks/useProfile.ts` - User profile data with social login sync
+**User Metadata:**
+- Social login metadata (full_name, picture from Google provider)
+- Auto-sync to profile on first login if missing
+- Per-user Gemini API key storage in profiles.gemini_api_key
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Not detected
+- None configured (no Sentry, Rollbar, etc.)
+- Console.log/console.error used throughout
 
 **Logs:**
-- Console logging via `console.log()` and `console.error()` throughout:
-  - AI service operations: `[AI Service]` prefix in `src/services/ai.ts`
-  - Transaction operations: `[useTransactions]` prefix in hooks
-  - DolarAPI: `[DolarAPI]` prefix
-- No centralized logging service detected
+- Browser console logging:
+  - `[AI Service]` prefix in `src/services/ai.ts`
+  - `[useTransactions]` prefix in transaction hooks
+  - No centralized logging service
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Client-side SPA deployment (Vite build output)
-- Development: `npm run dev` (Vite dev server on port 3000)
-- Build: `npm run build` (Vite production build)
-- Preview: `npm run preview` (preview built assets)
+- Not configured in codebase (supports any static host)
+- Commonly used with: Vercel, Netlify, AWS S3 + CloudFront, etc.
 
 **CI Pipeline:**
-- Not detected (no .github/workflows, no CI config files found)
+- None configured (no GitHub Actions, GitLab CI, etc.)
 
-**Deployment Target:**
-- Any static hosting (Vercel, Netlify, GitHub Pages, etc.)
-- Supabase backend (managed cloud, no deployment needed)
+**Build Process:**
+- Vite build command: `npm run build`
+- Output to `dist/` directory
 
 ## Environment Configuration
 
 **Required env vars:**
-- `VITE_SUPABASE_URL` - Supabase project endpoint
-- `VITE_SUPABASE_ANON_KEY` - Supabase client API key
-- `VITE_GEMINI_API_KEY` - Google Generative AI API key (optional system default, can be overridden per user)
+```
+VITE_SUPABASE_URL              # https://knhbsufwidbtyicahaku.supabase.co
+VITE_SUPABASE_ANON_KEY         # JWT token for anonymous access
+VITE_GEMINI_API_KEY            # Optional default system key; users can override in settings
+```
 
 **Secrets location:**
-- `.env` file (local development only)
-- Environment variables in production hosting platform
-- User-provided Gemini API key stored in `profiles.gemini_api_key` (Supabase)
-
-**Development Environment:**
-- Vite loads env vars from `.env` file with `VITE_` prefix
-- Vite config in `vite.config.ts` exposes vars via `import.meta.env.VITE_*`
+- `.env` file (git-ignored, not committed)
+- Supabase keys also accessible via Supabase dashboard
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- OAuth redirect callback from Google: Redirects to `/onboarding` after login
-- Supabase auth state change subscription: Real-time listener via `onAuthStateChange()`
+- None currently implemented
 
 **Outgoing:**
-- None detected
+- None currently implemented
+- Google OAuth redirects handled via window.location.origin + path
 
-## Data Integration Patterns
+## Real-Time Features
 
-**Transaction Extraction:**
-- User uploads receipt image/PDF to AI expense import
-- `extractExpensesFromImages()` calls Gemini API with image + structured schema
-- Returns array of parsed transactions with date, merchant, category, amount, currency
-- User reviews and confirms extracted data
-- `useTransactions.addTransaction()` inserts to Supabase with splits
+**Supabase Subscriptions:**
+- onAuthStateChange - Listens for login/logout events in AuthContext
+- Real-time DB subscriptions not currently used (polling-based data fetching)
 
-**Real-time Data Sync:**
-- Supabase real-time subscriptions not explicitly configured
-- Data fetched on component mount via hooks (e.g., `useTransactions`, `useProfile`)
-- Manual refresh via `fetchTransactions()`, `refreshProfile()` functions
+## API Rate Limiting & Quotas
 
-**Currency Conversion:**
-- DolarAPI provides ARS/USD rates
-- Transaction can store `original_amount`, `original_currency`, `exchange_rate`
-- Used when adding transactions with foreign currency
+**Gemini API:**
+- Model validation includes quota error detection
+- Friendly error message if quota exceeded: "Se ha superado la cuota de uso"
+- Implementation: `src/services/ai.ts` with code 'RATE_LIMIT'
+
+**Supabase:**
+- Row-level security (RLS) policies configured for:
+  - Transaction access (user must be group member or creator)
+  - Profile access (users can read/write own profile)
+  - Group access restrictions
+- RLS policies defined in SQL migrations (see `supabase_*_rls_*.sql` files)
+
+## Data Models & Type System
+
+**Core Types:** `src/types/index.ts`
+- User - id, name, avatar, email, occupation
+- Transaction - id, date, merchant, category, amount, payer, splitWith, original_amount, original_currency, exchange_rate, is_recurring
+- PersonalTransaction - user_id, title, amount, category, type (income/expense), date, payment_method
+- Category - id, user_id, name, icon, color, bg_color, is_system
+- Group - id, name, type (trip/house/couple/other), members, userBalance, currency, lastActivity, image, inviteCode, createdBy
+- Insight - id, title, description, icon, type (saving/alert/info)
+
+## Integration Patterns
+
+**Data Flow:**
+1. User authenticates via Supabase Auth (Google OAuth or email/password)
+2. Profile loaded from Supabase on session establishment
+3. Groups/transactions fetched from Supabase via React Context (GroupsContext, useTransactions)
+4. AI requests to Gemini include user's personal API key (if set) or system default
+5. AI results cached in Supabase (daily_insights) to reduce quota usage
+6. Expense extraction stores results in ai_history table for user reference
+
+**Error Handling:**
+- Supabase errors: Checked on every query, wrapped in try-catch
+- Gemini errors: Translated to user-friendly Spanish messages (INVALID_KEY, NO_SUITABLE_MODEL, RATE_LIMIT, etc.)
+- Permission errors: RLS violations return "PERMISSION_DENIED" message
 
 ---
 
-*Integration audit: 2026-01-21*
+*Integration audit: 2026-01-23*
