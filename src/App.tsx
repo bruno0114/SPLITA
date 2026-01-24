@@ -44,7 +44,6 @@ const App: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const mainRef = useRef<HTMLElement | null>(null);
     const prevMainRoute = useRef<string | null>(null);
 
     useEffect(() => {
@@ -205,6 +204,13 @@ const App: React.FC = () => {
         }
     }, [theme]);
 
+    useEffect(() => {
+        document.body.style.overflowX = 'hidden';
+        return () => {
+            document.body.style.overflowX = '';
+        };
+    }, []);
+
     const handleNavigate = (route: AppRoute) => {
         if (route === AppRoute.GROUP_DETAILS) {
             if (selectedGroupId) navigate(AppRoute.DASHBOARD_GROUPS + '/' + selectedGroupId);
@@ -242,7 +248,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!mainRoutes.has(location.pathname)) return;
         if (prevMainRoute.current !== location.pathname) {
-            mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             prevMainRoute.current = location.pathname;
         }
     }, [location.pathname]);
@@ -268,7 +274,7 @@ const App: React.FC = () => {
     const sidebarClassName = "hidden md:flex h-full z-20 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] " + (isSidebarCollapsed ? "w-20" : "w-64");
 
     return (
-        <div className="flex h-screen w-full bg-background overflow-hidden relative text-slate-900 dark:text-slate-100 transition-colors duration-300">
+        <div className="flex min-h-screen w-full bg-background relative text-slate-900 dark:text-slate-100 transition-colors duration-300">
             {/* Background Ambience */}
             <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0 transition-opacity duration-300">
                 <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
@@ -297,7 +303,7 @@ const App: React.FC = () => {
                     onNavigate={handleNavigate}
                     onLogout={handleLogOut}
                 />
-                <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain relative scroll-smooth pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-0">
+                <main className="flex-1 relative pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
                             <Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />
