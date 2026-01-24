@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle, Calendar, Filter, BarChart3 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { usePersonalTransactions, TransactionFilters } from '../hooks/usePersonalTransactions';
 import { PersonalTransaction } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -16,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SubscriptionModal from '../components/SubscriptionModal';
 import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
 import { useToast } from '@/context/ToastContext';
+import SkeletonBlock from '@/components/ui/Skeleton';
 
 const PersonalFinance: React.FC = () => {
   const {
@@ -51,6 +53,9 @@ const PersonalFinance: React.FC = () => {
   const [permissionError, setPermissionError] = useState<{ isOpen: boolean; memberName: string }>({ isOpen: false, memberName: '' });
   const { showToast } = useToast();
   const { currency, exchangeRate } = useCurrency();
+  const location = useLocation();
+
+  const isInitialLoading = loading && transactions.length === 0;
 
   const currentMonthExpenses = React.useMemo(() => {
     const today = new Date();
@@ -71,6 +76,10 @@ const PersonalFinance: React.FC = () => {
   });
 
   const observerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    refreshTransactions();
+  }, [location.key]);
 
   // Infinite Scroll Observer
   React.useEffect(() => {
@@ -213,11 +222,38 @@ const PersonalFinance: React.FC = () => {
     );
   }
 
-  if (loading && transactions.length === 0) {
+  if (isInitialLoading) {
     return (
-      <div className="flex flex-col h-[70vh] w-full items-center justify-center bg-background gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Actualizando resumen...</p>
+      <div className="px-6 md:px-12 py-10 max-w-7xl mx-auto space-y-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-3">
+            <SkeletonBlock className="h-8 w-56" />
+            <SkeletonBlock className="h-4 w-72" />
+          </div>
+          <SkeletonBlock className="h-12 w-44 rounded-xl" />
+        </div>
+
+        <SkeletonBlock className="h-36 rounded-[2rem]" />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <SkeletonBlock className="h-28" />
+          <SkeletonBlock className="h-28" />
+          <SkeletonBlock className="h-28" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <SkeletonBlock className="lg:col-span-2 h-56 rounded-[2rem]" />
+          <SkeletonBlock className="lg:col-span-1 h-56 rounded-[2rem]" />
+        </div>
+
+        <div className="space-y-4">
+          <SkeletonBlock className="h-10 rounded-[1.5rem]" />
+          <div className="space-y-3">
+            <SkeletonBlock className="h-16" />
+            <SkeletonBlock className="h-16" />
+            <SkeletonBlock className="h-16" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -338,7 +374,12 @@ const PersonalFinance: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              {loading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
+              {loading && transactions.length > 0 && (
+                <div className="flex items-center gap-2 rounded-full bg-blue-500/10 text-blue-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Actualizando
+                </div>
+              )}
               {filteredTransactions.length > 0 && (
                 <button
                   onClick={() => {

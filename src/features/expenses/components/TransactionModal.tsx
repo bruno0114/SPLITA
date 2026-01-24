@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, DollarSign, Loader2, Repeat, CreditCard, LayoutGrid } from 'lucide-react';
+import { X, DollarSign, Euro, Loader2, Repeat, CreditCard, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { useCategories } from '@/features/analytics/hooks/useCategories';
@@ -24,6 +24,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
     const [saving, setSaving] = useState(false);
     const [currency, setCurrency] = useState(initialData?.original_currency || 'ARS');
     const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate?.toString() || '1');
+    const [exchangeRateSource, setExchangeRateSource] = useState<'manual' | 'dolar_blue' | 'dolar_crypto'>(initialData?.exchange_rate_source || 'manual');
     const [isFetchingRate, setIsFetchingRate] = useState(false);
 
     // Parse existing installments if any (e.g. "2/6")
@@ -36,10 +37,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
         }
     }, [initialData]);
 
-    const fetchRate = async () => {
+    const fetchRate = async (source: 'dolar_blue' | 'dolar_crypto') => {
         setIsFetchingRate(true);
         try {
-            const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+            const endpoint = source === 'dolar_crypto' ? 'cripto' : 'blue';
+            const res = await fetch(`https://dolarapi.com/v1/dolares/${endpoint}`);
             const data = await res.json();
             if (data && data.venta) {
                 setExchangeRate(data.venta.toString());
@@ -62,7 +64,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
 
         const baseAmount = parseFloat(amount);
         const rate = parseFloat(exchangeRate) || 1;
-        const finalAmount = currency === 'USD' ? baseAmount * rate : baseAmount;
+        const finalAmount = currency === 'USD' || currency === 'EUR' ? baseAmount * rate : baseAmount;
 
         const { error } = await onSave({
             title,
@@ -74,7 +76,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
             installments: installmentsPattern,
             original_amount: baseAmount,
             original_currency: currency,
-            exchange_rate: currency === 'USD' ? rate : undefined
+            exchange_rate: currency === 'USD' || currency === 'EUR' ? rate : undefined,
+            exchange_rate_source: currency === 'ARS' ? undefined : exchangeRateSource
         });
         setSaving(false);
         if (!error) onClose();
@@ -95,7 +98,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
+                className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
             >
                 <div className="flex justify-between items-center mb-5">
                     <div>
@@ -170,7 +173,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto ({currency})</label>
                             <div className="relative group/input">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">
-                                    {currency === 'USD' ? 'u$s' : '$'}
+                                    {currency === 'USD' ? 'u$s' : currency === 'EUR' ? '€' : '$'}
                                 </span>
                                 <input
                                     type="number"
@@ -190,7 +193,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                                 disabled={isGroupTransaction}
                                 onChange={(val) => {
                                     setCurrency(val);
-                                    if (val === 'USD') fetchRate();
+                                    if (val === 'ARS') {
+                                        setExchangeRateSource('manual');
+                                    }
+                                    if (val === 'EUR') {
+                                        setExchangeRateSource('manual');
+                                    }
+                                    if (val === 'USD' && exchangeRateSource !== 'manual') {
+                                        fetchRate(exchangeRateSource);
+                                    }
                                 }}
                                 groups={[
                                     {
@@ -198,6 +209,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                                         options: [
                                             { id: 'ARS', label: 'ARS - Pesos', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
                                             { id: 'USD', label: 'USD - Dólares', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                            { id: 'EUR', label: 'EUR - Euros', icon: Euro, color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' }
                                         ]
                                     }
                                 ]}
@@ -206,16 +218,46 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, onSave, in
                         </div>
                     </div>
 
-                    {currency === 'USD' && (
+                    {currency !== 'ARS' && (
                         <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl animate-in slide-in-from-top-2">
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-black text-blue-500 uppercase tracking-widest">Tipo de cambio (ARS)</label>
+                                {currency === 'USD' && exchangeRateSource !== 'manual' && (
+                                    <button
+                                        onClick={() => fetchRate(exchangeRateSource)}
+                                        disabled={isFetchingRate}
+                                        className="text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+                                    >
+                                        {isFetchingRate ? 'Actualizando...' : 'Actualizar'}
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 mb-3">
                                 <button
-                                    onClick={fetchRate}
-                                    disabled={isFetchingRate}
-                                    className="text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+                                    onClick={() => setExchangeRateSource('manual')}
+                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'manual'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'}`}
                                 >
-                                    {isFetchingRate ? 'Actualizando...' : 'Actualizar Blue'}
+                                    Manual
+                                </button>
+                                <button
+                                    onClick={() => { if (currency === 'USD') { setExchangeRateSource('dolar_blue'); fetchRate('dolar_blue'); } }}
+                                    disabled={currency !== 'USD'}
+                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'dolar_blue'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'} ${currency !== 'USD' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                >
+                                    Blue
+                                </button>
+                                <button
+                                    onClick={() => { if (currency === 'USD') { setExchangeRateSource('dolar_crypto'); fetchRate('dolar_crypto'); } }}
+                                    disabled={currency !== 'USD'}
+                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'dolar_crypto'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'} ${currency !== 'USD' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                >
+                                    Cripto
                                 </button>
                             </div>
                             <input

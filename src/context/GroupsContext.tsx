@@ -68,6 +68,16 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             if (groupsError) throw groupsError;
 
+            const { data: balanceData, error: balanceError } = await supabase
+                .rpc('get_group_balances_for_user', { p_user_id: user.id });
+
+            if (balanceError) throw balanceError;
+
+            const balanceMap = new Map<string, number>();
+            (balanceData || []).forEach((row: any) => {
+                balanceMap.set(row.group_id, Number(row.net_balance || 0));
+            });
+
             const validGroups: Group[] = (groupsData || []).map((g: any) => ({
                 id: g.id,
                 name: g.name,
@@ -78,7 +88,7 @@ export const GroupsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 inviteCode: g.invite_code,
                 createdBy: g.created_by,
                 lastActivity: new Date(g.created_at).toLocaleDateString(),
-                userBalance: 0,
+                userBalance: balanceMap.get(g.id) || 0,
                 members: g.members.map((m: any) => ({
                     id: m.profiles.id,
                     name: m.profiles.full_name || 'Sin nombre',

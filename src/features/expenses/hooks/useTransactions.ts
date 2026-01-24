@@ -55,6 +55,10 @@ export const useTransactions = (groupId?: string | null) => {
                     category: t.category,
                     amount: t.amount,
                     totalAmount: t.amount,
+                    original_amount: t.original_amount,
+                    original_currency: t.original_currency,
+                    exchange_rate: t.exchange_rate,
+                    exchange_rate_source: t.exchange_rate_source,
                     payer: t.payer ? {
                         id: t.payer.id,
                         name: t.payer.full_name || 'Desconocido',
@@ -98,6 +102,7 @@ export const useTransactions = (groupId?: string | null) => {
         original_amount?: number;
         original_currency?: string;
         exchange_rate?: number;
+        exchange_rate_source?: 'manual' | 'dolar_blue' | 'dolar_crypto';
         is_recurring?: boolean;
         installments?: string | null;
         payerId?: string;
@@ -119,6 +124,7 @@ export const useTransactions = (groupId?: string | null) => {
                     original_amount: data.original_amount,
                     original_currency: data.original_currency,
                     exchange_rate: data.exchange_rate,
+                    exchange_rate_source: data.exchange_rate_source,
                     is_recurring: data.is_recurring,
                     recurring_pattern: data.installments
                 })
@@ -184,6 +190,10 @@ export const useTransactions = (groupId?: string | null) => {
         date: string;
         splitBetween: string[];
         customSplits?: Record<string, number> | { userId: string; amount: number }[];
+        original_amount?: number;
+        original_currency?: string;
+        exchange_rate?: number;
+        exchange_rate_source?: 'manual' | 'dolar_blue' | 'dolar_crypto';
     }) => {
         if (!user || !groupId) return { error: 'Missing user or group' };
 
@@ -195,7 +205,11 @@ export const useTransactions = (groupId?: string | null) => {
                     title: data.title,
                     amount: data.amount,
                     category: data.category,
-                    date: data.date
+                    date: data.date,
+                    original_amount: data.original_amount,
+                    original_currency: data.original_currency,
+                    exchange_rate: data.exchange_rate,
+                    exchange_rate_source: data.exchange_rate_source
                 })
                 .eq('id', id)
                 .select()

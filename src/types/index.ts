@@ -30,6 +30,7 @@ export interface Transaction {
   original_amount?: number;
   original_currency?: string;
   exchange_rate?: number;
+  exchange_rate_source?: 'manual' | 'dolar_blue' | 'dolar_crypto';
   is_recurring?: boolean;
   installments?: string | null;
   raw_date?: string;
@@ -50,6 +51,7 @@ export interface PersonalTransaction {
   original_amount?: number;
   original_currency?: string;
   exchange_rate?: number;
+  exchange_rate_source?: 'manual' | 'dolar_blue' | 'dolar_crypto';
   is_recurring?: boolean;
   recurring_pattern?: string | null;
   payer?: {
@@ -108,7 +110,7 @@ export enum AppRoute {
 
 export type Theme = 'light' | 'dark' | 'system';
 
-export type Currency = 'ARS' | 'USD';
+export type Currency = 'ARS' | 'USD' | 'EUR';
 
 export interface DollarRate {
   compra: number;

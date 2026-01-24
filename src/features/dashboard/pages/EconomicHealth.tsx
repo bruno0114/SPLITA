@@ -1,6 +1,6 @@
 import React from 'react';
 import { PieChart, TrendingUp, Lightbulb, PiggyBank, AlertTriangle, Rocket, Sparkles, CheckCircle2, Loader2, BrainCircuit, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEconomicHealth } from '../hooks/useEconomicHealth';
 import SubscriptionModal from '../components/SubscriptionModal';
@@ -12,7 +12,12 @@ const EconomicHealth: React.FC = () => {
    const { data, loading, refreshAdvice } = useEconomicHealth();
    const { currency, exchangeRate } = useCurrency();
    const navigate = useNavigate();
+   const location = useLocation();
    const [showPremiumModal, setShowPremiumModal] = React.useState(false);
+
+   React.useEffect(() => {
+      refreshAdvice();
+   }, [location.key]);
 
    // Score Config
    const score = data.score;

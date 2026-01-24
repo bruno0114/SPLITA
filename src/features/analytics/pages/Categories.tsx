@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShoppingBag, ShoppingCart, Coffee, Zap, Car, Home, Plane, MoreHorizontal,
-    ChevronDown, Wallet, Users, LayoutGrid, ArrowRight, Loader2
+    ChevronDown, Wallet, Users, LayoutGrid, ArrowRight
 } from 'lucide-react';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { usePersonalTransactions } from '@/features/dashboard/hooks/usePersonalTransactions';
@@ -17,6 +17,7 @@ import { AppRoute } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import { AnalyticsTransaction } from '../hooks/useCategoryStats';
+import SkeletonBlock from '@/components/ui/Skeleton';
 
 // Map string icon names to components
 const IconMap: Record<string, React.ElementType> = {
@@ -43,6 +44,10 @@ const Categories: React.FC = () => {
     const { groups } = useGroups();
     const { transactions: groupTx, loading: groupLoading } = useTransactions(scope !== 'personal' ? scope : null);
     const { categories: customCategories, refresh: refreshCategories } = useCategories();
+
+    useEffect(() => {
+        refreshCategories();
+    }, [location.key, refreshCategories]);
 
     // Determine loading state based on current scope
     const isLoading = scope === 'personal' ? personalLoading : groupLoading;
@@ -80,9 +85,22 @@ const Categories: React.FC = () => {
     // Show loader while fetching data
     if (isLoading && activeTransactions.length === 0) {
         return (
-            <div className="flex flex-col h-[70vh] w-full items-center justify-center bg-background gap-4">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Cargando categorías...</p>
+            <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+                <div className="space-y-3">
+                    <SkeletonBlock className="h-8 w-56" />
+                    <SkeletonBlock className="h-4 w-72" />
+                </div>
+
+                <SkeletonBlock className="h-32 rounded-[2rem]" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <SkeletonBlock className="h-40" />
+                    <SkeletonBlock className="h-40" />
+                    <SkeletonBlock className="h-40" />
+                    <SkeletonBlock className="h-40" />
+                    <SkeletonBlock className="h-40" />
+                    <SkeletonBlock className="h-40" />
+                </div>
             </div>
         );
     }

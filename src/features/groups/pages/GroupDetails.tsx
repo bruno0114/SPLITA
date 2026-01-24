@@ -142,18 +142,34 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       setDeleteConfirm({ isOpen: true, id });
    };
 
+   const isSettlementCategory = (category?: string | null) => {
+      return (category || '').toLowerCase() === 'saldos';
+   };
+
+   const getDeleteCopy = (ids: string[]) => {
+      const selected = transactions.filter(tx => ids.includes(tx.id));
+      const allSettlements = selected.length > 0 && selected.every(tx => isSettlementCategory(tx.category));
+      const label = allSettlements ? 'liquidación' : 'movimiento';
+      return {
+         label,
+         pluralLabel: allSettlements ? 'liquidaciones' : 'movimientos',
+         allSettlements
+      };
+   };
+
    const executeMassDelete = async () => {
       const { error } = await deleteTransactions(selectedIds);
+      const copy = getDeleteCopy(selectedIds);
 
       if (!error) {
          setSelectedIds([]);
-         showToast(`${selectedIds.length} movimientos eliminados`, 'success');
+         showToast(`${selectedIds.length} ${copy.pluralLabel} eliminadas`, 'success');
       } else {
          if (error.includes('row-level security') || error.includes('policy') || error === 'PERMISSION_DENIED') {
             // For mass delete, we don't necessarily know all payers, but we can show a general permission error
             setPermissionError({ isOpen: true, payerName: 'sus creadores' });
          } else {
-            showToast('Error al eliminar movimientos', 'error');
+            showToast(`Error al eliminar ${copy.pluralLabel}`, 'error');
          }
       }
       setDeleteConfirm({ isOpen: false, id: null });
@@ -162,6 +178,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    const handleConfirmDelete = async () => {
       if (deleteConfirm.id) {
          const txToDelete = transactions.find(t => t.id === deleteConfirm.id);
+         const isSettlement = isSettlementCategory(txToDelete?.category);
          const { error } = await deleteTransaction(deleteConfirm.id);
 
          if (error) {
@@ -171,10 +188,10 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
                   payerName: txToDelete?.payer.name || 'su creador'
                });
             } else {
-               showToast('Error al eliminar el gasto', 'error');
+               showToast(`Error al eliminar la ${isSettlement ? 'liquidación' : 'movimiento'}`, 'error');
             }
          } else {
-            showToast('Gasto eliminado', 'success');
+            showToast(`${isSettlement ? 'Liquidación' : 'Movimiento'} eliminada`, 'success');
          }
          setDeleteConfirm({ isOpen: false, id: null });
       }
@@ -193,9 +210,14 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       }
 
       if (!result.error) {
-         showToast(editingTransaction ? 'Gasto actualizado' : 'Gasto guardado con éxito', 'success');
+         const isSettlement = isSettlementCategory(data.category || editingTransaction?.category);
+         showToast(editingTransaction
+            ? `${isSettlement ? 'Liquidación' : 'Movimiento'} actualizada`
+            : `${isSettlement ? 'Liquidación' : 'Movimiento'} guardada con éxito`,
+            'success');
       } else {
-         showToast('Error al guardar el gasto: ' + result.error, 'error');
+         const isSettlement = isSettlementCategory(data.category || editingTransaction?.category);
+         showToast(`Error al guardar la ${isSettlement ? 'liquidación' : 'movimiento'}: ${result.error}`, 'error');
       }
       return result;
    };
@@ -361,7 +383,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
          </div>
 
          {/* Content */}
-         <div className="flex-1 -mt-12 relative z-20 px-4 md:px-8 pb-10 overflow-y-auto">
+         <div className="flex-1 -mt-12 relative z-20 px-4 md:px-8 pb-10">
             <div className="max-w-4xl mx-auto space-y-6">
 
                {/* Group Header Info */}
@@ -644,17 +666,24 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
 
          <PremiumConfirmModal
             isOpen={deleteConfirm.isOpen}
-            title={deleteConfirm.id === 'MASS_DELETE' ? 'Eliminar movimientos' : 'Eliminar gasto'}
-            message={
-               deleteConfirm.id === 'MASS_DELETE'
-                  ? (() => {
-                     if (selectedIds.length === 1) {
-                        return "¿Estás seguro de que querés eliminar este gasto? Esta acción no se puede deshacer y afectará los balances del grupo.";
-                     }
-                     return `¿Estás seguro de que querés eliminar estos ${selectedIds.length} gastos? Esta acción no se puede deshacer y afectará los balances de todos los miembros del grupo.`;
-                  })()
-                  : "¿Estás seguro de que querés eliminar este gasto? Esta acción no se puede deshacer y afectará los balances del grupo."
-            }
+            title={(() => {
+               if (deleteConfirm.id === 'MASS_DELETE') {
+                  return `Eliminar ${getDeleteCopy(selectedIds).pluralLabel}`;
+               }
+               const tx = transactions.find(t => t.id === deleteConfirm.id);
+               return `Eliminar ${isSettlementCategory(tx?.category) ? 'liquidación' : 'movimiento'}`;
+            })()}
+            message={(() => {
+               if (deleteConfirm.id === 'MASS_DELETE') {
+                  const copy = getDeleteCopy(selectedIds);
+                  if (selectedIds.length === 1) {
+                     return `¿Estás seguro de que querés eliminar esta ${copy.label}? Esta acción no se puede deshacer y afectará los balances del grupo.`;
+                  }
+                  return `¿Estás seguro de que querés eliminar estas ${selectedIds.length} ${copy.pluralLabel}? Esta acción no se puede deshacer y afectará los balances de todos los miembros del grupo.`;
+               }
+               const tx = transactions.find(t => t.id === deleteConfirm.id);
+               return `¿Estás seguro de que querés eliminar esta ${isSettlementCategory(tx?.category) ? 'liquidación' : 'movimiento'}? Esta acción no se puede deshacer y afectará los balances del grupo.`;
+            })()}
             confirmLabel="Eliminar"
             onConfirm={deleteConfirm.id === 'MASS_DELETE' ? executeMassDelete : handleConfirmDelete}
             onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
@@ -998,8 +1027,15 @@ interface GroupTransactionModalProps {
 
 const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, onSave, members, initialData }) => {
    const { showToast } = useToast();
+   const isSettlementCategory = (category?: string | null) => {
+      return (category || '').toLowerCase() === 'saldos';
+   };
    const [title, setTitle] = useState(initialData?.merchant || ''); // Note: merchant is mapped from title in useTransactions
-   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+   const [amount, setAmount] = useState(initialData?.original_amount?.toString() || initialData?.amount?.toString() || '');
+   const [currency, setCurrency] = useState(initialData?.original_currency || 'ARS');
+   const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate?.toString() || '1');
+   const [exchangeRateSource, setExchangeRateSource] = useState<'manual' | 'dolar_blue' | 'dolar_crypto'>(initialData?.exchange_rate_source || 'manual');
+   const [isFetchingRate, setIsFetchingRate] = useState(false);
    const [category, setCategory] = useState(initialData?.category || 'General');
    const [saving, setSaving] = useState(false);
    const [splitBetween, setSplitBetween] = useState<string[]>(
@@ -1037,20 +1073,40 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
       setCustomValues(newValues);
    }, [splitMode, splitBetween.length]);
 
+   const fetchRate = async (source: 'dolar_blue' | 'dolar_crypto') => {
+      setIsFetchingRate(true);
+      try {
+         const endpoint = source === 'dolar_crypto' ? 'cripto' : 'blue';
+         const res = await fetch(`https://dolarapi.com/v1/dolares/${endpoint}`);
+         const data = await res.json();
+         if (data && data.venta) {
+            setExchangeRate(data.venta.toString());
+         }
+      } catch (e) {
+         console.error('Error fetching rate', e);
+         setExchangeRate('1000');
+      } finally {
+         setIsFetchingRate(false);
+      }
+   };
+
    const handleSave = async () => {
       if (!title || !amount || splitBetween.length === 0) return;
 
-      const totalAmount = parseFloat(amount);
+      const baseAmount = parseFloat(amount);
+      const rate = parseFloat(exchangeRate) || 1;
+      const totalAmount = currency === 'ARS' ? baseAmount : baseAmount * rate;
       let finalSplits: { userId: string; amount: number }[] = [];
 
       if (splitMode === 'equal') {
-         const base = Math.floor((totalAmount / splitBetween.length) * 100) / 100;
-         let remaining = Math.round((totalAmount - (base * splitBetween.length)) * 100) / 100;
+         const baseShare = Math.floor((baseAmount / splitBetween.length) * 100) / 100;
+         let remaining = Math.round((baseAmount - (baseShare * splitBetween.length)) * 100) / 100;
 
          finalSplits = splitBetween.map((id, index) => {
-            // Assign remainder to the first person in the split (often the payer if they are in it)
             const extra = index === 0 ? remaining : 0;
-            return { userId: id, amount: base + extra };
+            const splitBase = baseShare + extra;
+            const splitAmount = currency === 'ARS' ? splitBase : splitBase * rate;
+            return { userId: id, amount: splitAmount };
          });
       } else if (splitMode === 'percent') {
          // Validate 100%
@@ -1059,21 +1115,23 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
             showToast('El total debe ser 100%', 'error');
             return;
          }
-         finalSplits = splitBetween.map(id => ({
-            userId: id,
-            amount: Math.round((totalAmount * (parseFloat(customValues[id]) / 100)) * 100) / 100
-         }));
+         finalSplits = splitBetween.map(id => {
+            const splitBase = Math.round((baseAmount * (parseFloat(customValues[id]) / 100)) * 100) / 100;
+            const splitAmount = currency === 'ARS' ? splitBase : splitBase * rate;
+            return { userId: id, amount: splitAmount };
+         });
       } else {
          // Amount mode
          const totalCalc = splitBetween.reduce((acc, id) => acc + (parseFloat(customValues[id]) || 0), 0);
-         if (Math.abs(totalCalc - totalAmount) > 0.1) {
+         if (Math.abs(totalCalc - baseAmount) > 0.1) {
             showToast('La suma de los montos debe ser igual al total', 'error');
             return;
          }
-         finalSplits = splitBetween.map(id => ({
-            userId: id,
-            amount: parseFloat(customValues[id])
-         }));
+         finalSplits = splitBetween.map(id => {
+            const splitBase = parseFloat(customValues[id]);
+            const splitAmount = currency === 'ARS' ? splitBase : splitBase * rate;
+            return { userId: id, amount: splitAmount };
+         });
       }
 
       setSaving(true);
@@ -1092,7 +1150,11 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
          splitBetween,
          customSplits: splitsRecord,
          is_recurring: isRecurring,
-         installments: currentInstallment && totalInstallments ? `${currentInstallment}/${totalInstallments}` : null
+         installments: currentInstallment && totalInstallments ? `${currentInstallment}/${totalInstallments}` : null,
+         original_amount: baseAmount,
+         original_currency: currency,
+         exchange_rate: currency === 'ARS' ? undefined : rate,
+         exchange_rate_source: currency === 'ARS' ? undefined : exchangeRateSource
       });
       setSaving(false);
       if (!error) onClose();
@@ -1117,15 +1179,20 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
             onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-md"
          />
-         <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-lg bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
-         >
+          <motion.div
+             initial={{ opacity: 0, scale: 0.95, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+             className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2.5rem] p-7 shadow-2xl border border-border"
+          >
             <div className="flex justify-between items-center mb-5">
                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {initialData ? 'Editar gasto' : 'Nuevo gasto grupal'}
+               {(() => {
+                  if (initialData && isSettlementCategory(initialData.category)) {
+                     return 'Editar liquidación';
+                  }
+                  return initialData ? 'Editar gasto' : 'Nuevo gasto grupal';
+               })()}
                </h3>
                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   <X className="w-5 h-5 text-slate-500" />
@@ -1145,9 +1212,9 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                      />
                   </div>
                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto</label>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Monto ({currency})</label>
                      <div className="relative group/input">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within/input:text-primary">{currency === 'USD' ? 'u$s' : currency === 'EUR' ? '€' : '$'}</span>
                         <input
                            type="number"
                            value={amount}
@@ -1157,6 +1224,89 @@ const GroupTransactionModal: React.FC<GroupTransactionModalProps> = ({ onClose, 
                         />
                      </div>
                   </div>
+               </div>
+
+               <div className="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Moneda</label>
+                     <PremiumDropdown
+                        value={currency}
+                        onChange={(val) => {
+                           setCurrency(val);
+                           if (val === 'ARS') {
+                              setExchangeRateSource('manual');
+                           }
+                           if (val === 'EUR') {
+                              setExchangeRateSource('manual');
+                           }
+                           if (val === 'USD' && exchangeRateSource !== 'manual') {
+                              fetchRate(exchangeRateSource);
+                           }
+                        }}
+                        groups={[
+                           {
+                              title: 'Monedas',
+                              options: [
+                                 { id: 'ARS', label: 'ARS - Pesos', icon: DollarSign, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+                                 { id: 'USD', label: 'USD - Dólares', icon: DollarSign, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+                                 { id: 'EUR', label: 'EUR - Euros', icon: DollarSign, color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' }
+                              ]
+                           }
+                        ]}
+                        className="w-full h-10"
+                     />
+                  </div>
+
+                  {currency !== 'ARS' && (
+                     <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
+                        <div className="flex items-center justify-between mb-2">
+                           <label className="text-xs font-black text-blue-500 uppercase tracking-widest">Tipo de cambio (ARS)</label>
+                           {currency === 'USD' && exchangeRateSource !== 'manual' && (
+                              <button
+                                 onClick={() => fetchRate(exchangeRateSource)}
+                                 disabled={isFetchingRate}
+                                 className="text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+                              >
+                                 {isFetchingRate ? 'Actualizando...' : 'Actualizar'}
+                              </button>
+                           )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                           <button
+                              onClick={() => setExchangeRateSource('manual')}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'manual'
+                                 ? 'bg-blue-500 text-white'
+                                 : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'}`}
+                           >
+                              Manual
+                           </button>
+                           <button
+                              onClick={() => { if (currency === 'USD') { setExchangeRateSource('dolar_blue'); fetchRate('dolar_blue'); } }}
+                              disabled={currency !== 'USD'}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'dolar_blue'
+                                 ? 'bg-blue-600 text-white'
+                                 : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'} ${currency !== 'USD' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                           >
+                              Blue
+                           </button>
+                           <button
+                              onClick={() => { if (currency === 'USD') { setExchangeRateSource('dolar_crypto'); fetchRate('dolar_crypto'); } }}
+                              disabled={currency !== 'USD'}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exchangeRateSource === 'dolar_crypto'
+                                 ? 'bg-blue-600 text-white'
+                                 : 'bg-white/60 dark:bg-black/20 text-slate-400 border border-border'} ${currency !== 'USD' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                           >
+                              Cripto
+                           </button>
+                        </div>
+                        <input
+                           type="number"
+                           value={exchangeRate}
+                           onChange={(e) => setExchangeRate(e.target.value)}
+                           className="w-full bg-white dark:bg-black/20 border border-border rounded-xl px-4 py-3 text-xl font-bold text-blue-600 focus:outline-none"
+                        />
+                     </div>
+                  )}
                </div>
 
                <div>

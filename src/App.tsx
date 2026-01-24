@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AppRoute, Theme } from '@/types/index';
 import Sidebar from '@/components/layout/Sidebar';
@@ -44,6 +44,8 @@ const App: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
+    const mainRef = useRef<HTMLElement | null>(null);
+    const prevMainRoute = useRef<string | null>(null);
 
     useEffect(() => {
         const syncOnboarding = async () => {
@@ -227,6 +229,24 @@ const App: React.FC = () => {
         navigate(AppRoute.DASHBOARD_GROUPS + '/' + groupId);
     };
 
+    const mainRoutes = new Set<string>([
+        AppRoute.DASHBOARD_PERSONAL,
+        AppRoute.DASHBOARD_HEALTH,
+        AppRoute.DASHBOARD_GROUPS,
+        AppRoute.CATEGORIES,
+        AppRoute.IMPORT,
+        AppRoute.AI_HISTORY,
+        AppRoute.SETTINGS
+    ]);
+
+    useEffect(() => {
+        if (!mainRoutes.has(location.pathname)) return;
+        if (prevMainRoute.current !== location.pathname) {
+            mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            prevMainRoute.current = location.pathname;
+        }
+    }, [location.pathname]);
+
     // Public routes: Login, Onboarding, and Invite/Join (no sidebar/header/bottomnav)
     const isPublicRoute =
         location.pathname === AppRoute.LOGIN ||
@@ -277,7 +297,7 @@ const App: React.FC = () => {
                     onNavigate={handleNavigate}
                     onLogout={handleLogOut}
                 />
-                <main className="flex-1 overflow-y-auto relative scroll-smooth pb-[calc(88px+env(safe-area-inset-bottom)+1rem)] md:pb-0">
+                <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain relative scroll-smooth pb-[calc(88px+env(safe-area-inset-bottom)+1rem)] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
                             <Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />

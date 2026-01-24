@@ -49,6 +49,16 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
     const category = transaction.category || 'Varios';
     const amount = Number(transaction.amount);
     const subtext = (transaction as any).payment_method || ((transaction as any).payer?.name ? `Pagado por ${(transaction as any).payer.name}` : '');
+    const originalCurrency = (transaction as any).original_currency;
+    const exchangeRate = (transaction as any).exchange_rate;
+    const exchangeRateSource = (transaction as any).exchange_rate_source as string | undefined;
+    const exchangeRateLabel = exchangeRateSource === 'dolar_blue'
+        ? 'Blue'
+        : exchangeRateSource === 'dolar_crypto'
+            ? 'Cripto'
+            : exchangeRateSource === 'manual'
+                ? 'Manual'
+                : undefined;
 
     // Determine context icon
     const ContextIcon = contextName?.toLowerCase().includes('personal') ? User : Users;
@@ -122,6 +132,14 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
                     {subtext && (
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[150px] md:max-w-none">
                             {subtext}
+                        </p>
+                    )}
+                    {originalCurrency && originalCurrency !== 'ARS' && exchangeRate && (
+                        <p
+                            title={`Tipo de cambio ${exchangeRateLabel ? `${exchangeRateLabel}: ` : ''}${Number(exchangeRate).toLocaleString('es-AR')}`}
+                            className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter"
+                        >
+                            TC {Number(exchangeRate).toLocaleString('es-AR')}{exchangeRateLabel ? ` · ${exchangeRateLabel}` : ''}
                         </p>
                     )}
                 </div>

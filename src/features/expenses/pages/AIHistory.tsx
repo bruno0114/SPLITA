@@ -6,6 +6,7 @@ import { Clock, ChevronRight, FileText, Calendar, ShoppingBag, Eye, BrainCircuit
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import HistoryDetailModal from '../components/HistoryDetailModal';
+import Portal from '@/components/ui/Portal';
 
 const AIHistory: React.FC = () => {
     const { getSessions, updateSessionData } = useAIHistory();
@@ -116,7 +117,7 @@ const AIHistory: React.FC = () => {
                                             {new Date(session.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {session.reimport_count > 0 && (
+                                            {(session.reimport_count ?? 0) > 0 && (
                                                 <span className="bg-amber-500/10 text-amber-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">
                                                     Reimportado {session.reimport_count}
                                                 </span>
@@ -184,15 +185,17 @@ const AIHistory: React.FC = () => {
 
             <AnimatePresence>
                 {selectedSession && (
-                    <HistoryDetailModal
-                        session={selectedSession}
-                        onClose={() => setSelectedSession(null)}
-                        onUpdate={async (id, newData) => {
-                            await updateSessionData(id, newData);
-                            const updatedSessions = sessions.map(s => s.id === id ? { ...s, raw_data: newData } : s);
-                            setSessions(updatedSessions);
-                        }}
-                    />
+                    <Portal>
+                        <HistoryDetailModal
+                            session={selectedSession}
+                            onClose={() => setSelectedSession(null)}
+                            onUpdate={async (id, newData) => {
+                                await updateSessionData(id, newData);
+                                const updatedSessions = sessions.map(s => s.id === id ? { ...s, raw_data: newData } : s);
+                                setSessions(updatedSessions);
+                            }}
+                        />
+                    </Portal>
                 )}
             </AnimatePresence>
         </div>

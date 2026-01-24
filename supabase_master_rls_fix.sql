@@ -163,6 +163,12 @@ CREATE POLICY "Users can delete their categories" ON public.categories FOR DELET
 ALTER TABLE public.ai_import_sessions ADD COLUMN IF NOT EXISTS reimport_count integer DEFAULT 0;
 
 ------------------------------------------------------------------
+-- 6.2 EXCHANGE RATE SOURCE
+------------------------------------------------------------------
+ALTER TABLE public.personal_transactions ADD COLUMN IF NOT EXISTS exchange_rate_source text;
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS exchange_rate_source text;
+
+------------------------------------------------------------------
 -- 7. NOTIFICATIONS
 ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.notifications (
@@ -203,3 +209,46 @@ FOR INSERT WITH CHECK (
 DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
 CREATE POLICY "Users can update their notifications" ON public.notifications
 FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+------------------------------------------------------------------
+-- 8. RPC: GROUP BALANCES PER USER
+------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_group_balances_for_user(p_user_id uuid)
+RETURNS TABLE (
+  group_id uuid,
+  paid_total numeric,
+  owed_total numeric,
+  net_balance numeric
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT
+    gm.group_id,
+    COALESCE((
+      SELECT SUM(t.amount)
+      FROM public.transactions t
+      WHERE t.group_id = gm.group_id AND t.payer_id = p_user_id
+    ), 0) AS paid_total,
+    COALESCE((
+      SELECT SUM(ts.amount_owed)
+      FROM public.transaction_splits ts
+      JOIN public.transactions t ON t.id = ts.transaction_id
+      WHERE ts.user_id = p_user_id AND t.group_id = gm.group_id
+    ), 0) AS owed_total,
+    COALESCE((
+      SELECT SUM(t.amount)
+      FROM public.transactions t
+      WHERE t.group_id = gm.group_id AND t.payer_id = p_user_id
+    ), 0) - COALESCE((
+      SELECT SUM(ts.amount_owed)
+      FROM public.transaction_splits ts
+      JOIN public.transactions t ON t.id = ts.transaction_id
+      WHERE ts.user_id = p_user_id AND t.group_id = gm.group_id
+    ), 0) AS net_balance
+  FROM public.group_members gm
+  WHERE gm.user_id = p_user_id
+  GROUP BY gm.group_id;
+$$;

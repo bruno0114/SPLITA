@@ -115,7 +115,7 @@ const CategoryManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative bg-surface border border-border rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+                className="relative bg-surface border border-border rounded-3xl w-full max-w-2xl overflow-y-auto shadow-2xl flex flex-col max-h-[90vh]"
             >
                 {/* Header */}
                 <div className="p-6 border-b border-border flex items-center justify-between bg-surface/80 backdrop-blur-md sticky top-0 z-10">

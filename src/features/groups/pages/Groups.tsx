@@ -2,15 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Plus, ArrowUpRight, ArrowDownLeft, Receipt, Plane, Home, Beer, Loader2, X, Users, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Group } from '@/types/index';
+import { useLocation } from 'react-router-dom';
 import { useGroups } from '@/features/groups/hooks/useGroups';
+import SkeletonBlock from '@/components/ui/Skeleton';
 
 interface GroupsProps {
    onGroupSelect?: (groupId: string) => void;
 }
 
 const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
-   const { groups, loading, createGroup } = useGroups();
+   const { groups, loading, createGroup, refreshGroups } = useGroups();
+   const location = useLocation();
    const [showCreateModal, setShowCreateModal] = useState(false);
+
+   useEffect(() => {
+      refreshGroups();
+   }, [location.key]);
 
    // Calculate totals based on real groups
    const totalOwedToUser = groups.reduce((acc, g) => acc + (g.userBalance > 0 ? g.userBalance : 0), 0);
@@ -26,8 +33,31 @@ const Groups: React.FC<GroupsProps> = ({ onGroupSelect }) => {
 
    if (loading) {
       return (
-         <div className="flex h-full items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+         <div className="px-6 md:px-12 py-10 max-w-7xl mx-auto space-y-8">
+            <div className="space-y-3">
+               <SkeletonBlock className="h-8 w-40" />
+               <SkeletonBlock className="h-4 w-64" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <SkeletonBlock className="h-28" />
+               <SkeletonBlock className="h-28" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+               <div className="lg:col-span-2 space-y-4">
+                  <SkeletonBlock className="h-6 w-32" />
+                  <div className="space-y-3">
+                     <SkeletonBlock className="h-24" />
+                     <SkeletonBlock className="h-24" />
+                     <SkeletonBlock className="h-24" />
+                  </div>
+               </div>
+               <div className="lg:col-span-1 space-y-4">
+                  <SkeletonBlock className="h-6 w-40" />
+                  <SkeletonBlock className="h-32" />
+               </div>
+            </div>
          </div>
       );
    }

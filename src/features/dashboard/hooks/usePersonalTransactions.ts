@@ -227,6 +227,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
         original_amount?: number;
         original_currency?: string;
         exchange_rate?: number;
+        exchange_rate_source?: 'manual' | 'dolar_blue' | 'dolar_crypto';
         is_recurring?: boolean;
         installments?: string | null;
     }, options?: { skipRefresh?: boolean }) => {
@@ -246,6 +247,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
                     original_amount: data.original_amount,
                     original_currency: data.original_currency,
                     exchange_rate: data.exchange_rate,
+                    exchange_rate_source: data.exchange_rate_source,
                     is_recurring: data.is_recurring,
                     recurring_pattern: data.installments
                 })
@@ -304,6 +306,7 @@ export const usePersonalTransactions = (initialFilters?: TransactionFilters) => 
             if (data.original_amount !== undefined) updateData.original_amount = data.original_amount;
             if (data.original_currency !== undefined) updateData.original_currency = data.original_currency;
             if (data.exchange_rate !== undefined) updateData.exchange_rate = data.exchange_rate;
+            if (data.exchange_rate_source !== undefined) updateData.exchange_rate_source = data.exchange_rate_source;
             if (data.is_recurring !== undefined) updateData.is_recurring = data.is_recurring;
 
             // Map installments to recurring_pattern for DB
