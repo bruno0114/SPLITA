@@ -160,19 +160,35 @@ const EconomicHealth: React.FC = () => {
                            </div>
                         </div>
                      ) : !data.isAiConfigured ? (
+                         <div className="flex flex-col items-center py-6 text-center space-y-4">
+                            <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
+                               <BrainCircuit className="w-6 h-6" />
+                            </div>
+                            <div className="max-w-xs">
+                               <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Potenciá tu análisis con Gemini</p>
+                               <p className="text-xs text-slate-500">Configurá tu propia API Key para obtener consejos financieros expertos basados en tus gastos.</p>
+                            </div>
+                            <button
+                               onClick={() => navigate(AppRoute.SETTINGS)}
+                               className="px-6 py-2 rounded-xl bg-blue-600/10 text-blue-600 text-xs font-bold hover:bg-blue-600/20 transition-all uppercase tracking-widest border border-blue-600/20"
+                            >
+                               Configurar ahora
+                            </button>
+                         </div>
+                     ) : data.transactionCount === 0 ? (
                         <div className="flex flex-col items-center py-6 text-center space-y-4">
-                           <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
-                              <BrainCircuit className="w-6 h-6" />
+                           <div className="size-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500">
+                              <CheckCircle2 className="w-6 h-6" />
                            </div>
                            <div className="max-w-xs">
-                              <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Potenciá tu análisis con Gemini</p>
-                              <p className="text-xs text-slate-500">Configurá tu propia API Key para obtener consejos financieros expertos basados en tus gastos.</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">Gemini está listo</p>
+                              <p className="text-xs text-slate-500">Tu key está configurada. Cargá ingresos y gastos para recibir el análisis personalizado.</p>
                            </div>
                            <button
-                              onClick={() => navigate(AppRoute.SETTINGS)}
-                              className="px-6 py-2 rounded-xl bg-blue-600/10 text-blue-600 text-xs font-bold hover:bg-blue-600/20 transition-all uppercase tracking-widest border border-blue-600/20"
+                              onClick={() => navigate(AppRoute.DASHBOARD_PERSONAL)}
+                              className="px-6 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 text-xs font-bold hover:bg-emerald-500/20 transition-all uppercase tracking-widest border border-emerald-500/20"
                            >
-                              Configurar ahora
+                              Cargar movimientos
                            </button>
                         </div>
                      ) : (

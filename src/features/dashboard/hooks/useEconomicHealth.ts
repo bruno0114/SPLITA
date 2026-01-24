@@ -119,7 +119,8 @@ export const useEconomicHealth = (): { data: EconomicHealthData; loading: boolea
                 score: 0, status: 'fair' as const, statusLabel: 'Sin datos',
                 savingsRate: 0, monthlyIncome: 0, monthlyExpenses: 0, transactionCount: 0,
                 insights: ['Cargá tus primeros movimientos para ver tu score'],
-                aiInsights: [], isAiLoading: false
+                aiInsights: [], isAiLoading: false,
+                isAiConfigured: !!profile?.gemini_api_key
             };
         }
 
