@@ -35,7 +35,7 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({ session, onClos
     const isPdf = (url: string) => /\.pdf$/i.test(url);
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-10">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 md:p-10">
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -106,7 +106,14 @@ const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({ session, onClos
                                 <Calendar className="w-3.5 h-3.5" />
                                 {new Date(session.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
                             </div>
-                            <h2 className="text-xl font-black text-slate-900 dark:text-white">Detalle de Sesión</h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-black text-slate-900 dark:text-white">Detalle de Sesión</h2>
+                                {(session.reimport_count ?? 0) > 0 && (
+                                    <span className="bg-amber-500/10 text-amber-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">
+                                        Reimportado {session.reimport_count}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <button
                             onClick={onClose}

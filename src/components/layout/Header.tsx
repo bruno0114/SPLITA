@@ -189,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
                         </button>
                       )}
                     </div>
-                    <div className="p-1 max-h-[360px] overflow-y-auto custom-scrollbar">
+                    <div className="p-2 max-h-[360px] overflow-y-auto custom-scrollbar space-y-2">
                       {notifications.length === 0 ? (
                         <div className="px-4 py-6 text-xs font-semibold text-slate-500 text-center">No hay notificaciones nuevas.</div>
                       ) : (

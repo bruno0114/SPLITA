@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History } from 'lucide-react';
+import { Settings, Upload, Check, ChevronLeft, ChevronRight, ShoppingBag, ShoppingCart, Coffee, PlayCircle, Fuel, Utensils, Zap, FileText, X, Loader2, Image as ImageIcon, Sparkles, BrainCircuit, Plus, AlertCircle, History, Receipt, CreditCard, BarChart3 } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Transaction, AppRoute } from '@/types/index';
 import { useGroups } from '@/features/groups/hooks/useGroups';
@@ -16,6 +16,7 @@ import { getOffTopicJoke } from '@/lib/ai-prompts';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { Wallet, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -587,6 +588,61 @@ const ImportExpenses: React.FC = () => {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
+            <div className="absolute inset-0 z-0 pointer-events-none">
+              {[
+                { icon: Receipt, color: 'text-blue-400', bg: 'bg-blue-500/10', left: '12%', top: '12%', size: 12, drift: 36, duration: 10, delay: 0 },
+                { icon: CreditCard, color: 'text-emerald-400', bg: 'bg-emerald-500/10', left: '78%', top: '8%', size: 10, drift: 28, duration: 12, delay: 0.4 },
+                { icon: ShoppingBag, color: 'text-purple-400', bg: 'bg-purple-500/10', left: '18%', top: '62%', size: 11, drift: 30, duration: 9, delay: 0.2 },
+                { icon: BarChart3, color: 'text-amber-400', bg: 'bg-amber-500/10', left: '72%', top: '68%', size: 11, drift: 34, duration: 11, delay: 0.6 },
+                { icon: Sparkles, color: 'text-blue-300', bg: 'bg-blue-500/10', left: '45%', top: '20%', size: 8, drift: 24, duration: 8, delay: 0.1 },
+                { icon: Sparkles, color: 'text-indigo-300', bg: 'bg-indigo-500/10', left: '35%', top: '78%', size: 8, drift: 26, duration: 13, delay: 0.5 }
+              ].map((particle, index) => (
+                <motion.div
+                  key={`dropzone-particle-${index}`}
+                  className={`absolute ${particle.bg} ${particle.color} rounded-2xl flex items-center justify-center`}
+                  style={{
+                    left: particle.left,
+                    top: particle.top,
+                    width: `${particle.size * 4}px`,
+                    height: `${particle.size * 4}px`
+                  }}
+                  animate={{
+                    y: [0, particle.drift],
+                    opacity: [0.2, 0.6, 0.2],
+                    rotate: [0, 4, 0]
+                  }}
+                  transition={{
+                    duration: particle.duration,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: particle.delay
+                  }}
+                >
+                  <particle.icon className="w-5 h-5" />
+                </motion.div>
+              ))}
+
+              {[...Array(14)].map((_, i) => (
+                <motion.span
+                  key={`dropzone-dot-${i}`}
+                  className="absolute size-1.5 rounded-full bg-blue-400/30"
+                  style={{
+                    left: `${8 + (i * 6) % 84}%`,
+                    top: `${12 + (i * 9) % 76}%`
+                  }}
+                  animate={{
+                    y: [0, 18],
+                    opacity: [0, 0.6, 0]
+                  }}
+                  transition={{
+                    duration: 6 + (i % 5),
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: i * 0.2
+                  }}
+                />
+              ))}
+            </div>
             <div className="z-10 flex flex-col items-center text-center p-8">
               <div className="size-20 mb-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                 <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
