@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, ArrowDown, ArrowUp, Users, ShoppingBag, DollarSign, Car, Utensils, Loader2, X, Receipt, Edit2, Trash2, AlertTriangle, Calendar, Filter, BarChart3 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePersonalTransactions, TransactionFilters } from '../hooks/usePersonalTransactions';
-import { PersonalTransaction } from '@/types/index';
+import { PersonalTransaction, AppRoute } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import ProjectionCard from '../components/ProjectionCard';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
@@ -54,6 +54,8 @@ const PersonalFinance: React.FC = () => {
   const { showToast } = useToast();
   const { currency, exchangeRate } = useCurrency();
   const location = useLocation();
+  const navigate = useNavigate();
+  const initialModalHandled = React.useRef(false);
 
   const isInitialLoading = loading && transactions.length === 0;
 
@@ -80,6 +82,16 @@ const PersonalFinance: React.FC = () => {
   React.useEffect(() => {
     refreshTransactions();
   }, [location.key]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const shouldOpen = params.get('newTransaction') === '1';
+    if (shouldOpen && !initialModalHandled.current) {
+      setShowModal(true);
+      initialModalHandled.current = true;
+      navigate(AppRoute.DASHBOARD_PERSONAL, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   // Infinite Scroll Observer
   React.useEffect(() => {

@@ -274,7 +274,7 @@ const App: React.FC = () => {
     const sidebarClassName = "hidden md:flex h-full z-20 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] " + (isSidebarCollapsed ? "w-20" : "w-64");
 
     return (
-        <div className="flex min-h-screen w-full bg-background relative text-slate-900 dark:text-slate-100 transition-colors duration-300">
+        <div className="flex min-h-screen w-full bg-background relative text-slate-900 dark:text-slate-100 transition-colors duration-300 items-start">
             {/* Background Ambience */}
             <div className="fixed top-[-10%] right-[-5%] pointer-events-none opacity-10 dark:opacity-20 z-0 transition-opacity duration-300">
                 <div className="w-[600px] h-[600px] bg-blue-600 rounded-full blur-[140px]" />
@@ -284,7 +284,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Sidebar */}
-            <div className={sidebarClassName}>
+            <div className={`${sidebarClassName} md:sticky md:top-0 md:h-screen`}>
                 <Sidebar
                     currentRoute={currentRoute}
                     onNavigate={handleNavigate}
@@ -303,7 +303,7 @@ const App: React.FC = () => {
                     onNavigate={handleNavigate}
                     onLogout={handleLogOut}
                 />
-                <main className="flex-1 relative pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-0">
+                <main className="relative pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
                             <Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />

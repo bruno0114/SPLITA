@@ -21,7 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
   const userAvatar = profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
 
   return (
-    <aside className={`relative border-r border-border bg-surface/80 backdrop-blur-md flex flex-col h-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>
+    <aside className={`relative border-r border-border bg-surface/80 backdrop-blur-md flex flex-col h-screen transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>
 
       {/* Header */}
       <div className="h-20 flex items-center px-5 shrink-0 relative">

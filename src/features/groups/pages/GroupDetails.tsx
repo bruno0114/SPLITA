@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Plus, Settings, Receipt, BarChart3, User, Search, Filter, Share, Loader2, Edit2, Trash2, X, Users, History, Check, ChevronRight, AlertCircle, Sparkles, LayoutGrid, Repeat, CreditCard, DollarSign } from 'lucide-react';
 import { useCategories } from '@/features/analytics/hooks/useCategories';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
@@ -27,6 +27,8 @@ interface GroupDetailsProps {
 const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBack }) => {
    const { groupId: paramGroupId } = useParams<{ groupId: string }>();
    const navigate = useNavigate();
+   const location = useLocation();
+   const initialModalHandled = useRef(false);
    const groupId = propGroupId || paramGroupId;
    const { user } = useAuth();
 
@@ -127,6 +129,17 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
       if (onBack) onBack();
       else navigate(AppRoute.DASHBOARD_GROUPS);
    };
+
+   useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      const shouldOpen = params.get('newExpense') === '1';
+      if (shouldOpen && !initialModalHandled.current) {
+         setEditingTransaction(null);
+         setShowModal(true);
+         initialModalHandled.current = true;
+         navigate(`/grupos/${groupId}`, { replace: true });
+      }
+   }, [location.search, navigate, groupId]);
 
    const handleAddTransaction = () => {
       setEditingTransaction(null);
@@ -358,7 +371,7 @@ const GroupDetails: React.FC<GroupDetailsProps> = ({ groupId: propGroupId, onBac
    }
 
    return (
-      <div className="flex flex-col h-full bg-background relative overflow-hidden">
+      <div className="flex flex-col bg-background relative overflow-hidden">
          {/* Banner */}
          <div className="relative h-48 w-full shrink-0">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background z-10"></div>

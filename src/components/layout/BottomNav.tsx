@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Wallet, LineChart, Users, Sparkles, Plus, X, Receipt, DollarSign, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppRoute } from '@/types/index';
+import { useNavigate } from 'react-router-dom';
+import { useGroups } from '@/context/GroupsContext';
 
 interface BottomNavProps {
   currentRoute: AppRoute;
@@ -10,15 +12,32 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
+  const { groups } = useGroups();
+  const navigate = useNavigate();
 
   const handleAction = (route?: AppRoute) => {
     setIsMenuOpen(false);
     if (route) onNavigate(route);
   };
 
+  const handleNewPersonal = () => {
+    setIsMenuOpen(false);
+    navigate(`${AppRoute.DASHBOARD_PERSONAL}?newTransaction=1`);
+  };
+
+  const handleNewGroup = () => {
+    setIsMenuOpen(false);
+    setIsGroupPickerOpen(true);
+  };
+
+  const handleSelectGroup = (groupId: string) => {
+    setIsGroupPickerOpen(false);
+    navigate(`/grupos/${groupId}?newExpense=1`);
+  };
+
   return (
     <>
-      {/* Action Menu Overlay */}
       {/* Action Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (
@@ -34,7 +53,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-surface rounded-t-[2.5rem] p-8 pb-32 space-y-6 shadow-2xl border-t border-border"
+              className="relative bg-surface rounded-t-[2.5rem] p-8 pb-24 space-y-6 shadow-2xl border-t border-border"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-2">
@@ -59,11 +78,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
                 </button>
 
                 <button
-                  onClick={() => handleAction()} // TODO: Add specific route if needed, currently just closes menu? The original was buttons that don't nav? No, existing buttons didn't have onClick. I need to check where they go.
-                  // The existing buttons were just UI mocks? "Nuevo Gasto Grupal" etc.
-                  // The previous code didn't have onClick handlers for the buttons inside the grid!
-                  // I should probably make them functional or leave them as is if they are placeholders.
-                  // But I'm adding Categories which IS functional.
+                  onClick={handleNewGroup}
                   className="w-full flex items-center gap-4 p-5 rounded-3xl bg-blue-500/10 active:bg-blue-500/20 transition-all group border border-blue-500/20"
                 >
                   <div className="size-14 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
@@ -75,7 +90,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
                   </div>
                 </button>
 
-                <button className="w-full flex items-center gap-4 p-5 rounded-3xl bg-emerald-500/10 active:bg-emerald-500/20 transition-all group border border-emerald-500/20">
+                <button
+                  onClick={handleNewPersonal}
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-emerald-500/10 active:bg-emerald-500/20 transition-all group border border-emerald-500/20"
+                >
                   <div className="size-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
                     <DollarSign className="w-7 h-7" />
                   </div>
@@ -91,7 +109,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
       </AnimatePresence>
 
       {/* Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-border z-50 pb-safe-area-inset-bottom h-[72px] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-border z-50 pb-safe-area-inset-bottom h-[80px] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
         <div className="flex items-center justify-between px-2 h-full">
 
           <div className="flex-1 flex justify-around">
@@ -110,7 +128,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
           </div>
 
           {/* Central Action Button - Tightened */}
-          <div className="relative -top-5 px-1">
+          <div className="relative -top-3 px-1">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`size-14 rounded-full bg-blue-gradient text-white flex items-center justify-center shadow-[0_8px_25px_rgba(0,122,255,0.4)] transition-transform duration-200 active:scale-95 ${isMenuOpen ? 'rotate-45' : ''}`}
@@ -136,6 +154,59 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
 
         </div>
       </div>
+
+      {/* Group Picker */}
+      <AnimatePresence>
+        {isGroupPickerOpen && (
+          <div className="fixed inset-0 z-[110] flex flex-col justify-end md:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsGroupPickerOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              className="relative bg-surface rounded-t-[2.5rem] p-6 pb-24 space-y-4 shadow-2xl border-t border-border"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Elegí un grupo</h3>
+                <button onClick={() => setIsGroupPickerOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {groups.length === 0 ? (
+                <div className="text-sm text-slate-500">
+                  No tenés grupos. Creá uno para cargar gastos compartidos.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                  {groups.map(group => (
+                    <button
+                      key={group.id}
+                      onClick={() => handleSelectGroup(group.id)}
+                      className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border bg-slate-50/60 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
+                    >
+                      <div className="size-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-black">
+                        {group.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{group.name}</p>
+                        <p className="text-[11px] text-slate-500">{group.members.length} miembros</p>
+                      </div>
+                      <Receipt className="w-4 h-4 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
