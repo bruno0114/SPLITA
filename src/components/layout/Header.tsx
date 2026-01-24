@@ -3,6 +3,7 @@ import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, LogOut, Settings, Spli
 import { AppRoute, Theme } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProfile } from '@/features/settings/hooks/useProfile';
 import { useNotifications } from '@/features/notifications/hooks/useNotifications';
@@ -21,6 +22,7 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
   const { profile } = useProfile();
   const { currency, setCurrency, rateSource, setRateSource, exchangeRate, loading: ratesLoading } = useCurrency();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const navigate = useNavigate();
 
   // Get user display data from profile (synced with social/manual updates)
   const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
@@ -196,7 +198,15 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
                         notifications.map((notification) => (
                           <button
                             key={notification.id}
-                            onClick={() => { if (!notification.read_at) markRead(notification.id); }}
+                            onClick={() => {
+                              if (!notification.read_at) {
+                                markRead(notification.id);
+                              }
+                              if (notification.group_id) {
+                                setIsNotificationsOpen(false);
+                                navigate(`/grupos/${notification.group_id}`);
+                              }
+                            }}
                             className={`w-full text-left px-4 py-3 rounded-xl transition-all ${notification.read_at
                               ? 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5'
                               : 'bg-blue-500/10 text-slate-900 dark:text-white hover:bg-blue-500/15'}
