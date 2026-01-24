@@ -212,6 +212,7 @@ const App: React.FC = () => {
     }, []);
 
     const handleNavigate = (route: AppRoute) => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         if (route === AppRoute.GROUP_DETAILS) {
             if (selectedGroupId) navigate(AppRoute.DASHBOARD_GROUPS + '/' + selectedGroupId);
             else navigate(AppRoute.DASHBOARD_GROUPS);
