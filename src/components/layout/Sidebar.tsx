@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
                   </div>
                 </div>
               }
-              label="Importar IA"
+              label="Importar con IA"
               onClick={() => onNavigate(AppRoute.IMPORT)}
               isCollapsed={isCollapsed}
               highlight

@@ -297,7 +297,7 @@ const App: React.FC = () => {
                     onNavigate={handleNavigate}
                     onLogout={handleLogOut}
                 />
-                <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain relative scroll-smooth pb-[calc(88px+env(safe-area-inset-bottom)+1rem)] md:pb-0">
+                <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain relative scroll-smooth pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-0">
                     <Routes>
                         <Route element={<ProtectedRoute />}>
                             <Route path={AppRoute.DASHBOARD_PERSONAL} element={<PersonalFinance />} />
