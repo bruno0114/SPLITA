@@ -41,7 +41,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
       {/* Action Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (
-          <div className="fixed inset-0 z-[100] flex flex-col justify-end md:hidden">
+          <div className="fixed inset-0 z-[40] flex flex-col justify-end md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -53,7 +53,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-surface rounded-t-[2.5rem] p-8 pb-24 space-y-6 shadow-2xl border-t border-border"
+              className="relative z-[45] bg-surface rounded-t-[2.5rem] p-8 pb-6 space-y-6 shadow-2xl border-t border-border mb-[calc(80px+env(safe-area-inset-bottom))]"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-2">
@@ -158,7 +158,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
       {/* Group Picker */}
       <AnimatePresence>
         {isGroupPickerOpen && (
-          <div className="fixed inset-0 z-[110] flex flex-col justify-end md:hidden">
+          <div className="fixed inset-0 z-[40] flex flex-col justify-end md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -170,7 +170,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 30 }}
-              className="relative bg-surface rounded-t-[2.5rem] p-6 pb-24 space-y-4 shadow-2xl border-t border-border"
+              className="relative z-[45] bg-surface rounded-t-[2.5rem] p-6 pb-6 space-y-4 shadow-2xl border-t border-border mb-[calc(80px+env(safe-area-inset-bottom))]"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-1">
