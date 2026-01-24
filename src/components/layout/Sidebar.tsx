@@ -24,8 +24,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
     <aside className={`relative border-r border-border bg-surface/80 backdrop-blur-md flex flex-col h-screen transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>
 
       {/* Header */}
-      <div className="h-20 flex items-center px-5 shrink-0 relative">
-        <div className={`flex items-center gap-3 transition-all duration-500 ${isCollapsed ? 'w-full justify-center' : ''}`}>
+      <div className={`h-20 flex items-center shrink-0 relative ${isCollapsed ? 'px-0' : 'px-5'}`}>
+        <div className={`transition-all duration-500 ${isCollapsed ? 'w-full flex justify-center' : 'flex items-center gap-3'}`}>
           <div className="size-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 z-10">
             <Split className="text-white w-5 h-5" />
           </div>
@@ -125,12 +125,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
       {/* Footer User */}
       <div className="p-4 border-t border-border bg-slate-50/50 dark:bg-black/20 backdrop-blur-sm shrink-0">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className={`size-9 rounded-full border-2 border-white dark:border-slate-700 overflow-hidden bg-cover bg-center shrink-0 shadow-sm transition-all duration-300 ${isCollapsed ? 'scale-100' : 'scale-100'}`} style={{ backgroundImage: `url(${userAvatar})` }}>
-          </div>
-          <div className={`flex-1 min-w-0 transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
-            <p className="text-xs font-bold truncate text-slate-900 dark:text-white">{userDisplayName}</p>
-            <p className="text-[10px] text-slate-500 font-semibold tracking-wide truncate">Plan Gratuito</p>
-          </div>
+          <button
+            onClick={() => onNavigate(AppRoute.SETTINGS)}
+            className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} transition-all w-full text-left justify-start`}
+          >
+            <div className="size-9 rounded-full border-2 border-white dark:border-slate-700 overflow-hidden bg-cover bg-center shrink-0 shadow-sm transition-all duration-300" style={{ backgroundImage: `url(${userAvatar})` }} />
+            <div className={`flex-1 min-w-0 transition-all duration-300 overflow-hidden text-left ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
+              <p className="text-xs font-bold truncate text-slate-900 dark:text-white">{userDisplayName}</p>
+              <p className="text-[10px] text-slate-500 font-semibold tracking-wide truncate">Plan Gratuito</p>
+            </div>
+          </button>
           {!isCollapsed && (
             <button
               onClick={onLogout}

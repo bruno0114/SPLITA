@@ -128,7 +128,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
           </div>
 
           {/* Central Action Button - Tightened */}
-          <div className="relative -top-3 px-1">
+          <div className="relative -top-6 px-1">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`size-14 rounded-full bg-blue-gradient text-white flex items-center justify-center shadow-[0_8px_25px_rgba(0,122,255,0.4)] transition-transform duration-200 active:scale-95 ${isMenuOpen ? 'rotate-45' : ''}`}
