@@ -1,39 +1,41 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, AlertTriangle, Wallet, Lock, LineChart, Sparkles } from 'lucide-react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { X, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import AnimatedPrice from '@/components/ui/AnimatedPrice';
 
 interface ProjectionsModalProps {
     onClose: () => void;
-    currentMonthlySavings: number;
+    summary: {
+        projectedIncome: number;
+        projectedExpense: number;
+        projectedNet: number;
+        averageIncome: number;
+        averageExpense: number;
+        averageNet: number;
+        currentIncome: number;
+        currentExpense: number;
+        currentNet: number;
+        usesFallback: boolean;
+        history: {
+            label: string;
+            income: number;
+            expense: number;
+            net: number;
+        }[];
+    };
 }
 
-const ProjectionsModal: React.FC<ProjectionsModalProps> = ({ onClose, currentMonthlySavings }) => {
-    const [strategy, setStrategy] = useState<'conservative' | 'aggressive'>('conservative');
-    const [monthlyContribution, setMonthlyContribution] = useState(currentMonthlySavings.toString());
-    const [initialCapital, setInitialCapital] = useState('');
+const ProjectionsModal: React.FC<ProjectionsModalProps> = ({ onClose, summary }) => {
+    const maxValue = Math.max(
+        ...summary.history.flatMap(item => [item.income, item.expense]),
+        summary.projectedIncome,
+        summary.projectedExpense,
+        1
+    );
 
-    const calculateCompoundInterest = (p: number, r: number, t: number, pmt: number) => {
-        // A = P(1 + r/n)^(nt) + PMT * (((1 + r/n)^(nt) - 1) / (r/n))
-        // Assuming n=12 (monthly compounding)
-        const n = 12;
-        const rate = r / 100;
-        const principal = p * Math.pow(1 + rate / n, n * t);
-        const contributions = pmt * ((Math.pow(1 + rate / n, n * t) - 1) / (rate / n));
-        return principal + contributions;
-    };
-
-    const projections = useMemo(() => {
-        const p = parseFloat(initialCapital) || 0;
-        const pmt = parseFloat(monthlyContribution) || 0;
-        // Conservative: S&P 500 avg (8%)
-        // Aggressive: Crypto/Tech blend (14%)
-        const rate = strategy === 'conservative' ? 8 : 14;
-
-        return [1, 5, 10, 20].map(years => ({
-            years,
-            amount: calculateCompoundInterest(p, rate, years, pmt)
-        }));
-    }, [initialCapital, monthlyContribution, strategy]);
+    const incomeDelta = summary.currentIncome - summary.averageIncome;
+    const expenseDelta = summary.currentExpense - summary.averageExpense;
+    const netDelta = summary.currentNet - summary.averageNet;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -48,137 +50,119 @@ const ProjectionsModal: React.FC<ProjectionsModalProps> = ({ onClose, currentMon
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-2xl bg-surface rounded-[32px] overflow-hidden shadow-2xl border border-border flex flex-col md:flex-row max-h-[85vh] overflow-y-auto"
+                className="relative w-full max-w-2xl bg-surface rounded-[32px] overflow-hidden shadow-2xl border border-border max-h-[85vh]"
             >
-
-                {/* Sidebar / Controls */}
-                <div className="w-full md:w-1/3 bg-slate-50 dark:bg-black/20 p-6 border-b md:border-b-0 md:border-r border-border flex flex-col">
-                    <div className="flex justify-between items-center mb-6 md:hidden">
-                        <h3 className="font-black text-lg">Proyección</h3>
-                        <button onClick={onClose} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-full">
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-
-                    <div className="space-y-6 flex-1">
-                        <div>
-                            <label className="text-[10px] uppercase font-black text-slate-400 mb-2 block">Ahorro Mensual</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                <input
-                                    type="number"
-                                    value={monthlyContribution}
-                                    onChange={(e) => setMonthlyContribution(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-800 border-none rounded-xl py-3 pl-8 pr-4 font-black shadow-sm"
-                                />
+                <div className="flex flex-col md:flex-row h-full overflow-y-auto md:overflow-visible">
+                    <div className="w-full md:w-1/3 bg-slate-50 dark:bg-black/20 p-6 border-b md:border-b-0 md:border-r border-border flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Proyección mensual</p>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white">Resumen real</h3>
                             </div>
+                            <button onClick={onClose} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-full">
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
 
-                        <div>
-                            <label className="text-[10px] uppercase font-black text-slate-400 mb-2 block">Capital Inicial</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                <input
-                                    type="number"
-                                    value={initialCapital}
-                                    onChange={(e) => setInitialCapital(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full bg-white dark:bg-slate-800 border-none rounded-xl py-3 pl-8 pr-4 font-black shadow-sm"
-                                />
+                        {summary.usesFallback && (
+                            <div className="text-[10px] uppercase tracking-widest text-blue-500 bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2">
+                                Basado en el mes actual por falta de historial.
                             </div>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] uppercase font-black text-slate-400 mb-2 block">Estrategia</label>
-                            <div className="grid grid-cols-2 gap-2 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-                                <button
-                                    onClick={() => setStrategy('conservative')}
-                                    className={`py-2 rounded-lg text-xs font-bold transition-all ${strategy === 'conservative' ? 'bg-white dark:bg-slate-700 shadow text-blue-500' : 'text-slate-500'}`}
-                                >
-                                    Conservador
-                                </button>
-                                <button
-                                    onClick={() => setStrategy('aggressive')}
-                                    className={`py-2 rounded-lg text-xs font-bold transition-all ${strategy === 'aggressive' ? 'bg-white dark:bg-slate-700 shadow text-purple-500' : 'text-slate-500'}`}
-                                >
-                                    Agresivo
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-2 font-medium leading-relaxed">
-                                {strategy === 'conservative'
-                                    ? "Based on S&P 500 historical avg (8%). Safe & steady."
-                                    : "Focus on Tech/Crypto (14%). High risk, high reward."}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="hidden md:block mt-6">
-                        <button
-                            onClick={onClose}
-                            className="w-full py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                        >
-                            Cerrar
-                        </button>
-                    </div>
-                </div>
-
-                {/* Visualization Area */}
-                <div className="flex-1 p-8 bg-surface relative overflow-hidden">
-                    <div className={`absolute -right-20 -top-20 size-96 blur-[120px] opacity-20 rounded-full pointer-events-none transition-colors duration-1000 ${strategy === 'conservative' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-
-                    <div className="relative z-10 h-full flex flex-col">
-                        <div className="mb-8">
-                            <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 flex items-center gap-3">
-                                Futuro Financiero
-                                {strategy === 'aggressive' && <Sparkles className="w-6 h-6 text-purple-500 animate-pulse" />}
-                            </h2>
-                            <p className="text-sm text-slate-500 font-medium">
-                                Proyección estimada usando interés compuesto.
-                                <span className="block mt-1 text-xs opacity-70">*No es asesoramiento financiero.</span>
-                            </p>
-                        </div>
-
-                        <div className="flex-1 grid grid-cols-2 gap-4">
-                            {projections.map((proj, i) => (
-                                <motion.div
-                                    key={proj.years}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: i * 0.1 }}
-                                    className="bg-slate-50 dark:bg-white/5 border border-border p-4 rounded-2xl flex flex-col justify-between group hover:border-primary/30 transition-colors"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="p-2 bg-white dark:bg-white/10 rounded-lg shadow-sm">
-                                            {proj.years === 20 ? <Wallet className="w-4 h-4 text-emerald-500" /> : <LineChart className="w-4 h-4 text-slate-400" />}
-                                        </div>
-                                        <span className="text-xs font-black text-slate-300 uppercase">
-                                            {proj.years} {proj.years === 1 ? 'Año' : 'Años'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                                            ${proj.amount.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                                        </p>
-                                        <p className="text-[10px] font-bold text-slate-400 mt-1">
-                                            Total aportado: ${((parseFloat(initialCapital) || 0) + ((parseFloat(monthlyContribution) || 0) * 12 * proj.years)).toLocaleString('es-AR')}
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-
-                        {strategy === 'aggressive' && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="mt-6 p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center gap-3"
-                            >
-                                <AlertTriangle className="w-5 h-5 text-purple-500" />
-                                <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
-                                    Nota: El mercado cripto es volátil. Esta proyección asume un ciclo alcista sostenido.
-                                </p>
-                            </motion.div>
                         )}
+
+                        <div className="space-y-3">
+                            <div className="bg-white/80 dark:bg-white/5 rounded-2xl p-3 border border-border">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ingresos promedio</p>
+                                <p className="text-lg font-black text-slate-900 dark:text-white mt-1">
+                                    <AnimatedPrice amount={summary.averageIncome} />
+                                </p>
+                            </div>
+                            <div className="bg-white/80 dark:bg-white/5 rounded-2xl p-3 border border-border">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gastos promedio</p>
+                                <p className="text-lg font-black text-slate-900 dark:text-white mt-1">
+                                    <AnimatedPrice amount={summary.averageExpense} />
+                                </p>
+                            </div>
+                            <div className="bg-white/80 dark:bg-white/5 rounded-2xl p-3 border border-border">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Neto promedio</p>
+                                <p className={`text-lg font-black mt-1 ${summary.averageNet >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                    <AnimatedPrice amount={summary.averageNet} />
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 p-6 md:p-8 bg-surface">
+                        <div className="mb-6">
+                            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                                <TrendingUp className="w-3.5 h-3.5" />
+                                Mes actual vs promedio
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div className="bg-white/60 dark:bg-black/20 rounded-2xl p-3 border border-border">
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Ingresos</p>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                                        <AnimatedPrice amount={summary.currentIncome} />
+                                    </p>
+                                    <p className={`text-[10px] font-bold mt-1 flex items-center gap-1 ${incomeDelta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {incomeDelta >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                        <AnimatedPrice amount={incomeDelta} />
+                                    </p>
+                                </div>
+                                <div className="bg-white/60 dark:bg-black/20 rounded-2xl p-3 border border-border">
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Gastos</p>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                                        <AnimatedPrice amount={summary.currentExpense} />
+                                    </p>
+                                    <p className={`text-[10px] font-bold mt-1 flex items-center gap-1 ${expenseDelta <= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {expenseDelta <= 0 ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                                        <AnimatedPrice amount={expenseDelta} />
+                                    </p>
+                                </div>
+                                <div className="bg-white/60 dark:bg-black/20 rounded-2xl p-3 border border-border">
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Neto</p>
+                                    <p className={`text-sm font-black mt-1 ${summary.currentNet >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        <AnimatedPrice amount={summary.currentNet} />
+                                    </p>
+                                    <p className={`text-[10px] font-bold mt-1 flex items-center gap-1 ${netDelta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {netDelta >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                        <AnimatedPrice amount={netDelta} />
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+                                Historial reciente
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {summary.history.map((item) => {
+                                    const incomeHeight = (item.income / maxValue) * 100;
+                                    const expenseHeight = (item.expense / maxValue) * 100;
+                                    return (
+                                        <div key={item.label} className="bg-white/60 dark:bg-black/20 rounded-2xl p-3 border border-border">
+                                            <div className="flex items-end gap-2 h-24">
+                                                <div className="flex flex-col items-center gap-1 flex-1">
+                                                    <div className="w-4 bg-emerald-500/70 rounded-t" style={{ height: `${incomeHeight}%` }} />
+                                                    <span className="text-[9px] uppercase text-slate-400">Ing</span>
+                                                </div>
+                                                <div className="flex flex-col items-center gap-1 flex-1">
+                                                    <div className="w-4 bg-rose-500/70 rounded-t" style={{ height: `${expenseHeight}%` }} />
+                                                    <span className="text-[9px] uppercase text-slate-400">Gas</span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</p>
+                                                <p className={`text-xs font-bold mt-1 ${item.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                    <AnimatedPrice amount={item.net} />
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </motion.div>

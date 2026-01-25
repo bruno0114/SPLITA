@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, LogOut, Settings, Split, ChevronDown, Check, Coins } from 'lucide-react';
+import { ChevronRight, Sun, Moon, Monitor, Bell, Menu, X, LogOut, Settings, Split, ChevronDown, Check, Coins, PiggyBank, Clock } from 'lucide-react';
 import { AppRoute, Theme } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -289,6 +289,16 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
             </div>
 
             <nav className="flex flex-col gap-4 w-full max-w-sm">
+              <MobileMenuItem
+                label="Ahorros"
+                icon={<PiggyBank />}
+                onClick={() => { onNavigate(AppRoute.SAVINGS); setIsMobileMenuOpen(false); }}
+              />
+              <MobileMenuItem
+                label="Historial IA"
+                icon={<Clock />}
+                onClick={() => { onNavigate(AppRoute.AI_HISTORY); setIsMobileMenuOpen(false); }}
+              />
               <MobileMenuItem
                 label="Configuración"
                 icon={<Settings />}

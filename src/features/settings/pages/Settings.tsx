@@ -6,6 +6,8 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { compressToWebP } from '@/lib/image-utils';
 import { supabase } from '@/lib/supabase';
 import { AISettings } from '../components/AISettings';
+import AIChatPreferences from '../components/AIChatPreferences';
+import AIChatConsent from '../components/AIChatConsent';
 
 import { useCurrency } from '@/context/CurrencyContext';
 
@@ -208,6 +210,16 @@ const Settings: React.FC = () => {
                onSave={(key) => updateProfile({ gemini_api_key: key })}
                saving={saving}
             />
+         </section>
+
+         {/* AI Chat Consent */}
+         <section className="space-y-6">
+            <AIChatConsent />
+         </section>
+
+         {/* AI Chat Preferences */}
+         <section className="space-y-6">
+            <AIChatPreferences />
          </section>
 
          {/* Currency Section */}

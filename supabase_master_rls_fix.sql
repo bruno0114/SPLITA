@@ -211,6 +211,127 @@ CREATE POLICY "Users can update their notifications" ON public.notifications
 FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 ------------------------------------------------------------------
+-- 9. SAVINGS & INVESTMENTS
+------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.savings_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  currency text NOT NULL DEFAULT 'ARS',
+  current_balance numeric NOT NULL DEFAULT 0,
+  account_type text NOT NULL DEFAULT 'cash',
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.investment_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  currency text NOT NULL DEFAULT 'ARS',
+  current_balance numeric NOT NULL DEFAULT 0,
+  return_rate_value numeric,
+  return_rate_period text,
+  source_savings_account_id uuid REFERENCES public.savings_accounts(id) ON DELETE SET NULL,
+  last_updated_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.investment_assets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  investment_account_id uuid NOT NULL REFERENCES public.investment_accounts(id) ON DELETE CASCADE,
+  asset_name text NOT NULL,
+  allocated_amount numeric NOT NULL DEFAULT 0,
+  expected_return_value numeric,
+  expected_return_period text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.investment_snapshots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  investment_account_id uuid NOT NULL REFERENCES public.investment_accounts(id) ON DELETE CASCADE,
+  snapshot_date date NOT NULL,
+  balance numeric NOT NULL,
+  note text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.savings_transfers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  savings_account_id uuid NOT NULL REFERENCES public.savings_accounts(id) ON DELETE CASCADE,
+  investment_account_id uuid NOT NULL REFERENCES public.investment_accounts(id) ON DELETE CASCADE,
+  amount numeric NOT NULL,
+  transfer_type text NOT NULL,
+  transfer_date timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.savings_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investment_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investment_assets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investment_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.savings_transfers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their savings accounts" ON public.savings_accounts;
+CREATE POLICY "Users can view their savings accounts" ON public.savings_accounts FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can insert their savings accounts" ON public.savings_accounts;
+CREATE POLICY "Users can insert their savings accounts" ON public.savings_accounts FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can update their savings accounts" ON public.savings_accounts;
+CREATE POLICY "Users can update their savings accounts" ON public.savings_accounts FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can delete their savings accounts" ON public.savings_accounts;
+CREATE POLICY "Users can delete their savings accounts" ON public.savings_accounts FOR DELETE USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view their investment accounts" ON public.investment_accounts;
+CREATE POLICY "Users can view their investment accounts" ON public.investment_accounts FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can insert their investment accounts" ON public.investment_accounts;
+CREATE POLICY "Users can insert their investment accounts" ON public.investment_accounts FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can update their investment accounts" ON public.investment_accounts;
+CREATE POLICY "Users can update their investment accounts" ON public.investment_accounts FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can delete their investment accounts" ON public.investment_accounts;
+CREATE POLICY "Users can delete their investment accounts" ON public.investment_accounts FOR DELETE USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view their investment assets" ON public.investment_assets;
+CREATE POLICY "Users can view their investment assets" ON public.investment_assets FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+DROP POLICY IF EXISTS "Users can insert their investment assets" ON public.investment_assets;
+CREATE POLICY "Users can insert their investment assets" ON public.investment_assets FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+DROP POLICY IF EXISTS "Users can update their investment assets" ON public.investment_assets;
+CREATE POLICY "Users can update their investment assets" ON public.investment_assets FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+DROP POLICY IF EXISTS "Users can delete their investment assets" ON public.investment_assets;
+CREATE POLICY "Users can delete their investment assets" ON public.investment_assets FOR DELETE USING (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+
+DROP POLICY IF EXISTS "Users can view their investment snapshots" ON public.investment_snapshots;
+CREATE POLICY "Users can view their investment snapshots" ON public.investment_snapshots FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+DROP POLICY IF EXISTS "Users can insert their investment snapshots" ON public.investment_snapshots;
+CREATE POLICY "Users can insert their investment snapshots" ON public.investment_snapshots FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.investment_accounts ia WHERE ia.id = investment_account_id AND ia.user_id = auth.uid())
+);
+
+DROP POLICY IF EXISTS "Users can view their savings transfers" ON public.savings_transfers;
+CREATE POLICY "Users can view their savings transfers" ON public.savings_transfers FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.savings_accounts sa
+    WHERE sa.id = savings_account_id AND sa.user_id = auth.uid()
+  )
+);
+DROP POLICY IF EXISTS "Users can insert their savings transfers" ON public.savings_transfers;
+CREATE POLICY "Users can insert their savings transfers" ON public.savings_transfers FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.savings_accounts sa
+    WHERE sa.id = savings_account_id AND sa.user_id = auth.uid()
+  )
+);
+
+------------------------------------------------------------------
 -- 8. RPC: GROUP BALANCES PER USER
 ------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_group_balances_for_user(p_user_id uuid)

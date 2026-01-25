@@ -7,6 +7,7 @@ import SubscriptionModal from '../components/SubscriptionModal';
 import { AppRoute } from '@/types/index';
 import { useCurrency } from '@/context/CurrencyContext';
 import AnimatedPrice from '@/components/ui/AnimatedPrice';
+import { useSavings } from '@/features/savings/hooks/useSavings';
 
 const EconomicHealth: React.FC = () => {
    const { data, loading, refreshAdvice } = useEconomicHealth();
@@ -14,6 +15,8 @@ const EconomicHealth: React.FC = () => {
    const navigate = useNavigate();
    const location = useLocation();
    const [showPremiumModal, setShowPremiumModal] = React.useState(false);
+   const { accounts, investments } = useSavings();
+   const [includeSavings, setIncludeSavings] = React.useState(() => localStorage.getItem('include_savings_health') === 'true');
 
    React.useEffect(() => {
       refreshAdvice();
@@ -33,6 +36,26 @@ const EconomicHealth: React.FC = () => {
          currency: isUSD ? 'USD' : 'ARS',
          maximumFractionDigits: isUSD ? 2 : 0
       }).format(displayVal);
+   };
+
+   const totalSavingsConverted = React.useMemo(() => {
+      const convert = (amount: number, from: string) => {
+         if (from === currency) return amount;
+         if (from === 'ARS' && currency === 'USD') return amount / exchangeRate;
+         if (from === 'USD' && currency === 'ARS') return amount * exchangeRate;
+         if (from === 'ARS' && currency === 'EUR') return amount / exchangeRate;
+         if (from === 'EUR' && currency === 'ARS') return amount * exchangeRate;
+         return amount;
+      };
+      const savings = accounts.reduce((sum, acc) => sum + convert(Number(acc.current_balance || 0), acc.currency), 0);
+      const investment = investments.reduce((sum, inv) => sum + convert(Number(inv.current_balance || 0), inv.currency), 0);
+      return savings + investment;
+   }, [accounts, investments, currency, exchangeRate]);
+
+   const handleToggleSavings = () => {
+      const next = !includeSavings;
+      setIncludeSavings(next);
+      localStorage.setItem('include_savings_health', String(next));
    };
 
    if (loading) {
@@ -112,6 +135,22 @@ const EconomicHealth: React.FC = () => {
                   </div>
                   {/* Background decoration */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
+               </div>
+
+               <div className="flex flex-wrap items-center gap-3">
+                  <button
+                     onClick={handleToggleSavings}
+                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${includeSavings
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                        : 'bg-slate-100 dark:bg-white/5 text-slate-500 border-border'}`}
+                  >
+                     {includeSavings ? 'Balance con ahorros' : 'Ver balance con ahorros'}
+                  </button>
+                  {includeSavings && (
+                     <div className="text-sm font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(totalSavingsConverted + data.monthlyIncome - data.monthlyExpenses)}
+                     </div>
+                  )}
                </div>
 
                {/* AI Analysis Summary */}

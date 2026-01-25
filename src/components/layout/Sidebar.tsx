@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart, Clock } from 'lucide-react';
+import { Wallet, Users, Upload, Settings, LogOut, Split, LineChart, Sparkles, PanelLeftClose, PanelLeftOpen, PieChart, Clock, PiggyBank } from 'lucide-react';
 import { AppRoute } from '@/types/index';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProfile } from '@/features/settings/hooks/useProfile';
@@ -58,6 +58,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isCollapsed
               icon={<Wallet className="w-[20px] h-[20px]" />}
               label="Finanzas"
               onClick={() => onNavigate(AppRoute.DASHBOARD_PERSONAL)}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              active={currentRoute === AppRoute.SAVINGS}
+              icon={<PiggyBank className="w-[20px] h-[20px]" />}
+              label="Ahorros"
+              onClick={() => onNavigate(AppRoute.SAVINGS)}
               isCollapsed={isCollapsed}
             />
             <NavItem

@@ -103,3 +103,15 @@ export const isCurrentMonth = (dateStr: string) => {
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 };
+
+export const apyToDailyRate = (apyPercent: number) => {
+    if (!apyPercent) return 0;
+    const apy = apyPercent / 100;
+    return Math.pow(1 + apy, 1 / 365) - 1;
+};
+
+export const compoundWithApy = (principal: number, apyPercent: number, days: number) => {
+    if (!principal || !apyPercent || days <= 0) return principal;
+    const dailyRate = apyToDailyRate(apyPercent);
+    return principal * Math.pow(1 + dailyRate, days);
+};

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wallet, LineChart, Users, Sparkles, Plus, X, Receipt, DollarSign, LayoutGrid } from 'lucide-react';
+import { Wallet, LineChart, Users, Sparkles, Plus, X, Receipt, DollarSign, LayoutGrid, PiggyBank } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppRoute } from '@/types/index';
 import { useNavigate } from 'react-router-dom';
@@ -78,6 +78,19 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
                 </button>
 
                 <button
+                  onClick={() => handleAction(AppRoute.SAVINGS)}
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-emerald-500/10 active:bg-emerald-500/20 transition-all group border border-emerald-500/20"
+                >
+                  <div className="size-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                    <PiggyBank className="w-7 h-7" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">Ver Ahorros</p>
+                    <p className="text-xs text-slate-500">Cuentas e inversiones</p>
+                  </div>
+                </button>
+
+                <button
                   onClick={handleNewGroup}
                   className="w-full flex items-center gap-4 p-5 rounded-3xl bg-blue-500/10 active:bg-blue-500/20 transition-all group border border-blue-500/20"
                 >
@@ -92,13 +105,13 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentRoute, onNavigate }) => {
 
                 <button
                   onClick={handleNewPersonal}
-                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-emerald-500/10 active:bg-emerald-500/20 transition-all group border border-emerald-500/20"
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl bg-blue-500/10 active:bg-blue-500/20 transition-all group border border-blue-500/20"
                 >
-                  <div className="size-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                  <div className="size-14 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
                     <DollarSign className="w-7 h-7" />
                   </div>
                   <div className="text-left">
-                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">Nuevo Movimiento Personal</p>
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">Nuevo Movimiento Personal</p>
                     <p className="text-xs text-slate-500">Registrar ingreso o gasto propio</p>
                   </div>
                 </button>

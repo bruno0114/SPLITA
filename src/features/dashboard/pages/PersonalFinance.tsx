@@ -18,6 +18,7 @@ import SubscriptionModal from '../components/SubscriptionModal';
 import PremiumConfirmModal from '@/components/ui/PremiumConfirmModal';
 import { useToast } from '@/context/ToastContext';
 import SkeletonBlock from '@/components/ui/Skeleton';
+import { useSavings } from '@/features/savings/hooks/useSavings';
 
 const PersonalFinance: React.FC = () => {
   const {
@@ -56,21 +57,11 @@ const PersonalFinance: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const initialModalHandled = React.useRef(false);
+  const { accounts, investments } = useSavings();
+  const [includeSavings, setIncludeSavings] = useState(() => localStorage.getItem('include_savings') === 'true');
 
   const isInitialLoading = loading && transactions.length === 0;
 
-  const currentMonthExpenses = React.useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    return fullTransactions
-      .filter(t => {
-        const d = new Date(t.date);
-        return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-      })
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  }, [fullTransactions]);
 
   const filteredTransactions = transactions.filter(tx => {
     if (activeType === 'all') return true;
@@ -124,6 +115,29 @@ const PersonalFinance: React.FC = () => {
   const getBalanceChange = () => {
     if (summary.totalIncome === 0) return 0;
     return Math.round((summary.balance / summary.totalIncome) * 100);
+  };
+
+  const totalSavingsConverted = React.useMemo(() => {
+    const convert = (amount: number, from: string) => {
+      if (from === currency) return amount;
+      if (from === 'ARS' && currency === 'USD') return amount / exchangeRate;
+      if (from === 'USD' && currency === 'ARS') return amount * exchangeRate;
+      if (from === 'ARS' && currency === 'EUR') return amount / exchangeRate;
+      if (from === 'EUR' && currency === 'ARS') return amount * exchangeRate;
+      return amount;
+    };
+
+    const savings = accounts.reduce((sum, acc) => sum + convert(Number(acc.current_balance || 0), acc.currency), 0);
+    const investment = investments.reduce((sum, inv) => sum + convert(Number(inv.current_balance || 0), inv.currency), 0);
+    return savings + investment;
+  }, [accounts, investments, currency, exchangeRate]);
+
+  const displayBalance = includeSavings ? summary.balance + totalSavingsConverted : summary.balance;
+
+  const handleToggleSavings = () => {
+    const next = !includeSavings;
+    setIncludeSavings(next);
+    localStorage.setItem('include_savings', String(next));
   };
 
   const handleEdit = (tx: PersonalTransaction) => {
@@ -277,6 +291,16 @@ const PersonalFinance: React.FC = () => {
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Finanzas personales</h2>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Gestioná tus ahorros y gastos individuales.</p>
         </div>
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <button
+            onClick={handleToggleSavings}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${includeSavings
+              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+              : 'bg-slate-100 dark:bg-white/5 text-slate-500 border-border'}`}
+          >
+            {includeSavings ? 'Total con ahorros' : 'Ver total con ahorros'}
+          </button>
+        </div>
         <button
           onClick={() => setShowModal(true)}
           className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-gradient px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:brightness-110 transition-all active:scale-95"
@@ -293,14 +317,19 @@ const PersonalFinance: React.FC = () => {
           <p className="text-blue-600 dark:text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Tu balance general</p>
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-4xl md:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
-              <AnimatedPrice amount={summary.balance} showCode />
+              <AnimatedPrice amount={displayBalance} showCode />
             </span>
           </div>
           <div className="mt-6 flex gap-4">
-            {summary.balance !== 0 && (
+            {displayBalance !== 0 && (
               <div className={`flex items-center gap-2 ${summary.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20'} px-3 py-1 rounded-full text-xs font-bold border`}>
                 {summary.balance >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                 {summary.balance >= 0 ? '+' : ''}{getBalanceChange()}% este mes
+              </div>
+            )}
+            {includeSavings && (
+              <div className="flex items-center gap-2 text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full text-xs font-bold">
+                +{formatCurrency(totalSavingsConverted)} en ahorros
               </div>
             )}
           </div>
@@ -350,7 +379,7 @@ const PersonalFinance: React.FC = () => {
           />
         </div>
         <div className="lg:col-span-1">
-          <ProjectionCard currentSpent={currentMonthExpenses} />
+          <ProjectionCard transactions={fullTransactions} />
         </div>
       </div>
 

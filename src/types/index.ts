@@ -72,6 +72,59 @@ export interface Category {
   created_at?: string;
 }
 
+export type RatePeriod = 'daily' | 'monthly' | 'annual';
+
+export interface SavingsAccount {
+  id: string;
+  user_id: string;
+  name: string;
+  currency: Currency;
+  current_balance: number;
+  account_type: 'cash' | 'investment';
+  created_at?: string;
+}
+
+export interface InvestmentAccount {
+  id: string;
+  user_id: string;
+  name: string;
+  currency: Currency;
+  current_balance: number;
+  return_rate_value?: number | null;
+  return_rate_period?: RatePeriod | null;
+  source_savings_account_id?: string | null;
+  last_updated_at?: string | null;
+  created_at?: string;
+}
+
+export interface SavingsTransfer {
+  id: string;
+  savings_account_id: string;
+  investment_account_id: string;
+  amount: number;
+  transfer_type: 'transfer_invest' | 'transfer_back';
+  transfer_date: string;
+}
+
+export interface InvestmentAsset {
+  id: string;
+  investment_account_id: string;
+  asset_name: string;
+  allocated_amount: number;
+  expected_return_value?: number | null;
+  expected_return_period?: RatePeriod | null;
+  created_at?: string;
+}
+
+export interface InvestmentSnapshot {
+  id: string;
+  investment_account_id: string;
+  snapshot_date: string;
+  balance: number;
+  note?: string | null;
+  created_at?: string;
+}
+
 
 export interface Insight {
   id: string;
@@ -105,7 +158,8 @@ export enum AppRoute {
   IMPORT = '/importar',
   SETTINGS = '/configuracion',
   CATEGORIES = '/categorias',
-  AI_HISTORY = '/historial-ia'
+  AI_HISTORY = '/historial-ia',
+  SAVINGS = '/ahorros'
 }
 
 export type Theme = 'light' | 'dark' | 'system';

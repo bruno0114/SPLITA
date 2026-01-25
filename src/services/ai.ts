@@ -50,7 +50,7 @@ async function smokeTestModel(ai: GoogleGenAI, modelName: string): Promise<boole
  * Dynamically selects the best available model for the given API key.
  * Prioritizes stable models over experimental ones.
  */
-async function getEffectiveModel(ai: GoogleGenAI, apiKey: string): Promise<string> {
+export async function getEffectiveModel(ai: GoogleGenAI, apiKey: string): Promise<string> {
     // Check cache first
     if (modelCache.has(apiKey)) {
         return modelCache.get(apiKey)!;

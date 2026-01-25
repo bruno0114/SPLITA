@@ -16,6 +16,8 @@ import Settings from '@/features/settings/pages/Settings';
 import Categories from '@/features/analytics/pages/Categories';
 import CategoryDetail from '@/features/analytics/pages/CategoryDetail';
 import AIHistory from '@/features/expenses/pages/AIHistory';
+import Savings from '@/features/savings/pages/Savings';
+import ChatBubble from '@/features/assistant/components/ChatBubble';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAuthContext } from '@/features/auth/context/AuthContext';
@@ -243,7 +245,8 @@ const App: React.FC = () => {
         AppRoute.CATEGORIES,
         AppRoute.IMPORT,
         AppRoute.AI_HISTORY,
-        AppRoute.SETTINGS
+        AppRoute.SETTINGS,
+        AppRoute.SAVINGS
     ]);
 
     useEffect(() => {
@@ -312,6 +315,7 @@ const App: React.FC = () => {
                             <Route path={AppRoute.DASHBOARD_GROUPS} element={<Groups onGroupSelect={handleGroupSelect} />} />
                             <Route path={AppRoute.GROUP_DETAILS} element={<GroupDetails groupId={selectedGroupId} onBack={() => navigate(AppRoute.DASHBOARD_GROUPS)} />} />
                             <Route path={AppRoute.CATEGORIES} element={<Categories />} />
+                            <Route path={AppRoute.SAVINGS} element={<Savings />} />
                             <Route path={`${AppRoute.CATEGORIES}/:scope/:categoryId`} element={<CategoryDetail />} />
                             <Route path={AppRoute.IMPORT} element={<ImportExpenses />} />
                             <Route path={AppRoute.AI_HISTORY} element={<AIHistory />} />
@@ -323,6 +327,7 @@ const App: React.FC = () => {
 
                 {/* Bottom Nav */}
                 <BottomNav currentRoute={currentRoute} onNavigate={handleNavigate} />
+                <ChatBubble />
             </div>
 
             {/* Global Invite Confirmation Modal */}
