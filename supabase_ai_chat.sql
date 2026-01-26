@@ -76,3 +76,47 @@ CREATE POLICY "Users can view their chat suggestions" ON public.ai_chat_suggesti
 DROP POLICY IF EXISTS "Users can upsert their chat suggestions" ON public.ai_chat_suggestions;
 CREATE POLICY "Users can upsert their chat suggestions" ON public.ai_chat_suggestions
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 5) Chat sessions (summary + persistence)
+CREATE TABLE IF NOT EXISTS public.ai_chat_sessions (
+  session_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  summary text,
+  summary_updated_at timestamptz,
+  summary_message_count integer NOT NULL DEFAULT 0,
+  last_message_at timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.ai_chat_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their chat sessions" ON public.ai_chat_sessions;
+CREATE POLICY "Users can view their chat sessions" ON public.ai_chat_sessions
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can upsert their chat sessions" ON public.ai_chat_sessions;
+CREATE POLICY "Users can upsert their chat sessions" ON public.ai_chat_sessions
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 6) Chat messages (last 30 kept)
+CREATE TABLE IF NOT EXISTS public.ai_chat_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES public.ai_chat_sessions(session_id) ON DELETE CASCADE,
+  role text NOT NULL,
+  content text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.ai_chat_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their chat messages" ON public.ai_chat_messages;
+CREATE POLICY "Users can view their chat messages" ON public.ai_chat_messages
+  FOR SELECT USING (auth.uid() = (SELECT user_id FROM public.ai_chat_sessions WHERE session_id = ai_chat_messages.session_id));
+
+DROP POLICY IF EXISTS "Users can insert their chat messages" ON public.ai_chat_messages;
+CREATE POLICY "Users can insert their chat messages" ON public.ai_chat_messages
+  FOR INSERT WITH CHECK (auth.uid() = (SELECT user_id FROM public.ai_chat_sessions WHERE session_id = ai_chat_messages.session_id));
+
+DROP POLICY IF EXISTS "Users can delete their chat messages" ON public.ai_chat_messages;
+CREATE POLICY "Users can delete their chat messages" ON public.ai_chat_messages
+  FOR DELETE USING (auth.uid() = (SELECT user_id FROM public.ai_chat_sessions WHERE session_id = ai_chat_messages.session_id));

@@ -14,8 +14,10 @@ import {
     getContextPack,
     getOffTopicResponse,
     isFinanceQuery,
+    isHelpQuery,
     parseChatIntent,
-    sendChatMessage
+    sendChatMessage,
+    summarizeConversation
 } from '@/services/ai-chat';
 
 const DEFAULT_PROMPTS = [
@@ -58,6 +60,16 @@ const applyCurrencySymbol = (value: string, currency: string) => {
     return value.replace(numberRegex, (match) => `${symbol} ${match}`);
 };
 
+const isGreeting = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    return [
+        'hola', 'buenas', 'buen dia', 'buen día', 'buenas tardes', 'buenas noches',
+        'hey', 'que tal', 'qué tal', 'como estas', 'cómo estás'
+    ].some((greeting) => normalized.startsWith(greeting));
+};
+
+const normalizeText = (value: string) => value.trim().toLowerCase();
+
 const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const { user } = useAuth();
     const { profile } = useProfile();
@@ -67,6 +79,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const { prefs, consent } = useAIChatSettings();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_PROMPTS);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionSummary, setSessionSummary] = useState<string | null>(null);
+    const [summaryMessageCount, setSummaryMessageCount] = useState(0);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
@@ -96,6 +111,144 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         };
         setMessages(prev => [...prev, newMessage]);
     };
+
+    const loadSession = useCallback(async () => {
+        if (!user) return;
+        const { data: sessionData } = await supabase
+            .from('ai_chat_sessions')
+            .select('session_id, summary, summary_message_count')
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (sessionData?.session_id) {
+            setSessionId(sessionData.session_id);
+            setSessionSummary(sessionData.summary || null);
+            setSummaryMessageCount(sessionData.summary_message_count || 0);
+            return;
+        }
+
+        const newSessionId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+        const { data: createdSession } = await supabase
+            .from('ai_chat_sessions')
+            .insert({
+                session_id: newSessionId,
+                user_id: user.id,
+                summary: null,
+                summary_message_count: 0,
+                updated_at: new Date().toISOString()
+            })
+            .select('session_id, summary, summary_message_count')
+            .single();
+
+        if (createdSession?.session_id) {
+            setSessionId(createdSession.session_id);
+            setSessionSummary(createdSession.summary || null);
+            setSummaryMessageCount(createdSession.summary_message_count || 0);
+        }
+    }, [user]);
+
+    const loadMessages = useCallback(async (currentSessionId: string) => {
+        const { data: messageRows } = await supabase
+            .from('ai_chat_messages')
+            .select('id, role, content, created_at')
+            .eq('session_id', currentSessionId)
+            .order('created_at', { ascending: true })
+            .limit(40);
+
+        if (messageRows) {
+            setMessages(messageRows.map((row) => ({
+                id: row.id,
+                role: row.role as ChatMessage['role'],
+                content: row.content,
+                createdAt: row.created_at
+            })));
+        }
+    }, []);
+
+    const persistMessage = useCallback(async (currentSessionId: string, role: ChatMessage['role'], content: string) => {
+        await supabase
+            .from('ai_chat_messages')
+            .insert({
+                session_id: currentSessionId,
+                role,
+                content
+            });
+
+        await supabase
+            .from('ai_chat_sessions')
+            .update({
+                last_message_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('session_id', currentSessionId);
+    }, []);
+
+    const trimMessages = useCallback(async (currentSessionId: string) => {
+        const { data: messageRows } = await supabase
+            .from('ai_chat_messages')
+            .select('id')
+            .eq('session_id', currentSessionId)
+            .order('created_at', { ascending: false })
+            .range(30, 200);
+
+        const idsToDelete = (messageRows || []).map((row) => row.id);
+        if (idsToDelete.length > 0) {
+            await supabase
+                .from('ai_chat_messages')
+                .delete()
+                .in('id', idsToDelete);
+        }
+    }, []);
+
+    const updateSummaryIfNeeded = useCallback(async (currentSessionId: string) => {
+        if (!profile?.gemini_api_key) return;
+
+        const { count } = await supabase
+            .from('ai_chat_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('session_id', currentSessionId);
+
+        const totalCount = count || 0;
+        if (totalCount <= 30) return;
+
+        const shouldSummarize = totalCount - summaryMessageCount >= 10 || !sessionSummary;
+        if (!shouldSummarize) return;
+
+        const { data: recentMessages } = await supabase
+            .from('ai_chat_messages')
+            .select('role, content, created_at')
+            .eq('session_id', currentSessionId)
+            .order('created_at', { ascending: true })
+            .limit(30);
+
+        const summary = await summarizeConversation({
+            apiKey: profile.gemini_api_key,
+            existingSummary: sessionSummary,
+            messages: (recentMessages || []).map((row) => ({
+                role: row.role as 'user' | 'assistant',
+                content: row.content
+            }))
+        });
+
+        await supabase
+            .from('ai_chat_sessions')
+            .update({
+                summary,
+                summary_updated_at: new Date().toISOString(),
+                summary_message_count: totalCount,
+                updated_at: new Date().toISOString()
+            })
+            .eq('session_id', currentSessionId);
+
+        setSessionSummary(summary);
+        setSummaryMessageCount(totalCount);
+        await trimMessages(currentSessionId);
+    }, [profile?.gemini_api_key, sessionSummary, summaryMessageCount, trimMessages]);
 
     const loadSuggestions = useCallback(async () => {
         if (!user) return;
@@ -142,8 +295,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         addMessage('user', query);
         trackSuggestion(query);
 
+        if (sessionId) {
+            await persistMessage(sessionId, 'user', query);
+        }
+
+        const normalized = normalizeText(query);
+        const lastUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+        if (lastUserMessage && normalizeText(lastUserMessage.content) === normalized) {
+            const reply = 'Te respondí hace un toque con eso. Si querés, reformulá o pedime un detalle más específico.';
+            addMessage('assistant', reply);
+            if (sessionId) {
+                await persistMessage(sessionId, 'assistant', reply);
+            }
+            return;
+        }
+
+        if (isGreeting(query)) {
+            const reply = '¡Hola! ¿Cómo andás? Preguntame por tus gastos, ingresos, ahorros o cualquier función de SPLITA.';
+            addMessage('assistant', reply);
+            if (sessionId) {
+                await persistMessage(sessionId, 'assistant', reply);
+            }
+            return;
+        }
+
         const financeCheck = isFinanceQuery(query);
-        if (!financeCheck.allowed) {
+        const helpCheck = isHelpQuery(query);
+        if (!financeCheck.allowed && !helpCheck) {
             addMessage('assistant', getOffTopicResponse());
             return;
         }
@@ -174,6 +352,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 ? applyCurrencySymbol(formatted, displayCurrency)
                 : formatted;
             addMessage('assistant', withCurrency);
+
+            if (sessionId) {
+                await persistMessage(sessionId, 'assistant', withCurrency);
+                await updateSummaryIfNeeded(sessionId);
+            }
         } catch (error: any) {
             console.error('[AI Chat] Failed to send message:', error);
             setLocalError('No pude responder en este momento. Probá de nuevo en un ratito.');
@@ -185,6 +368,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     useEffect(() => {
         loadSuggestions();
     }, [loadSuggestions, messages.length]);
+
+    useEffect(() => {
+        loadSession();
+    }, [loadSession]);
+
+    useEffect(() => {
+        if (sessionId) {
+            loadMessages(sessionId);
+        }
+    }, [sessionId, loadMessages]);
 
     return (
         <div className="flex flex-col h-full">
@@ -201,7 +394,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 {onClose && (
                     <button
                         onClick={onClose}
-                        className="size-8 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                        className="size-8 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -238,7 +431,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 {messages.map(message => (
                     <div
                         key={message.id}
-                        className={`p-3 rounded-2xl text-xs leading-relaxed ${message.role === 'user'
+                        className={`p-3 rounded-2xl text-xs leading-relaxed w-fit ${message.role === 'user'
                             ? 'bg-blue-600 text-white ml-auto max-w-[80%]'
                             : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 max-w-[85%]'
                             }`}

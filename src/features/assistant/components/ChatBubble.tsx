@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, X } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import ChatPanel from '@/features/assistant/components/ChatPanel';
 
 const ChatBubble: React.FC = () => {
@@ -37,15 +37,6 @@ const ChatBubble: React.FC = () => {
                             className="absolute inset-0 md:inset-auto md:bottom-[calc(90px+env(safe-area-inset-bottom))] md:right-6 md:w-[380px] md:h-[70vh]"
                         >
                             <div className="h-full bg-surface/95 backdrop-blur-xl border border-border md:rounded-[32px] rounded-none shadow-2xl flex flex-col">
-                                <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-border">
-                                    <div className="text-sm font-bold text-slate-900 dark:text-white">Asistente financiero</div>
-                                    <button
-                                        onClick={() => setIsOpen(false)}
-                                        className="size-8 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 flex items-center justify-center"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
                                 <div className="flex-1 p-5 overflow-hidden">
                                     <ChatPanel onClose={() => setIsOpen(false)} />
                                 </div>
