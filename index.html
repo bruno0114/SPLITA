@@ -127,11 +127,13 @@
       transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
-    @media (max-width: 768px) {
-      input,
-      textarea,
-      select {
-        font-size: 16px;
+    @supports (-webkit-touch-callout: none) {
+      @media (max-width: 768px) {
+        .ios-input-fix input,
+        .ios-input-fix textarea,
+        .ios-input-fix select {
+          font-size: 16px;
+        }
       }
     }
   </style>
@@ -148,7 +150,7 @@
 </script>
 </head>
 
-<body>
+<body class="ios-input-fix">
   <div id="root"></div>
   <script type="module" src="/src/index.tsx"></script>
 </body>
