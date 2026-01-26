@@ -60,15 +60,15 @@ const applyCurrencySymbol = (value: string, currency: string) => {
     return value.replace(numberRegex, (match) => `${symbol} ${match}`);
 };
 
+const normalizeText = (value: string) => value.trim().toLowerCase();
+
 const isGreeting = (value: string) => {
-    const normalized = value.trim().toLowerCase();
+    const normalized = normalizeText(value);
     return [
         'hola', 'buenas', 'buen dia', 'buen día', 'buenas tardes', 'buenas noches',
         'hey', 'que tal', 'qué tal', 'como estas', 'cómo estás'
     ].some((greeting) => normalized.startsWith(greeting));
 };
-
-const normalizeText = (value: string) => value.trim().toLowerCase();
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const { user } = useAuth();
@@ -311,7 +311,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         }
 
         if (isGreeting(query)) {
-            const reply = '¡Hola! ¿Cómo andás? Preguntame por tus gastos, ingresos, ahorros o cualquier función de SPLITA.';
+            const reply = '¡Hola! ¿Cómo andás? Preguntame por tus gastos, ingresos, ahorros o funciones de SPLITA.';
             addMessage('assistant', reply);
             if (sessionId) {
                 await persistMessage(sessionId, 'assistant', reply);
