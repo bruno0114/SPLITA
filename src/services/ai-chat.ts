@@ -866,35 +866,3 @@ export const sendChatMessage = async ({
 
     return result.text?.trim() || 'No pude generar una respuesta con los datos disponibles.';
 };
-
-export const summarizeConversation = async ({
-    apiKey,
-    existingSummary,
-    messages
-}: {
-    apiKey: string;
-    existingSummary?: string | null;
-    messages: { role: 'user' | 'assistant'; content: string }[];
-}) => {
-    const ai = getGeminiClient(apiKey);
-    const model = await getEffectiveModel(ai, apiKey);
-    const formattedMessages = messages.map((message) => `${message.role === 'user' ? 'Usuario' : 'Asistente'}: ${message.content}`).join('\n');
-
-    const prompt = `Resumí la conversación en 2 a 4 líneas. Incluí temas principales y decisiones. No inventes datos.
-Si no hay datos suficientes, decilo. No incluyas ids, claves ni información sensible.
-
-Resumen existente:
-${existingSummary || 'Sin resumen previo'}
-
-Mensajes recientes:
-${formattedMessages}
-
-Resumen:`;
-
-    const result = await ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
-
-    return result.text?.trim() || existingSummary || '';
-};
