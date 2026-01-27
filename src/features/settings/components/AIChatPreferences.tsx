@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sliders, Smile, MessagesSquare, Sparkles } from 'lucide-react';
 import PremiumToggleGroup from '@/components/ui/PremiumToggleGroup';
 import { useAIChatSettings } from '@/features/assistant/hooks/useAIChatSettings';
+import { useToast } from '@/context/ToastContext';
 
 const INTEREST_OPTIONS = [
     { label: 'Ahorro', value: 'ahorro' },
@@ -14,25 +15,36 @@ const INTEREST_OPTIONS = [
 
 const AIChatPreferences: React.FC = () => {
     const { prefs, savePrefs, saving } = useAIChatSettings();
+    const { showToast } = useToast();
     const [tone, setTone] = useState<string[]>([prefs.tone || 'porteño']);
     const [humor, setHumor] = useState<string[]>([prefs.humor || 'soft']);
     const [verbosity, setVerbosity] = useState<string[]>([prefs.verbosity || 'normal']);
     const [interests, setInterests] = useState<string[]>(prefs.interest_topics || []);
     const [customRules, setCustomRules] = useState(prefs.custom_rules || '');
+    const [learningOptIn, setLearningOptIn] = useState(prefs.learning_opt_in || false);
     const [success, setSuccess] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const handleSave = async () => {
+        setErrorMessage(null);
         const { error } = await savePrefs({
             tone: tone[0] || 'porteño',
             humor: (humor[0] as any) || 'soft',
             verbosity: (verbosity[0] as any) || 'normal',
             custom_rules: customRules.trim() ? customRules.trim() : null,
-            interest_topics: interests
+            interest_topics: interests,
+            learning_opt_in: learningOptIn
         });
-        if (!error) {
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+        if (error) {
+            const message = (error as any)?.message || (typeof error === 'string' ? error : 'No pudimos guardar las preferencias.');
+            setErrorMessage(message);
+            showToast(message, 'error');
+            return;
         }
+
+        setSuccess(true);
+        showToast('Preferencias guardadas', 'success');
+        setTimeout(() => setSuccess(false), 3000);
     };
 
     useEffect(() => {
@@ -41,6 +53,7 @@ const AIChatPreferences: React.FC = () => {
         setVerbosity([prefs.verbosity || 'normal']);
         setInterests(prefs.interest_topics || []);
         setCustomRules(prefs.custom_rules || '');
+        setLearningOptIn(prefs.learning_opt_in || false);
     }, [prefs]);
 
     return (
@@ -111,13 +124,20 @@ const AIChatPreferences: React.FC = () => {
 
                 <div className="space-y-2">
                     <div className="text-xs font-bold uppercase tracking-widest text-slate-400">Intereses</div>
-                    <PremiumToggleGroup
-                        options={INTEREST_OPTIONS}
-                        value={interests}
-                        onChange={setInterests}
-                        multi
-                        id="chat-interests"
-                    />
+                    <div className="-mx-2 px-2 md:mx-0 md:px-0">
+                        <div className="flex overflow-x-auto snap-x snap-mandatory md:overflow-visible">
+                            <div className="w-max md:w-full">
+                                <PremiumToggleGroup
+                                    options={INTEREST_OPTIONS}
+                                    value={interests}
+                                    onChange={setInterests}
+                                    multi
+                                    id="chat-interests"
+                                    className="flex-nowrap w-max md:w-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-2">
@@ -130,9 +150,23 @@ const AIChatPreferences: React.FC = () => {
                         className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                     />
                 </div>
+
+                <div className="space-y-2">
+                    <div className="text-xs font-bold uppercase tracking-widest text-slate-400">Aprendizaje global</div>
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+                        <input
+                            type="checkbox"
+                            checked={learningOptIn}
+                            onChange={(event) => setLearningOptIn(event.target.checked)}
+                            className="size-4 rounded border border-border"
+                        />
+                        Permito usar mis preguntas (anonimizadas) para mejorar el chatbot.
+                    </label>
+                </div>
             </div>
 
             <div className="flex items-center justify-end gap-4">
+                {errorMessage && <span className="text-xs font-bold text-red-500">{errorMessage}</span>}
                 {success && <span className="text-xs font-bold text-emerald-600">Preferencias guardadas</span>}
                 <button
                     onClick={handleSave}

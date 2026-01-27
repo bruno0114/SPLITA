@@ -8,6 +8,7 @@ export interface AIChatPrefsData {
     verbosity: 'short' | 'normal' | 'detailed';
     custom_rules: string | null;
     interest_topics: string[];
+    learning_opt_in: boolean;
 }
 
 export interface AIChatConsentData {
@@ -20,7 +21,8 @@ const DEFAULT_PREFS: AIChatPrefsData = {
     humor: 'soft',
     verbosity: 'normal',
     custom_rules: null,
-    interest_topics: []
+    interest_topics: [],
+    learning_opt_in: false
 };
 
 export const useAIChatSettings = () => {
@@ -43,7 +45,7 @@ export const useAIChatSettings = () => {
             const [{ data: prefsData }, { data: consentData }] = await Promise.all([
                 supabase
                     .from('ai_user_prefs')
-                    .select('tone, humor, verbosity, custom_rules, interest_topics')
+                    .select('tone, humor, verbosity, custom_rules, interest_topics, learning_opt_in')
                     .eq('user_id', user.id)
                     .maybeSingle(),
                 supabase
@@ -58,7 +60,8 @@ export const useAIChatSettings = () => {
                 humor: prefsData?.humor || DEFAULT_PREFS.humor,
                 verbosity: prefsData?.verbosity || DEFAULT_PREFS.verbosity,
                 custom_rules: prefsData?.custom_rules || null,
-                interest_topics: prefsData?.interest_topics || []
+                interest_topics: prefsData?.interest_topics || [],
+                learning_opt_in: prefsData?.learning_opt_in ?? DEFAULT_PREFS.learning_opt_in
             });
             setConsent({
                 chat_terms_accepted_at: consentData?.chat_terms_accepted_at || null,

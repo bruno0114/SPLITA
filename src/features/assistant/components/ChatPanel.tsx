@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/features/settings/hooks/useProfile';
+import SkeletonBlock from '@/components/ui/Skeleton';
 import { useGroups } from '@/context/GroupsContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useAIChatSettings } from '@/features/assistant/hooks/useAIChatSettings';
@@ -11,13 +12,18 @@ import { CHAT_TERMS_VERSION } from '@/features/assistant/constants';
 import {
     ChatMessage,
     AIChatPrefs,
+    ChatIntent,
     getContextPack,
     getOffTopicResponse,
     isFinanceQuery,
     isHelpQuery,
     parseChatIntent,
     sendChatMessage,
-    summarizeConversation
+    summarizeConversation,
+    classifyChatIntent,
+    recordLearningExample,
+    resolveIntentKey,
+    matchLearnedIntent
 } from '@/services/ai-chat';
 
 const DEFAULT_PROMPTS = [
@@ -60,6 +66,19 @@ const applyCurrencySymbol = (value: string, currency: string) => {
     return value.replace(numberRegex, (match) => `${symbol} ${match}`);
 };
 
+const stripJsonArtifacts = (value: string) => {
+    const lines = value.split('\n');
+    const cleanedLines = lines.filter((line) => {
+        const trimmed = line.trim();
+        const looksJson = (trimmed.startsWith('{') || trimmed.startsWith('[')) && /"\s*:\s*|\"\s*:\s*/.test(trimmed);
+        return !looksJson;
+    });
+    let cleaned = cleanedLines.join('\n').trim();
+    cleaned = cleaned.replace(/\{[^{}]*"\s*:\s*[^{}]*\}/g, '').trim();
+    cleaned = cleaned.replace(/\[[^\]]*\{[^\]]*\}\s*\]/g, '').trim();
+    return cleaned || value;
+};
+
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
 const isGreeting = (value: string) => {
@@ -70,9 +89,64 @@ const isGreeting = (value: string) => {
     ].some((greeting) => normalized.startsWith(greeting));
 };
 
+const SMALL_TALK_REPLIES = {
+    greeting: [
+        '¡Hola! ¿Cómo andás? Si querés, revisamos tus finanzas.',
+        '¡Buenas! Estoy por acá. ¿Querés ver gastos, ingresos o ahorros?',
+        '¡Hola! ¿Todo bien? Decime y lo vemos.'
+    ],
+    status: [
+        'Bien, gracias. ¿Querés que sigamos con tus finanzas?',
+        'Todo en orden por acá. ¿Revisamos tus ahorros o gastos?',
+        'De diez. Si querés, seguimos con tus números.'
+    ],
+    thanks: [
+        '¡De nada! Si querés, seguimos con tus finanzas.',
+        '¡Un placer! Avisame si querés ver algo más.',
+        '¡A vos! Cuando quieras seguimos.'
+    ],
+    decline: [
+        'Dale, todo bien. Si después querés, lo retomamos.',
+        'Perfecto, lo dejamos por ahora. Cuando quieras seguimos.',
+        'Todo bien, quedo atento si querés volver.'
+    ]
+};
+
+const pickReply = (options: string[]) => options[Math.floor(Math.random() * options.length)];
+
+const getSmallTalkResponse = (value: string, lastAssistantMessage?: string | null) => {
+    const normalized = normalizeText(value);
+    const askedBack = lastAssistantMessage?.includes('?') || false;
+
+    if (normalized.startsWith('hola') || normalized.startsWith('buenas') || normalized.startsWith('buen dia') || normalized.startsWith('buen día')) {
+        return pickReply(SMALL_TALK_REPLIES.greeting);
+    }
+    if (
+        normalized.startsWith('bien') ||
+        normalized.startsWith('todo bien') ||
+        normalized.startsWith('todo joya') ||
+        normalized.startsWith('bien y vos') ||
+        normalized.startsWith('bien y vos?') ||
+        normalized.startsWith('y vos') ||
+        normalized.startsWith('vos como estas') ||
+        normalized.startsWith('vos cómo estás') ||
+        normalized.startsWith('como estas') ||
+        normalized.startsWith('cómo estás')
+    ) {
+        return askedBack ? pickReply(SMALL_TALK_REPLIES.status) : pickReply(SMALL_TALK_REPLIES.greeting);
+    }
+    if (normalized.startsWith('no') || normalized.startsWith('nop') || normalized.startsWith('nah') || normalized.startsWith('no gracias')) {
+        return pickReply(SMALL_TALK_REPLIES.decline);
+    }
+    if (normalized.startsWith('gracias')) {
+        return pickReply(SMALL_TALK_REPLIES.thanks);
+    }
+    return null;
+};
+
 const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const { user } = useAuth();
-    const { profile } = useProfile();
+    const { profile, loading: profileLoading } = useProfile();
     const { groups } = useGroups();
     const { currency: displayCurrency, rateSource, exchangeRate } = useCurrency();
     const navigate = useNavigate();
@@ -85,18 +159,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
+    const [learnedIntents, setLearnedIntents] = useState<{ intent_key: string; examples: string[] }[]>([]);
+    const [lastDialogMode, setLastDialogMode] = useState<'small_talk' | 'finance' | 'help' | 'unknown'>('unknown');
+    const [lastFinanceIntent, setLastFinanceIntent] = useState<ChatIntent['kind'] | null>(null);
 
     const groupSnapshots = useMemo(() => {
         return groups.map(group => ({
             id: group.id,
             name: group.name,
             userBalance: group.userBalance,
-            currency: group.currency
+            currency: group.currency,
+            members: group.members.map((member) => ({ id: member.id, name: member.name }))
         }));
     }, [groups]);
 
     const isTermsAccepted = !!consent.chat_terms_accepted_at && consent.chat_terms_version === CHAT_TERMS_VERSION;
-    const isAiConfigured = !!profile?.gemini_api_key;
+    const isAiConfigured = !profileLoading && !!profile?.gemini_api_key;
     const canChat = isAiConfigured && isTermsAccepted;
 
     const addMessage = (role: ChatMessage['role'], content: string) => {
@@ -110,6 +188,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
             createdAt: new Date().toISOString()
         };
         setMessages(prev => [...prev, newMessage]);
+    };
+
+    const registerDialogMode = (mode: 'small_talk' | 'finance' | 'help') => {
+        setLastDialogMode(mode);
     };
 
     const loadSession = useCallback(async () => {
@@ -267,6 +349,24 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         }
     }, [user]);
 
+    const loadLearnedIntents = useCallback(async () => {
+        if (!user) return;
+        const [{ data: userIntents }, { data: globalIntents }] = await Promise.all([
+            supabase
+                .from('ai_user_intents')
+                .select('intent_key, examples')
+                .eq('user_id', user.id),
+            supabase
+                .from('ai_global_intents')
+                .select('intent_key, examples')
+                .order('sample_count', { ascending: false })
+                .limit(40)
+        ]);
+
+        const merged = [...(userIntents || []), ...(globalIntents || [])];
+        setLearnedIntents(merged);
+    }, [user]);
+
     const trackSuggestion = useCallback(async (prompt: string) => {
         if (!user) return;
         const { data } = await supabase
@@ -310,18 +410,66 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
             return;
         }
 
-        if (isGreeting(query)) {
-            const reply = '¡Hola! ¿Cómo andás? Preguntame por tus gastos, ingresos, ahorros o funciones de SPLITA.';
-            addMessage('assistant', reply);
-            if (sessionId) {
-                await persistMessage(sessionId, 'assistant', reply);
-            }
-            return;
-        }
-
         const financeCheck = isFinanceQuery(query);
         const helpCheck = isHelpQuery(query);
-        if (!financeCheck.allowed && !helpCheck) {
+        const learnedIntent = matchLearnedIntent({ query, intents: learnedIntents });
+        const lastAssistantMessage = [...messages].reverse().find((message) => message.role === 'assistant')?.content || null;
+        const isShortMessage = normalizeText(query).split(/\s+/).filter(Boolean).length <= 3;
+        if (!financeCheck.allowed && !helpCheck && !learnedIntent) {
+            const smallTalk = getSmallTalkResponse(query, lastAssistantMessage);
+            if (smallTalk) {
+                addMessage('assistant', smallTalk);
+                registerDialogMode('small_talk');
+                if (sessionId) {
+                    await persistMessage(sessionId, 'assistant', smallTalk);
+                }
+                return;
+            }
+
+            if (lastDialogMode === 'small_talk' || isShortMessage) {
+                const response = getSmallTalkResponse(query, lastAssistantMessage) || 'Todo bien. Si querés, seguimos después.';
+                addMessage('assistant', response);
+                registerDialogMode('small_talk');
+                if (sessionId) {
+                    await persistMessage(sessionId, 'assistant', response);
+                }
+                return;
+            }
+
+            if (profile?.gemini_api_key) {
+                const classified = await classifyChatIntent({ apiKey: profile.gemini_api_key, query });
+                if (classified === 'small_talk') {
+                    const response = getSmallTalkResponse(query, lastAssistantMessage) || '¡Todo bien por acá! Si querés, preguntame por tus finanzas o funciones de SPLITA.';
+                    addMessage('assistant', response);
+                    registerDialogMode('small_talk');
+                    if (sessionId) {
+                        await persistMessage(sessionId, 'assistant', response);
+                    }
+                    return;
+                }
+                if (classified === 'help') {
+                    const intent = parseChatIntent(query, groupSnapshots);
+                    const context = await getContextPack(user.id, groupSnapshots, {
+                        displayCurrency,
+                        rateSource,
+                        exchangeRate
+                    });
+                    const response = await sendChatMessage({
+                        apiKey: profile.gemini_api_key,
+                        query,
+                        context,
+                        prefs: toPrefsPayload(prefs),
+                        intent
+                    });
+                    addMessage('assistant', response);
+                    registerDialogMode('help');
+                    if (sessionId) {
+                        await persistMessage(sessionId, 'assistant', response);
+                    }
+                    return;
+                }
+            }
+
             addMessage('assistant', getOffTopicResponse());
             return;
         }
@@ -333,12 +481,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
 
         setIsThinking(true);
         try {
-            const intent = parseChatIntent(query, groupSnapshots);
+            let intent = parseChatIntent(query, groupSnapshots);
+            const normalizedQuery = normalizeText(query);
+            const isFollowUp = normalizedQuery === 'y ahora' || normalizedQuery === 'y ahora?' || normalizedQuery === 'ahora' || normalizedQuery === 'y ahora como?';
+            if (intent.kind === 'general' && isFollowUp && lastFinanceIntent) {
+                intent = { ...intent, kind: lastFinanceIntent };
+            }
+            const resolvedIntentKey = resolveIntentKey({ intent, query });
             const context = await getContextPack(user.id, groupSnapshots, {
                 displayCurrency,
                 rateSource,
                 exchangeRate,
-                forceRefresh: intent.kind === 'savings'
+                forceRefresh: intent.kind === 'savings' || intent.kind === 'group_balance' || intent.kind === 'group_debts'
             });
             const response = await sendChatMessage({
                 apiKey: profile.gemini_api_key,
@@ -347,15 +501,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 prefs: toPrefsPayload(prefs),
                 intent
             });
-            const formatted = formatNumericText(response);
+            const formatted = formatNumericText(stripJsonArtifacts(response));
             const withCurrency = ['savings', 'income', 'spend', 'balance', 'group_balance'].includes(intent.kind)
                 ? applyCurrencySymbol(formatted, displayCurrency)
                 : formatted;
             addMessage('assistant', withCurrency);
+            if (intent.kind === 'help') {
+                registerDialogMode('help');
+            } else {
+                registerDialogMode('finance');
+                setLastFinanceIntent(intent.kind);
+            }
 
             if (sessionId) {
                 await persistMessage(sessionId, 'assistant', withCurrency);
                 await updateSummaryIfNeeded(sessionId);
+            }
+
+            if (user) {
+                await recordLearningExample({
+                    userId: user.id,
+                    intentKey: resolvedIntentKey,
+                    query,
+                    optInGlobal: prefs.learning_opt_in
+                });
             }
         } catch (error: any) {
             console.error('[AI Chat] Failed to send message:', error);
@@ -368,6 +537,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     useEffect(() => {
         loadSuggestions();
     }, [loadSuggestions, messages.length]);
+
+    useEffect(() => {
+        loadLearnedIntents();
+    }, [loadLearnedIntents]);
 
     useEffect(() => {
         loadSession();
@@ -401,7 +574,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 )}
             </div>
 
-            {!isAiConfigured && (
+            {profileLoading && (
+                <SkeletonBlock className="mt-4 h-14 rounded-2xl" />
+            )}
+
+            {!profileLoading && !isAiConfigured && (
                 <div className="mt-4 p-3 rounded-2xl bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 mt-0.5" />
                     <div className="text-xs">
@@ -431,9 +608,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 {messages.map(message => (
                     <div
                         key={message.id}
-                        className={`p-3 rounded-2xl text-xs leading-relaxed w-fit ${message.role === 'user'
-                            ? 'bg-blue-600 text-white ml-auto max-w-[80%]'
-                            : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 max-w-[85%]'
+                        className={`w-fit p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] ${message.role === 'user'
+                            ? 'bg-blue-600 text-white self-end'
+                            : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 self-start'
                             }`}
                     >
                         {message.content}

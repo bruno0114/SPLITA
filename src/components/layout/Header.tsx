@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProfile } from '@/features/settings/hooks/useProfile';
+import SkeletonBlock from '@/components/ui/Skeleton';
 import { useNotifications } from '@/features/notifications/hooks/useNotifications';
 
 interface HeaderProps {
@@ -19,14 +20,18 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onNavigate, onLogout }) => {
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const { currency, setCurrency, rateSource, setRateSource, exchangeRate, loading: ratesLoading } = useCurrency();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const navigate = useNavigate();
 
   // Get user display data from profile (synced with social/manual updates)
-  const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
-  const userAvatar = profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`;
+  const userDisplayName = profileLoading
+    ? ''
+    : (profile?.full_name || user?.email?.split('@')[0] || 'Usuario');
+  const userAvatar = profileLoading
+    ? ''
+    : (profile?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=007AFF&color=fff`);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -278,13 +283,26 @@ const Header: React.FC<HeaderProps> = ({ title, currentTheme, onThemeChange, onN
 
             {/* Mobile User Profile Header */}
             <div className="flex flex-col items-center gap-3 mb-4">
-              <div
-                className="size-20 rounded-full border-4 border-white dark:border-slate-700 overflow-hidden bg-cover bg-center shadow-xl"
-                style={{ backgroundImage: `url(${userAvatar})` }}
-              />
+              {profileLoading ? (
+                <SkeletonBlock className="size-20 rounded-full" />
+              ) : (
+                <div
+                  className="size-20 rounded-full border-4 border-white dark:border-slate-700 overflow-hidden bg-cover bg-center shadow-xl"
+                  style={{ backgroundImage: `url(${userAvatar})` }}
+                />
+              )}
               <div className="text-center">
-                <p className="text-xl font-black text-slate-900 dark:text-white leading-tight">{userDisplayName}</p>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Plan Gratuito</p>
+                {profileLoading ? (
+                  <div className="space-y-2">
+                    <SkeletonBlock className="h-4 w-40 rounded-lg" />
+                    <SkeletonBlock className="h-3 w-24 rounded-lg" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xl font-black text-slate-900 dark:text-white leading-tight">{userDisplayName}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Plan Gratuito</p>
+                  </>
+                )}
               </div>
             </div>
 

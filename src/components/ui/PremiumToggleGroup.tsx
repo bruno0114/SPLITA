@@ -57,11 +57,15 @@ const PremiumToggleGroup: React.FC<PremiumToggleGroupProps> = ({
                     >
                         {/* Background for selected state */}
                         {isSelected && (
-                            <motion.div
-                                layoutId={`${id}-bg`}
-                                className="absolute inset-0 bg-blue-gradient -z-10 shadow-lg shadow-blue-500/20"
-                                transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                            />
+                            multi ? (
+                                <div className="absolute inset-0 bg-blue-gradient -z-10 shadow-lg shadow-blue-500/20" />
+                            ) : (
+                                <motion.div
+                                    layoutId={`${id}-bg`}
+                                    className="absolute inset-0 bg-blue-gradient -z-10 shadow-lg shadow-blue-500/20"
+                                    transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                                />
+                            )
                         )}
 
                         {isSelected && (

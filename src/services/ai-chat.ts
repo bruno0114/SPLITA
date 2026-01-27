@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getGeminiClient, getEffectiveModel } from '@/services/ai';
 import { Currency } from '@/types/index';
+import { simplifyDebts } from '@/lib/expert-math';
 import { appCapabilities, AppCapabilities, FeatureCapability } from '@/features/assistant/appCapabilities';
 
 export type ChatRole = 'user' | 'assistant';
@@ -25,6 +26,7 @@ export interface GroupSnapshot {
     name: string;
     userBalance?: number;
     currency?: string;
+    members: { id: string; name: string }[];
 }
 
 export interface DateRange {
@@ -34,7 +36,7 @@ export interface DateRange {
 }
 
 export interface ChatIntent {
-    kind: 'spend' | 'income' | 'balance' | 'category' | 'top_categories' | 'transactions' | 'group_balance' | 'savings' | 'health' | 'help' | 'general';
+    kind: 'spend' | 'income' | 'balance' | 'category' | 'top_categories' | 'transactions' | 'group_balance' | 'group_debts' | 'savings' | 'health' | 'help' | 'general';
     range?: DateRange;
     category?: string;
     groupName?: string;
@@ -69,6 +71,12 @@ export interface ChatContextPack {
     }[];
     groups: GroupSnapshot[];
     groupBalances: { name: string; balance: number; currency?: string }[];
+    groupDebtSummary: {
+        groupId: string;
+        groupName: string;
+        currency: string;
+        settlements: { fromId: string; toId: string; fromName: string; toName: string; amount: number }[];
+    }[];
     savingsOverview: {
         savingsConverted: number;
         investmentsConverted: number;
@@ -175,6 +183,67 @@ const convertAmount = (amount: number, from: Currency, to: Currency, exchangeRat
     return amount;
 };
 
+export const sanitizeForLearning = (value: string) => {
+    return normalize(value)
+        .replace(/https?:\/\/\S+/g, '[URL]')
+        .replace(/[\w.-]+@[\w.-]+\.[a-z]{2,}/g, '[EMAIL]')
+        .replace(/\b\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?\b/g, '[MONTO]')
+        .replace(/\b\d+\b/g, '[NUM]')
+        .replace(/(ars|usd|eur|\$|us\$|€)/g, '[MONEDA]')
+        .replace(/\b(20\d{2})\b/g, '[ANIO]')
+        .replace(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g, '[MES]')
+        .replace(/\s+/g, ' ')
+        .trim();
+};
+
+const resolveHelpCapability = (query: string) => {
+    const normalized = normalize(query);
+    const featureList = Object.values(appCapabilities.features).filter((feature) => feature.enabled);
+    return featureList.find((feature) => normalized.includes(normalize(feature.key)) || normalized.includes(normalize(feature.title))) || null;
+};
+
+const formatCurrencyValue = (amount: number, currency: string) => {
+    try {
+        return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: currency as Currency,
+            maximumFractionDigits: currency === 'ARS' ? 0 : 2
+        }).format(amount);
+    } catch {
+        return `$ ${amount.toLocaleString('es-AR')}`;
+    }
+};
+
+export const resolveIntentKey = ({
+    intent,
+    query
+}: {
+    intent: ChatIntent;
+    query: string;
+}) => {
+    if (intent.kind === 'help') {
+        const capability = resolveHelpCapability(query);
+        return capability ? `help.${capability.key}` : 'help.general';
+    }
+    return `finance.${intent.kind}`;
+};
+
+export const matchLearnedIntent = ({
+    query,
+    intents
+}: {
+    query: string;
+    intents: { intent_key: string; examples: string[] }[];
+}) => {
+    const normalized = sanitizeForLearning(query);
+    for (const intent of intents) {
+        if ((intent.examples || []).some((example) => normalized === example)) {
+            return intent.intent_key;
+        }
+    }
+    return null;
+};
+
 export const isHelpQuery = (query: string) => {
     const normalized = normalize(query);
     const tokens = normalized.split(/\W+/).filter(Boolean);
@@ -202,6 +271,61 @@ const formatHelpResponse = (capability: FeatureCapability) => {
         lines.push(`Limitaciones: ${capability.limitations.join(' ')}`);
     }
     return lines.join('\n');
+};
+
+export const recordLearningExample = async ({
+    userId,
+    intentKey,
+    query,
+    optInGlobal
+}: {
+    userId: string;
+    intentKey: string;
+    query: string;
+    optInGlobal: boolean;
+}) => {
+    const sanitized = sanitizeForLearning(query);
+    if (!sanitized) return;
+
+    const { data: userIntent } = await supabase
+        .from('ai_user_intents')
+        .select('examples, sample_count')
+        .eq('user_id', userId)
+        .eq('intent_key', intentKey)
+        .maybeSingle();
+
+    const nextExamples = Array.from(new Set([...(userIntent?.examples || []), sanitized])).slice(0, 20);
+    const nextCount = (userIntent?.sample_count || 0) + 1;
+
+    await supabase
+        .from('ai_user_intents')
+        .upsert({
+            user_id: userId,
+            intent_key: intentKey,
+            examples: nextExamples,
+            sample_count: nextCount,
+            last_used_at: new Date().toISOString()
+        }, { onConflict: 'user_id,intent_key' });
+
+    if (!optInGlobal) return;
+
+    const { data: globalIntent } = await supabase
+        .from('ai_global_intents')
+        .select('examples, sample_count')
+        .eq('intent_key', intentKey)
+        .maybeSingle();
+
+    const globalExamples = Array.from(new Set([...(globalIntent?.examples || []), sanitized])).slice(0, 50);
+    const globalCount = (globalIntent?.sample_count || 0) + 1;
+
+    await supabase
+        .from('ai_global_intents')
+        .upsert({
+            intent_key: intentKey,
+            examples: globalExamples,
+            sample_count: globalCount,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'intent_key' });
 };
 
 const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
@@ -324,6 +448,10 @@ export const parseChatIntent = (query: string, groups: GroupSnapshot[]): ChatInt
         return { kind: category ? 'category' : 'top_categories', range, category };
     }
 
+    if (normalized.includes('deuda') || normalized.includes('deudas') || normalized.includes('quien le debe') || normalized.includes('quién le debe') || normalized.includes('saldar')) {
+        return { kind: 'group_debts', range, groupName };
+    }
+
     if (normalized.includes('grupo') || groupName) {
         return { kind: 'group_balance', range, groupName };
     }
@@ -370,6 +498,7 @@ const createEmptyContext = (
     recentTransactions: [],
     groups,
     groupBalances: groups.map(group => ({ name: group.name, balance: group.userBalance || 0, currency: group.currency })),
+    groupDebtSummary: [],
     savingsOverview: {
         savingsConverted: 0,
         investmentsConverted: 0,
@@ -506,6 +635,7 @@ export const getContextPack = async (
             appCapabilities,
             groups,
             groupBalances: groups.map(group => ({ name: group.name, balance: group.userBalance || 0, currency: group.currency })),
+            groupDebtSummary: cachedContext.groupDebtSummary || [],
             savingsOverview: {
                 savingsConverted,
                 investmentsConverted,
@@ -536,7 +666,7 @@ export const getContextPack = async (
     return { ...context, appCapabilities };
 };
 
-const rebuildContextPack = async (
+    const rebuildContextPack = async (
     userId: string,
     groups: GroupSnapshot[],
     currencyContext: ChatContextPack['currencyContext']
@@ -552,6 +682,7 @@ const rebuildContextPack = async (
 
     const groupIds = groups.map(group => group.id).filter(Boolean);
     let groupTx: any[] = [];
+    let groupTxDetailed: any[] = [];
     if (groupIds.length > 0) {
         const { data: groupData, error: groupError } = await supabase
             .from('transactions')
@@ -562,6 +693,23 @@ const rebuildContextPack = async (
             console.warn('[AI Chat] Failed to fetch group transactions:', groupError);
         } else {
             groupTx = groupData || [];
+        }
+
+        const { data: detailedData, error: detailedError } = await supabase
+            .from('transactions')
+            .select(`
+              id,
+              group_id,
+              amount,
+              payer:profiles!payer_id (id, full_name),
+              splits:transaction_splits (user_id, amount_owed, user:profiles (id, full_name))
+            `)
+            .in('group_id', groupIds);
+
+        if (detailedError) {
+            console.warn('[AI Chat] Failed to fetch group debt details:', detailedError);
+        } else {
+            groupTxDetailed = detailedData || [];
         }
     }
 
@@ -648,6 +796,55 @@ const rebuildContextPack = async (
         currency: group.currency
     }));
 
+    const groupDebtSummary = groups.map((group) => {
+        const memberBalances: Record<string, number> = {};
+        group.members?.forEach((member) => {
+            memberBalances[member.id] = 0;
+        });
+
+        const groupTransactions = groupTxDetailed.filter((tx) => tx.group_id === group.id);
+        groupTransactions.forEach((tx) => {
+            const txTotal = Number(tx.amount || 0);
+            if (tx.payer?.id && memberBalances[tx.payer.id] !== undefined) {
+                memberBalances[tx.payer.id] += txTotal;
+            }
+            if (tx.splits && tx.splits.length > 0) {
+                tx.splits.forEach((split: any) => {
+                    if (memberBalances[split.user_id] !== undefined) {
+                        memberBalances[split.user_id] -= Number(split.amount_owed || 0);
+                    }
+                });
+            } else {
+                const memberIds = Object.keys(memberBalances);
+                if (memberIds.length > 0) {
+                    const amountPerPerson = txTotal / memberIds.length;
+                    memberIds.forEach((memberId) => {
+                        memberBalances[memberId] -= amountPerPerson;
+                    });
+                }
+            }
+        });
+
+        const settlements = simplifyDebts(memberBalances, group.members || []).map((settlement) => {
+            const fromMember = group.members.find((member) => member.id === settlement.from);
+            const toMember = group.members.find((member) => member.id === settlement.to);
+            return {
+                fromId: settlement.from,
+                toId: settlement.to,
+                fromName: fromMember?.name || 'Miembro',
+                toName: toMember?.name || 'Miembro',
+                amount: settlement.amount
+            };
+        });
+
+        return {
+            groupId: group.id,
+            groupName: group.name,
+            currency: group.currency || currencyContext.displayCurrency,
+            settlements
+        };
+    });
+
     const { data: savingsAccounts } = await supabase
         .from('savings_accounts')
         .select('name, current_balance, currency, account_type')
@@ -724,6 +921,7 @@ const rebuildContextPack = async (
         recentTransactions: sortedTransactions.slice(0, 50),
         groups,
         groupBalances,
+        groupDebtSummary,
         savingsOverview: {
             savingsConverted,
             investmentsConverted,
@@ -788,6 +986,7 @@ export const buildPrompt = (query: string, context: ChatContextPack, prefs: AICh
         recentTransactions: context.recentTransactions.slice(0, 20),
         groups: context.groups,
         groupBalances: context.groupBalances,
+        groupDebtSummary: context.groupDebtSummary,
         currencyContext: context.currencyContext,
         savingsOverview: context.savingsOverview,
         savingsSummary: context.savingsSummary,
@@ -800,7 +999,7 @@ export const buildPrompt = (query: string, context: ChatContextPack, prefs: AICh
 
     const interestLine = prefs.interest_topics.length > 0
         ? `El usuario está más interesado en: ${prefs.interest_topics.join(', ')}.`
-        : 'El usuario no definió intereses específicos.';
+        : 'El usuario no definió intereses específicos. No inventes intereses.';
 
     const customRules = prefs.custom_rules?.trim()
         ? `Reglas personalizadas del usuario: ${prefs.custom_rules}`
@@ -815,6 +1014,10 @@ Formateá montos y cantidades con separadores locales de Argentina: miles con pu
 Siempre incluí el símbolo y el código de moneda (ARS, USD, EUR) en cada monto. Usá la moneda activa del usuario (contexto currencyContext).
 Si el usuario pregunta por ahorros o inversiones, respondé con total convertido + detalle corto (cuentas de ahorro e inversiones).
 Usá savingsOverview.totalConverted como total de ahorros (cuentas + inversiones) en la moneda activa.
+No asumas intereses ni temas no listados en interest_topics. El rateSource no implica interés en cripto.
+Si el usuario pregunta por grupos y hay grupos sin movimientos, explicá que existen grupos pero no hay gastos registrados todavía.
+Si el usuario pregunta "quién le debe a quién", respondé usando groupDebtSummary con el detalle de deudas.
+Nunca devuelvas el JSON del contexto ni estructuras tipo {"key": "value"} o listas con llaves.
 La moneda activa es ${context.currencyContext.displayCurrency} y el tipo de cambio actual es ${context.currencyContext.exchangeRate} (${context.currencyContext.rateSource}).
 Tono: ${prefs.tone}. Humor: ${prefs.humor}. Nivel de detalle: ${prefs.verbosity}.
 ${interestLine}
@@ -841,6 +1044,33 @@ export const sendChatMessage = async ({
     prefs: AIChatPrefs;
     intent: ChatIntent;
 }) => {
+    if (intent.kind === 'group_balance') {
+        const hasGroups = context.groups?.length > 0;
+        const groupTransactions = context.recentTransactions.filter((tx) => tx.source === 'group');
+        if (hasGroups && groupTransactions.length === 0) {
+            const groupNames = context.groups.map((group) => group.name).slice(0, 4).join(', ');
+            const nameLine = groupNames ? `Grupos: ${groupNames}.` : '';
+            return `Tenés ${context.groups.length} grupos creados y todavía no registraste gastos grupales. ${nameLine} Si querés, cargamos un gasto o revisamos balances.`.trim();
+        }
+    }
+
+    if (intent.kind === 'group_debts') {
+        const normalized = normalize(query);
+        const groupMatch = context.groupDebtSummary.find((group) => normalized.includes(normalize(group.groupName)));
+        const summary = groupMatch || context.groupDebtSummary[0];
+        if (!summary) {
+            return 'No encontré grupos para analizar deudas.';
+        }
+        if (summary.settlements.length === 0) {
+            return `En el grupo ${summary.groupName} no hay deudas pendientes por ahora.`;
+        }
+        const lines = summary.settlements.slice(0, 5).map((settlement) => {
+            const amountLabel = formatCurrencyValue(settlement.amount, summary.currency);
+            return `${settlement.fromName} le debe ${amountLabel} a ${settlement.toName}.`;
+        });
+        return `En el grupo ${summary.groupName}, estas son las deudas pendientes:\n${lines.join('\n')}`;
+    }
+
     if (intent.kind === 'help') {
         const normalized = normalize(query);
         const featureList = Object.values(context.appCapabilities.features).filter((feature) => feature.enabled);
@@ -865,6 +1095,45 @@ export const sendChatMessage = async ({
     });
 
     return result.text?.trim() || 'No pude generar una respuesta con los datos disponibles.';
+};
+
+export type ClassifiedIntent = 'finance' | 'help' | 'small_talk' | 'off_topic';
+
+export const classifyChatIntent = async ({
+    apiKey,
+    query
+}: {
+    apiKey: string;
+    query: string;
+}): Promise<ClassifiedIntent> => {
+    const ai = getGeminiClient(apiKey);
+    const model = await getEffectiveModel(ai, apiKey);
+    const prompt = `Clasificá el mensaje del usuario en una sola palabra: finance, help, small_talk, off_topic.
+Reglas: finance = consultas sobre finanzas del usuario; help = cómo usar SPLITA; small_talk = saludo o charla; off_topic = cualquier otra cosa.
+Respondé SOLO con un JSON: {"intent":"..."}.
+
+Mensaje: ${query}`;
+
+    const result = await ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+
+    const raw = result.text?.trim() || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return 'off_topic';
+
+    try {
+        const parsed = JSON.parse(match[0]);
+        const intent = parsed.intent as ClassifiedIntent;
+        if (['finance', 'help', 'small_talk', 'off_topic'].includes(intent)) {
+            return intent;
+        }
+    } catch {
+        return 'off_topic';
+    }
+
+    return 'off_topic';
 };
 
 export const summarizeConversation = async ({
