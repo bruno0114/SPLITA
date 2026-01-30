@@ -17,6 +17,8 @@ import AnimatedPrice from '@/components/ui/AnimatedPrice';
 import PremiumDropdown from '@/components/ui/PremiumDropdown';
 import { Wallet, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import * as XLSX from 'xlsx';
+import * as mammoth from 'mammoth';
 
 // Define the stages of the import process
 type ImportStep = 'upload' | 'processing' | 'review' | 'saving';
@@ -78,11 +80,63 @@ const ImportExpenses: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastLoadedSessionId = useRef<string | null>(null);
 
+  const isSupportedFile = (file: File) => {
+    const type = file.type || '';
+    const name = file.name.toLowerCase();
+    const isImage = type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(name);
+    const isPdf = type === 'application/pdf' || name.endsWith('.pdf');
+    const isSpreadsheet = /\.(xlsx|xls)$/i.test(name)
+      || type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      || type === 'application/vnd.ms-excel';
+    const isDocx = name.endsWith('.docx')
+      || type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return isImage || isPdf || isSpreadsheet || isDocx;
+  };
+
+  const fileToArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const fileToTextPart = async (file: File): Promise<string> => {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+      const buffer = await fileToArrayBuffer(file);
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheets = workbook.SheetNames.map((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+        return `Hoja: ${sheetName}\n${csv}`;
+      }).join('\n\n');
+      return `Contenido de planilla (CSV):\n${sheets}`.trim();
+    }
+
+    if (name.endsWith('.docx')) {
+      const buffer = await fileToArrayBuffer(file);
+      const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+      return `Contenido de documento:\n${result.value || ''}`.trim();
+    }
+
+    return '';
+  };
+
   // --- Handlers ---
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+      const incoming = Array.from(e.target.files!);
+      const supported = incoming.filter(isSupportedFile);
+      const rejected = incoming.filter(file => !isSupportedFile(file));
+      if (rejected.length > 0) {
+        setError('Solo se aceptan imágenes, PDFs, XLS/XLSX o DOCX.');
+      }
+      if (supported.length > 0) {
+        setFiles(prev => [...prev, ...supported]);
+      }
     }
   };
 
@@ -99,7 +153,15 @@ const ImportExpenses: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+      const incoming = Array.from(e.dataTransfer.files);
+      const supported = incoming.filter(isSupportedFile);
+      const rejected = incoming.filter(file => !isSupportedFile(file));
+      if (rejected.length > 0) {
+        setError('Solo se aceptan imágenes, PDFs, XLS/XLSX o DOCX.');
+      }
+      if (supported.length > 0) {
+        setFiles(prev => [...prev, ...supported]);
+      }
     }
   };
 
@@ -128,8 +190,15 @@ const ImportExpenses: React.FC = () => {
 
       // 2. Prepare for Gemini
       const fileParts = await Promise.all(files.map(async file => {
+        const lowerName = file.name.toLowerCase();
+        const isSpreadsheet = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+        const isDocx = lowerName.endsWith('.docx');
+        if (isSpreadsheet || isDocx) {
+          const text = await fileToTextPart(file);
+          return { text };
+        }
         const base64Data = await fileToGenerativePart(file);
-        const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const mimeType = file.type || (lowerName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
         return { data: base64Data, mimeType };
       }));
 
@@ -650,7 +719,14 @@ const ImportExpenses: React.FC = () => {
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Arrastrá archivos acá</h3>
               <p className="text-slate-500">o hacé click para explorar</p>
             </div>
-            <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,application/pdf" onChange={handleFileSelect} />
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              multiple
+              accept="image/*,application/pdf,.xls,.xlsx,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleFileSelect}
+            />
           </div>
 
           {/* File List & Action */}

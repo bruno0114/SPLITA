@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, MessageCircle, Send, Settings, X } from 'lucide-react';
+import { AlertTriangle, MessageCircle, Send, Settings, X, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
@@ -162,6 +162,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
     const [learnedIntents, setLearnedIntents] = useState<{ intent_key: string; examples: string[] }[]>([]);
     const [lastDialogMode, setLastDialogMode] = useState<'small_talk' | 'finance' | 'help' | 'unknown'>('unknown');
     const [lastFinanceIntent, setLastFinanceIntent] = useState<ChatIntent['kind'] | null>(null);
+    const [offTopicStreak, setOffTopicStreak] = useState(0);
+    const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
     const groupSnapshots = useMemo(() => {
         return groups.map(group => ({
@@ -192,6 +194,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
 
     const registerDialogMode = (mode: 'small_talk' | 'finance' | 'help') => {
         setLastDialogMode(mode);
+    };
+
+    const resetOffTopicStreak = () => {
+        setOffTopicStreak(0);
     };
 
     const loadSession = useCallback(async () => {
@@ -231,6 +237,36 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
             setSessionId(createdSession.session_id);
             setSessionSummary(createdSession.summary || null);
             setSummaryMessageCount(createdSession.summary_message_count || 0);
+        }
+    }, [user]);
+
+    const resetChat = useCallback(async () => {
+        if (!user) return;
+        const newSessionId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+        const { data: createdSession } = await supabase
+            .from('ai_chat_sessions')
+            .insert({
+                session_id: newSessionId,
+                user_id: user.id,
+                summary: null,
+                summary_message_count: 0,
+                updated_at: new Date().toISOString()
+            })
+            .select('session_id, summary, summary_message_count')
+            .single();
+
+        if (createdSession?.session_id) {
+            setSessionId(createdSession.session_id);
+            setSessionSummary(createdSession.summary || null);
+            setSummaryMessageCount(createdSession.summary_message_count || 0);
+            setMessages([]);
+            setInput('');
+            setLocalError(null);
+            setLastDialogMode('unknown');
+            setLastFinanceIntent(null);
         }
     }, [user]);
 
@@ -357,10 +393,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 .select('intent_key, examples')
                 .eq('user_id', user.id),
             supabase
-                .from('ai_global_intents')
-                .select('intent_key, examples')
-                .order('sample_count', { ascending: false })
-                .limit(40)
+                .rpc('get_global_intents', { p_limit: 40 })
         ]);
 
         const merged = [...(userIntents || []), ...(globalIntents || [])];
@@ -415,19 +448,37 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         const learnedIntent = matchLearnedIntent({ query, intents: learnedIntents });
         const lastAssistantMessage = [...messages].reverse().find((message) => message.role === 'assistant')?.content || null;
         const isShortMessage = normalizeText(query).split(/\s+/).filter(Boolean).length <= 3;
-        if (!financeCheck.allowed && !helpCheck && !learnedIntent) {
+        const isOffTopic = !financeCheck.allowed && !helpCheck && !learnedIntent;
+        if (isOffTopic) {
             const smallTalk = getSmallTalkResponse(query, lastAssistantMessage);
-            if (smallTalk) {
-                addMessage('assistant', smallTalk);
+            const nextOffTopicStreak = offTopicStreak + 1;
+            setOffTopicStreak(nextOffTopicStreak);
+
+            if (nextOffTopicStreak >= 2) {
+                const response = 'Necesito que para que avancemos me hagas preguntas sobre tus finanzas.';
+                addMessage('assistant', response);
                 registerDialogMode('small_talk');
                 if (sessionId) {
-                    await persistMessage(sessionId, 'assistant', smallTalk);
+                    await persistMessage(sessionId, 'assistant', response);
+                }
+                return;
+            }
+
+            if (smallTalk) {
+                const followUp = lastDialogMode === 'finance'
+                    ? `${smallTalk} Seguimos con tus finanzas o querés terminar acá?`
+                    : smallTalk;
+                addMessage('assistant', followUp);
+                registerDialogMode('small_talk');
+                if (sessionId) {
+                    await persistMessage(sessionId, 'assistant', followUp);
                 }
                 return;
             }
 
             if (lastDialogMode === 'small_talk' || isShortMessage) {
-                const response = getSmallTalkResponse(query, lastAssistantMessage) || 'Todo bien. Si querés, seguimos después.';
+                const response = getSmallTalkResponse(query, lastAssistantMessage)
+                    || 'Todo bien. Si querés, seguimos después.';
                 addMessage('assistant', response);
                 registerDialogMode('small_talk');
                 if (sessionId) {
@@ -473,6 +524,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
             addMessage('assistant', getOffTopicResponse());
             return;
         }
+
+        resetOffTopicStreak();
 
         if (!profile?.gemini_api_key) {
             addMessage('assistant', 'Necesito que configures tu API Key de Gemini en Configuración para responder.');
@@ -528,7 +581,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
             }
         } catch (error: any) {
             console.error('[AI Chat] Failed to send message:', error);
-            setLocalError('No pude responder en este momento. Probá de nuevo en un ratito.');
+            const errorMessage = String(error?.message || '');
+            if (errorMessage === 'RATE_LIMIT') {
+                setLocalError('Se alcanzó el límite de uso de Gemini. Probá de nuevo más tarde.');
+            } else if (errorMessage === 'INVALID_KEY') {
+                setLocalError('Tu API Key de Gemini es inválida. Revisala en Configuración.');
+            } else if (errorMessage === 'NO_SUITABLE_MODEL') {
+                setLocalError('No hay modelos disponibles para tu llave o región.');
+            } else {
+                setLocalError('No pude responder en este momento. Probá de nuevo en un ratito.');
+            }
         } finally {
             setIsThinking(false);
         }
@@ -552,6 +614,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
         }
     }, [sessionId, loadMessages]);
 
+    useEffect(() => {
+        if (!scrollRef.current) return;
+        requestAnimationFrame(() => {
+            const container = scrollRef.current;
+            if (!container) return;
+            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        });
+    }, [messages.length, isThinking]);
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -564,14 +635,23 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                         <p className="text-[11px] text-slate-500">Solo finanzas SPLITA</p>
                     </div>
                 </div>
-                {onClose && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={onClose}
+                        onClick={resetChat}
                         className="size-8 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
+                        title="Limpiar chat"
                     >
-                        <X className="w-4 h-4" />
+                        <RefreshCw className="w-4 h-4" />
                     </button>
-                )}
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="size-8 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {profileLoading && (
@@ -599,7 +679,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ onClose }) => {
                 </div>
             )}
 
-            <div className="flex-1 mt-4 space-y-3 overflow-y-auto pr-2">
+            <div ref={scrollRef} className="flex-1 mt-4 space-y-3 overflow-y-auto pr-2">
                 {messages.length === 0 && (
                     <div className="border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 text-xs text-slate-500">
                         Probá con un keyword o preguntá por un mes específico.

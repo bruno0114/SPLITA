@@ -309,23 +309,11 @@ export const recordLearningExample = async ({
 
     if (!optInGlobal) return;
 
-    const { data: globalIntent } = await supabase
-        .from('ai_global_intents')
-        .select('examples, sample_count')
-        .eq('intent_key', intentKey)
-        .maybeSingle();
-
-    const globalExamples = Array.from(new Set([...(globalIntent?.examples || []), sanitized])).slice(0, 50);
-    const globalCount = (globalIntent?.sample_count || 0) + 1;
-
     await supabase
-        .from('ai_global_intents')
-        .upsert({
-            intent_key: intentKey,
-            examples: globalExamples,
-            sample_count: globalCount,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'intent_key' });
+        .rpc('record_global_intent_example', {
+            p_intent_key: intentKey,
+            p_example: sanitized
+        });
 };
 
 const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);

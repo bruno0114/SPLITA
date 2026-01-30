@@ -49,7 +49,7 @@ const AnimatedPrice: React.FC<AnimatedPriceProps> = ({
     }).format(displayAmount);
 
     return (
-        <div className={`relative inline-block overflow-hidden ${className}`}>
+        <span className={`relative inline-block overflow-hidden ${className}`}>
             <AnimatePresence mode="wait">
                 <motion.span
                     key={currency}
@@ -75,7 +75,7 @@ const AnimatedPrice: React.FC<AnimatedPriceProps> = ({
 
             {/* Glow Effect on Change */}
             <AnimatePresence>
-                <motion.div
+                <motion.span
                     key={currency + "_glow"}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: [0, 0.4, 0], scale: [0.8, 1.2, 1.4] }}
@@ -83,7 +83,7 @@ const AnimatedPrice: React.FC<AnimatedPriceProps> = ({
                     className="absolute inset-0 bg-blue-400 blur-xl rounded-full -z-10"
                 />
             </AnimatePresence>
-        </div>
+        </span>
     );
 };
 

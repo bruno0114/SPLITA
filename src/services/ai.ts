@@ -30,23 +30,6 @@ export const getGeminiClient = (userKey?: string | null) => {
 };
 
 /**
- * Performs a minimal smoke test on a model to verify generateContent capability.
- */
-async function smokeTestModel(ai: GoogleGenAI, modelName: string): Promise<boolean> {
-    try {
-        const result = await ai.models.generateContent({
-            model: modelName,
-            contents: [{ role: 'user', parts: [{ text: 'OK' }] }],
-            config: { maxOutputTokens: 5 }
-        });
-        return !!(result && result.text);
-    } catch (error) {
-        console.warn(`[AI Service] Smoke test failed for ${modelName}:`, error);
-        return false;
-    }
-}
-
-/**
  * Dynamically selects the best available model for the given API key.
  * Prioritizes stable models over experimental ones.
  */
@@ -62,29 +45,31 @@ export async function getEffectiveModel(ai: GoogleGenAI, apiKey: string): Promis
     let availableModels: string[] = [];
 
     try {
-        // Try to list models (best-effort)
         const response = await ai.models.list();
         availableModels = response.page.map(m => m.name.replace('models/', ''));
         console.log("[AI Service] Available models:", availableModels);
-    } catch (error) {
+    } catch (error: any) {
+        const message = String(error?.message || '');
+        if (message.includes('API_KEY_INVALID') || message.includes('not valid')) {
+            throw new Error("INVALID_KEY");
+        }
+        if (message.includes('429') || message.toLowerCase().includes('quota')) {
+            throw new Error("RATE_LIMIT");
+        }
         console.warn("[AI Service] Could not list models, using fallback list.", error);
     }
 
-    // Determine candidates to test
-    const toTest = availableModels.length > 0
+    const preferred = availableModels.length > 0
         ? [...stableCandidates.filter(c => availableModels.includes(c)), ...expCandidates.filter(c => availableModels.includes(c))]
         : [...stableCandidates, ...expCandidates];
 
-    // Find the first one that passes the smoke test
-    for (const modelName of toTest) {
-        if (await smokeTestModel(ai, modelName)) {
-            console.log(`[AI Service] Selected and cached model: ${modelName}`);
-            modelCache.set(apiKey, modelName);
-            return modelName;
-        }
+    if (preferred.length === 0) {
+        throw new Error("NO_SUITABLE_MODEL");
     }
 
-    throw new Error("NO_SUITABLE_MODEL");
+    const selected = preferred[0];
+    modelCache.set(apiKey, selected);
+    return selected;
 }
 
 /**
@@ -236,17 +221,21 @@ export const getDailyAdvice = async (
  * Service to extract expenses from images/PDFs using Gemini.
  * Uses dynamic model selection to avoid 404 errors.
  */
+type AIFilePart = { data: string; mimeType: string } | { text: string };
+
 export const extractExpensesFromImages = async (
     apiKey: string,
-    files: { data: string, mimeType: string }[]
+    files: AIFilePart[]
 ) => {
     try {
         const ai = getGeminiClient(apiKey);
         const model = await getEffectiveModel(ai, apiKey);
 
-        const parts = files.map(file => ({
-            inlineData: file
-        }));
+        const parts = files.map(file => (
+            'text' in file
+                ? { text: file.text }
+                : { inlineData: file }
+        ));
 
         parts.push({
             text: EXTRACTION_PROMPT
